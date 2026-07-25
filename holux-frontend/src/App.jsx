@@ -2878,8 +2878,8 @@ export default function App() {
                   Una selección especial recomendada por nuestros expertos
                 </p>
 
-                {/* Desktop Slider Wrapper */}
-                <div className="hidden sm:block relative mt-8 px-0 sm:px-12">
+                {/* Slider Wrapper (Visible on all screens with touch scrolling on mobile) */}
+                <div className="relative mt-8 px-0 sm:px-12">
                   {/* Left Arrow */}
                   <button
                     onClick={() => scrollContainer(destacadosRef, 'left')}
