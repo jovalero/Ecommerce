@@ -158,4 +158,30 @@ class SupabaseService
             'query' => ['id' => 'eq.' . $id]
         ], $useServiceKey);
     }
+
+    /**
+     * Upload binary object/file to Supabase Storage Bucket.
+     */
+    public function uploadStorageFile(string $bucket, string $path, string $fileContent, string $mimeType = 'image/png'): string
+    {
+        $url = config('services.supabase.url');
+        $key = config('services.supabase.service_key') ?: config('services.supabase.anon_key');
+
+        $client = new Client([
+            'base_uri' => rtrim($url, '/') . '/storage/v1/',
+            'headers' => [
+                'apikey' => $key,
+                'Authorization' => 'Bearer ' . $key,
+                'Content-Type' => $mimeType,
+                'x-upsert' => 'true',
+            ],
+            'timeout' => 30.0,
+        ]);
+
+        $client->request('POST', "object/{$bucket}/{$path}", [
+            'body' => $fileContent,
+        ]);
+
+        return rtrim($url, '/') . "/storage/v1/object/public/{$bucket}/{$path}";
+    }
 }

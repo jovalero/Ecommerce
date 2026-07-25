@@ -116,4 +116,11 @@ Route::prefix('admin')->middleware(['throttle:api', 'auth.supabase', 'auth.admin
     Route::get('/reviews', [AdminReviewController::class, 'index']); // get all reviews (approved/pending)
     Route::patch('/reviews/{id}', [AdminReviewController::class, 'update']); // approve/reject
     Route::delete('/reviews/{id}', [AdminReviewController::class, 'destroy']); // delete review
+
+    // Store Settings
+    Route::get('/settings', [\App\Http\Controllers\Admin\SettingController::class, 'index']);
+    Route::post('/settings', [\App\Http\Controllers\Admin\SettingController::class, 'update']);
+
+    // Media Upload (Supabase Storage CDN)
+    Route::post('/upload', [\App\Http\Controllers\Admin\MediaUploadController::class, 'store']);
 });
