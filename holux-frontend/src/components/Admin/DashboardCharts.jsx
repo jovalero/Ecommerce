@@ -12,12 +12,14 @@ export default function DashboardCharts({ adminStats, productsList, ordersList }
     );
   }
 
-  // Calculate Low Stock Products (< 10 units)
-  const lowStockProducts = (productsList || []).filter(p => p.stock < 10);
+  // Calculate Low Stock Products (sorted ascending, lowest stock first)
+  const sortedByStockAsc = [...(productsList || [])].sort((a, b) => Number(a.stock) - Number(b.stock));
+  const lowStockFiltered = sortedByStockAsc.filter(p => Number(p.stock) <= 12);
+  const displayLowStock = lowStockFiltered.length > 0 ? lowStockFiltered : sortedByStockAsc.slice(0, 4);
   
   // Best and worst sellers ranking
   const bestSellers = adminStats.best_sellers || [];
-  const sortedByStockDesc = [...(productsList || [])].sort((a, b) => b.stock - a.stock);
+  const sortedByStockDesc = [...(productsList || [])].sort((a, b) => Number(b.stock) - Number(a.stock));
   const worstSellers = sortedByStockDesc.slice(0, 5);
 
   // Mock revenue chart points for visualization based on timeframe
@@ -191,15 +193,15 @@ export default function DashboardCharts({ adminStats, productsList, ordersList }
               </h3>
             </div>
             <span className="bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full font-mono-custom">
-              {lowStockProducts.length}
+              {displayLowStock.length}
             </span>
           </div>
 
           <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
-            {lowStockProducts.length === 0 ? (
+            {displayLowStock.length === 0 ? (
               <p className="text-xs text-gray-500 text-center py-6">Todo el inventario tiene niveles óptimos de stock.</p>
             ) : (
-              lowStockProducts.map(prod => (
+              displayLowStock.map(prod => (
                 <div key={prod.id} className="flex items-center justify-between bg-white p-3 rounded border border-red-100 shadow-sm">
                   <div className="space-y-0.5">
                     <p className="text-xs font-bold text-gray-800 line-clamp-1">{prod.name}</p>
@@ -264,24 +266,28 @@ export default function DashboardCharts({ adminStats, productsList, ordersList }
           </h3>
 
           <div className="space-y-3">
-            {worstSellers.map((item, idx) => (
-              <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100">
-                <div className="flex items-center gap-3">
-                  <span className="w-6 h-6 rounded-full bg-amber-500 text-white flex items-center justify-center text-xs font-black font-mono-custom">
-                    {idx + 1}
-                  </span>
-                  <div>
-                    <p className="text-xs font-bold text-gray-800 line-clamp-1">{item.name}</p>
-                    <p className="text-[10px] text-gray-400">{item.brand}</p>
+            {worstSellers.length === 0 ? (
+              <p className="text-xs text-gray-400 text-center py-4">No hay productos registrados en el inventario.</p>
+            ) : (
+              worstSellers.map((item, idx) => (
+                <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100">
+                  <div className="flex items-center gap-3">
+                    <span className="w-6 h-6 rounded-full bg-amber-500 text-white flex items-center justify-center text-xs font-black font-mono-custom">
+                      {idx + 1}
+                    </span>
+                    <div>
+                      <p className="text-xs font-bold text-gray-800 line-clamp-1">{item.name}</p>
+                      <p className="text-[10px] text-gray-400">{item.brand}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-xs font-bold text-amber-700 font-mono-custom bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                      {item.stock} un. en stock
+                    </span>
                   </div>
                 </div>
-                <div className="text-right">
-                  <span className="text-xs font-bold text-amber-700 font-mono-custom bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
-                    {item.stock} un. en stock
-                  </span>
-                </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
 

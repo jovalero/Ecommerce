@@ -451,6 +451,54 @@ export default function App() {
     tickerRef.current.scrollLeft = tickerScrollLeft - walk;
   };
 
+  // Mouse drag scrolling state for Novedades
+  const [isNovedadesDragging, setIsNovedadesDragging] = useState(false);
+  const [novedadesStartX, setNovedadesStartX] = useState(0);
+  const [novedadesScrollLeft, setNovedadesScrollLeft] = useState(0);
+
+  const handleNovedadesMouseDown = (e) => {
+    if (!novedadesRef.current) return;
+    setIsNovedadesDragging(true);
+    setNovedadesStartX(e.pageX - novedadesRef.current.offsetLeft);
+    setNovedadesScrollLeft(novedadesRef.current.scrollLeft);
+  };
+
+  const handleNovedadesMouseLeaveOrUp = () => {
+    setIsNovedadesDragging(false);
+  };
+
+  const handleNovedadesMouseMove = (e) => {
+    if (!isNovedadesDragging || !novedadesRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - novedadesRef.current.offsetLeft;
+    const walk = (x - novedadesStartX) * 1.5;
+    novedadesRef.current.scrollLeft = novedadesScrollLeft - walk;
+  };
+
+  // Mouse drag scrolling state for Destacados
+  const [isDestacadosDragging, setIsDestacadosDragging] = useState(false);
+  const [destacadosStartX, setDestacadosStartX] = useState(0);
+  const [destacadosScrollLeft, setDestacadosScrollLeft] = useState(0);
+
+  const handleDestacadosMouseDown = (e) => {
+    if (!destacadosRef.current) return;
+    setIsDestacadosDragging(true);
+    setDestacadosStartX(e.pageX - destacadosRef.current.offsetLeft);
+    setDestacadosScrollLeft(destacadosRef.current.scrollLeft);
+  };
+
+  const handleDestacadosMouseLeaveOrUp = () => {
+    setIsDestacadosDragging(false);
+  };
+
+  const handleDestacadosMouseMove = (e) => {
+    if (!isDestacadosDragging || !destacadosRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - destacadosRef.current.offsetLeft;
+    const walk = (x - destacadosStartX) * 1.5;
+    destacadosRef.current.scrollLeft = destacadosScrollLeft - walk;
+  };
+
   // Middle Promo Installment Banner State (6 cuotas)
   const [promoBanner, setPromoBanner] = useState({
     tag: 'PROMOCIÓN DE TEMPORADA',
@@ -964,7 +1012,11 @@ export default function App() {
   // Sync admin tabs with data fetching
   useEffect(() => {
     if (currentView === 'admin') {
-      if (adminTab === 'dashboard') fetchAdminStats();
+      if (adminTab === 'dashboard') {
+        fetchAdminStats();
+        fetchAdminProducts();
+        fetchAdminOrders();
+      }
       if (adminTab === 'orders') fetchAdminOrders();
       if (adminTab === 'products') {
         fetchAdminProducts();
@@ -1577,7 +1629,7 @@ export default function App() {
           {/* Admin Main Body */}
           <main className="flex-grow p-8 overflow-y-auto bg-gray-50 text-left">
             {adminTab === 'dashboard' && (
-              <DashboardCharts adminStats={adminStats} productsList={adminProductsList} ordersList={adminOrdersList} />
+              <DashboardCharts adminStats={adminStats} productsList={adminProductsList && adminProductsList.length > 0 ? adminProductsList : products} ordersList={adminOrdersList} />
             )}
 
             {adminTab === 'banners' && (
@@ -2523,8 +2575,8 @@ export default function App() {
                 Descubrí los últimos lanzamientos de nuestra colección de montaña
               </p>
               
-              {/* Desktop Slider Wrapper */}
-              <div className="hidden sm:block relative mt-8 px-0 sm:px-12">
+              {/* Slider Wrapper (Visible on all screens with touch scrolling on mobile) */}
+              <div className="relative mt-8 px-0 sm:px-12">
                 {/* Left Arrow */}
                 <button
                   onClick={() => scrollContainer(novedadesRef, 'left')}
@@ -2536,7 +2588,11 @@ export default function App() {
                 {/* Snap Scroll Container */}
                 <div 
                   ref={novedadesRef}
-                  className="flex gap-6 overflow-x-auto scroll-smooth snap-x snap-mandatory scrollbar-hide py-4"
+                  onMouseDown={handleNovedadesMouseDown}
+                  onMouseUp={handleNovedadesMouseLeaveOrUp}
+                  onMouseLeave={handleNovedadesMouseLeaveOrUp}
+                  onMouseMove={handleNovedadesMouseMove}
+                  className="flex gap-6 overflow-x-auto scroll-smooth snap-x snap-mandatory scrollbar-hide py-4 select-none cursor-default"
                 >
                   {[...products].reverse().slice(0, 8).map(product => {
                     const discount = getProductDiscount(product.name);
@@ -2664,113 +2720,6 @@ export default function App() {
                 </button>
               </div>
 
-              {/* Mobile Single Card View (with side arrows) */}
-              {products.length > 0 && (() => {
-                const novedadesMobileList = [...products].reverse().slice(0, 8);
-                const len = novedadesMobileList.length || 1;
-                const activeIdx = currentNovedadesMobileIdx % len;
-                const product = novedadesMobileList[activeIdx];
-                if (!product) return null;
-                const discount = getProductDiscount(product.name);
-                return (
-                  <div className="block sm:hidden relative max-w-[320px] mx-auto px-8 mt-6">
-                    {/* Left Arrow */}
-                    <button
-                      onClick={() => {
-                        const prevIdx = (activeIdx - 1 + len) % len;
-                        setCurrentNovedadesMobileIdx(prevIdx);
-                      }}
-                      className="absolute left-0 top-[40%] transform -translate-y-1/2 text-black hover:text-[#3C6E71] p-1 cursor-pointer transition-colors"
-                    >
-                      <ChevronLeft className="w-7 h-7 stroke-[2.5]" />
-                    </button>
-
-                    {/* Product Card */}
-                    <div className="bg-white border border-gray-200 rounded-lg overflow-hidden flex flex-col justify-between shadow hover:shadow-md transition-all duration-300">
-                      {/* Image Area */}
-                      <div 
-                        onClick={() => handleProductClick(product)}
-                        className="relative bg-gray-50 aspect-square overflow-hidden border-b border-gray-100 cursor-pointer"
-                      >
-                        {discount > 0 && (
-                          <span className="absolute top-3 left-3 bg-[#B85C38] text-white text-[9px] font-display font-bold tracking-widest px-2 py-0.5 rounded shadow z-10">
-                            {discount}% OFF
-                          </span>
-                        )}
-                        {product.stock <= 3 && product.stock > 0 && (
-                          <span className="absolute top-3 right-3 bg-[#B85C38] text-white text-[9px] font-display font-medium tracking-widest px-2 py-0.5 rounded">
-                            ÚLTIMAS {product.stock} UNIDADES
-                          </span>
-                        )}
-                        {product.stock === 0 && (
-                          <span className="absolute top-3 right-3 bg-red-600 text-white text-[9px] font-display font-medium tracking-widest px-2 py-0.5 rounded">
-                            SIN STOCK
-                          </span>
-                        )}
-                        <img 
-                          src={getProductImage(product.name)} 
-                          alt={product.name} 
-                          className="absolute inset-0 w-full h-full object-cover"
-                        />
-                      </div>
-
-                      {/* Details info */}
-                      <div className="p-5 flex-grow flex flex-col justify-between space-y-3">
-                        <div className="space-y-1.5 text-left">
-                          <div className="text-xs text-gray-500 font-bold uppercase tracking-widest font-sans">
-                            {product.brand.toUpperCase()}
-                          </div>
-                          <h3 
-                            onClick={() => handleProductClick(product)}
-                            className="font-sans font-bold text-gray-900 text-sm tracking-wide line-clamp-2 hover:text-[#3C6E71] transition-colors cursor-pointer"
-                          >
-                            {product.name}
-                          </h3>
-                          <div className="flex items-baseline gap-2 pt-1">
-                            <span className="text-base font-black text-gray-900 font-sans">
-                              ${Math.round(product.price).toLocaleString('es-AR')}
-                            </span>
-                            {discount > 0 && (
-                              <span className="text-xs text-gray-400 line-through font-sans">
-                                ${Math.round(product.price * (1 + discount / 100)).toLocaleString('es-AR')}
-                              </span>
-                            )}
-                          </div>
-                          {product.installments > 0 && (
-                            <div className="text-xs text-[#7E3793] font-bold font-sans">
-                              {product.installments} cuotas de ${Math.round(product.price / product.installments).toLocaleString('es-AR')}
-                            </div>
-                          )}
-                        </div>
-
-                        <button
-                          onClick={(e) => { e.stopPropagation(); handleProductClick(product); }}
-                          disabled={product.stock === 0}
-                          className={`w-full py-3 rounded font-sans text-xs font-bold tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer ${
-                            product.stock > 0 
-                              ? 'bg-[#1C2321] text-white hover:bg-black' 
-                              : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                          }`}
-                        >
-                          AGREGAR AL CARRITO
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Right Arrow */}
-                    <button
-                      onClick={() => {
-                        const nextIdx = (activeIdx + 1) % len;
-                        setCurrentNovedadesMobileIdx(nextIdx);
-                      }}
-                      className="absolute right-0 top-[40%] transform -translate-y-1/2 text-black hover:text-[#3C6E71] p-1 cursor-pointer transition-colors"
-                    >
-                      <ChevronRight className="w-7 h-7 stroke-[2.5]" />
-                    </button>
-                  </div>
-                );
-              })()}
-
               {/* Centered VER TODOS Button */}
               <div className="text-center mt-6">
                 <button
@@ -2891,7 +2840,11 @@ export default function App() {
                   {/* Snap Scroll Container */}
                   <div 
                     ref={destacadosRef}
-                    className="flex gap-6 overflow-x-auto scroll-smooth snap-x snap-mandatory scrollbar-hide py-4"
+                    onMouseDown={handleDestacadosMouseDown}
+                    onMouseUp={handleDestacadosMouseLeaveOrUp}
+                    onMouseLeave={handleDestacadosMouseLeaveOrUp}
+                    onMouseMove={handleDestacadosMouseMove}
+                    className="flex gap-6 overflow-x-auto scroll-smooth snap-x snap-mandatory scrollbar-hide py-4 select-none cursor-default"
                   >
                     {products.slice(4, 12).map(product => {
                       const discount = getProductDiscount(product.name);
