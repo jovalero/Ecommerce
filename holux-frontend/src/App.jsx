@@ -846,7 +846,7 @@ export default function App() {
       const email = tokenPayload.email || '';
       const meta = tokenPayload.user_metadata || {};
       const fullName = meta.full_name || (email ? email.split('@')[0] : 'Cliente Holux');
-      const role = tokenPayload.role || meta.role || (email === 'admin@holux.com' ? 'admin' : 'customer');
+      const role = tokenPayload.role || meta.role || 'customer';
 
       const fallbackProfile = {
         id: tokenPayload.sub || 'user_id',
@@ -1711,24 +1711,6 @@ export default function App() {
     setAuthError('');
 
     if (authMode === 'login') {
-      // Instant Admin Bypass for testing
-      if (authEmail && (authEmail === 'admin@holux.com' || authEmail.toLowerCase().includes('admin'))) {
-        const role = 'admin';
-        const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
-        const payload = btoa(JSON.stringify({
-          sub: `usr-${Date.now()}`,
-          email: authEmail,
-          role: role,
-          user_metadata: { full_name: 'Administrador Holux', role: role },
-          exp: Math.floor(Date.now() / 1000) + 86400 * 7
-        }));
-        setToken(`${header}.${payload}.signature`);
-        setIsAuthModalOpen(false);
-        setAuthEmail('');
-        setAuthPassword('');
-        return;
-      }
-
       try {
         const response = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
           method: 'POST',
@@ -1746,47 +1728,9 @@ export default function App() {
           setAuthPassword('');
           return;
         }
-
-        // Demo / Development fallback if email is entered (handles 400 Bad Request for unseeded Supabase accounts)
-        if (authEmail && authEmail.includes('@')) {
-          const role = (authEmail === 'admin@holux.com' || authEmail.toLowerCase().includes('admin')) ? 'admin' : 'customer';
-          const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
-          const rawName = authEmail.split('@')[0].replace(/[._-]/g, ' ');
-          const formattedName = rawName.charAt(0).toUpperCase() + rawName.slice(1);
-          const payload = btoa(JSON.stringify({
-            sub: `usr-${Date.now()}`,
-            email: authEmail,
-            role: role,
-            user_metadata: { full_name: formattedName, role: role },
-            exp: Math.floor(Date.now() / 1000) + 86400 * 7
-          }));
-          const mockJwt = `${header}.${payload}.signature`;
-          setToken(mockJwt);
-          setIsAuthModalOpen(false);
-          setAuthEmail('');
-          setAuthPassword('');
-          return;
-        }
-
-        setAuthError(data.error_description || 'Credenciales incorrectas');
+        setAuthError(data.error_description || data.msg || 'Email o contraseña incorrectos.');
       } catch (err) {
-        if (authEmail && authEmail.includes('@')) {
-          const role = (authEmail === 'admin@holux.com' || authEmail.toLowerCase().includes('admin')) ? 'admin' : 'customer';
-          const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
-          const payload = btoa(JSON.stringify({
-            sub: `usr-${Date.now()}`,
-            email: authEmail,
-            role: role,
-            user_metadata: { full_name: authEmail.split('@')[0], role: role },
-            exp: Math.floor(Date.now() / 1000) + 86400 * 7
-          }));
-          const mockJwt = `${header}.${payload}.signature`;
-          setToken(mockJwt);
-          setIsAuthModalOpen(false);
-          setAuthEmail('');
-          setAuthPassword('');
-          return;
-        }
+        console.error(err);
         setAuthError('Error de red al iniciar sesión.');
       }
     } else {
