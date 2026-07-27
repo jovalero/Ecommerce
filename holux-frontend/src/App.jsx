@@ -846,7 +846,7 @@ export default function App() {
       const email = tokenPayload.email || '';
       const meta = tokenPayload.user_metadata || {};
       const fullName = meta.full_name || (email ? email.split('@')[0] : 'Cliente Holux');
-      const role = tokenPayload.role || meta.role || 'customer';
+      const role = meta.role || (tokenPayload.app_metadata && tokenPayload.app_metadata.role) || (email === 'admin@holux.com' ? 'admin' : 'customer');
 
       const fallbackProfile = {
         id: tokenPayload.sub || 'user_id',
@@ -857,6 +857,10 @@ export default function App() {
       };
       setUserProfile(fallbackProfile);
       setCheckoutName(fullName);
+      if (role === 'admin') {
+        setCurrentView('admin');
+        setAdminTab('dashboard');
+      }
     } else {
       setUserProfile({ id: 'user_session', role: 'customer', full_name: 'Cliente Holux', phone: '' });
     }
@@ -3982,14 +3986,27 @@ export default function App() {
             {/* User Profile trigger */}
             {token ? (
               <button
-                onClick={() => { window.location.hash = '#/mi-cuenta'; setCurrentView('customer_panel'); }}
-                className="flex items-center gap-1.5 p-1.5 rounded-full hover:bg-white/10 transition-colors text-[#F2EFE9] cursor-pointer"
-                title="Mi Cuenta"
+                onClick={() => {
+                  if (userProfile && (userProfile.role === 'admin' || userProfile.email === 'admin@holux.com')) {
+                    setCurrentView('admin');
+                    setAdminTab('dashboard');
+                  } else {
+                    window.location.hash = '#/mi-cuenta';
+                    setCurrentView('customer_panel');
+                  }
+                }}
+                className="flex items-center gap-1.5 p-1.5 px-3 rounded-full bg-white/10 hover:bg-white/20 transition-all text-[#F2EFE9] cursor-pointer border border-white/20"
+                title={userProfile && (userProfile.role === 'admin' || userProfile.email === 'admin@holux.com') ? 'Ir al Panel Admin' : 'Mi Cuenta'}
               >
                 <User className="w-5 h-5 text-[#3C6E71]" />
-                <span className="text-xs font-bold hidden sm:inline truncate max-w-[100px]">
+                <span className="text-xs font-bold truncate max-w-[120px]">
                   {userProfile ? userProfile.full_name : 'Mi Cuenta'}
                 </span>
+                {userProfile && (userProfile.role === 'admin' || userProfile.email === 'admin@holux.com') && (
+                  <span className="bg-[#B85C38] text-white text-[9px] font-bold px-1.5 py-0.5 rounded font-mono-custom uppercase">
+                    ADMIN
+                  </span>
+                )}
               </button>
             ) : (
               <button
