@@ -41,14 +41,31 @@ export default function ProductEditModal({ product, categories = [], onClose, on
   // Variants State
   const [variants, setVariants] = useState(
     product?.variants || [
-      { id: 1, color: 'Negro Mamba', size: 'M', stock: 12, price: product?.price || 0 },
-      { id: 2, color: 'Rojo Volcán', size: 'L', stock: 8, price: product?.price || 0 }
+      { id: 1, name: 'Talle M - Negro Mamba', stock: 12, price: product?.price || 100 },
+      { id: 2, name: 'Talle L - Rojo Volcán', stock: 8, price: product?.price || 100 }
     ]
   );
-  const [newVarColor, setNewVarColor] = useState('');
-  const [newVarSize, setNewVarSize] = useState('M');
+  const [newVarName, setNewVarName] = useState('');
   const [newVarStock, setNewVarStock] = useState(10);
   const [newVarPrice, setNewVarPrice] = useState(0);
+
+  const handleAddVariant = () => {
+    if (!newVarName || !newVarName.trim()) return;
+    const newVariant = {
+      id: Date.now(),
+      name: newVarName.trim(),
+      stock: Number(newVarStock) || 0,
+      price: Number(newVarPrice) || Number(price) || 100
+    };
+    setVariants(prev => [...prev, newVariant]);
+    setNewVarName('');
+    setNewVarStock(10);
+    setNewVarPrice(0);
+  };
+
+  const handleRemoveVariant = (id) => {
+    setVariants(prev => prev.filter(v => v.id !== id));
+  };
 
   // SEO & Marketing
   const [slug, setSlug] = useState(product?.slug || '');
@@ -79,25 +96,6 @@ export default function ProductEditModal({ product, categories = [], onClose, on
 
   const handleRemoveImage = (idx) => {
     setImages(images.filter((_, i) => i !== idx));
-  };
-
-  const handleAddVariant = () => {
-    if (!newVarColor.trim()) return;
-    setVariants([
-      ...variants,
-      {
-        id: Date.now(),
-        color: newVarColor.trim(),
-        size: newVarSize,
-        stock: Number(newVarStock),
-        price: Number(newVarPrice) > 0 ? Number(newVarPrice) : Number(price)
-      }
-    ]);
-    setNewVarColor('');
-  };
-
-  const handleRemoveVariant = (id) => {
-    setVariants(variants.filter(v => v.id !== id));
   };
 
   // Curation Flags
