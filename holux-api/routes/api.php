@@ -42,6 +42,8 @@ Route::middleware('throttle:api')->group(function () {
 
     // Orders (Allows both guests and authenticated checkouts)
     Route::post('/orders', [OrderController::class, 'store']);
+    Route::post('/process_order', [OrderController::class, 'processOrder']);
+    Route::post('/orders/process-payment', [OrderController::class, 'processOrder']);
 });
 
 // ==========================================

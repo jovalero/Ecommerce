@@ -25,7 +25,7 @@ class StoreOrderRequest extends FormRequest
             'customer_name' => ['required', 'string', 'max:255'],
             'customer_email' => ['required', 'email', 'max:255'],
             'items' => ['required', 'array', 'min:1'],
-            'items.*.product_id' => ['required', 'uuid'],
+            'items.*.product_id' => ['required', 'string'],
             'items.*.quantity' => ['required', 'integer', 'min:1'],
         ];
     }

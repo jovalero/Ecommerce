@@ -21,3 +21,7 @@ dist/
 .DS_Store
 .vscode/
 .idea/
+
+# Temp archives
+php*.zip
+php8/

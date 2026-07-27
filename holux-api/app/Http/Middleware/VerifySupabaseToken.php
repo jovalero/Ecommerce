@@ -56,15 +56,17 @@ class VerifySupabaseToken
                 try {
                     $parts = explode('.', $token);
                     if (count($parts) >= 2) {
-                        $payload = json_decode(base64_decode($parts[1]), true);
-                        if (!empty($payload['sub'])) {
+                        $b64 = strtr($parts[1], '-_', '+/');
+                        $padded = str_pad($b64, strlen($b64) + (4 - strlen($b64) % 4) % 4, '=', STR_PAD_RIGHT);
+                        $payload = json_decode(base64_decode($padded), true);
+                        if (is_array($payload) && !empty($payload['sub'])) {
                             $request->attributes->set('user_id', $payload['sub']);
                             $request->attributes->set('token_payload', $payload);
                             return $next($request);
                         }
                     }
-                } catch (\Exception $ex) {
-                    // Fallback to local admin ID
+                } catch (\Throwable $ex) {
+                    Log::warning('Fallback JWT parse error: ' . $ex->getMessage());
                 }
                 
                 $request->attributes->set('user_id', 'local_admin_id');

@@ -9,6 +9,12 @@ export default function StoreSettings({ API_BASE_URL, token }) {
   const [sandboxSecretKey, setSandboxSecretKey] = useState('TEST-12345678-SECRET-KEY');
   const [freeShippingThreshold, setFreeShippingThreshold] = useState(150000);
   const [currencySymbol, setCurrencySymbol] = useState('ARS $');
+
+  // Tarifa por zonas de envío (CABA, GBA, Interior, Patagonia)
+  const [cabaShippingCost, setCabaShippingCost] = useState(5000);
+  const [gbaShippingCost, setGbaShippingCost] = useState(8000);
+  const [interiorShippingCost, setInteriorShippingCost] = useState(15000);
+  const [patagoniaShippingCost, setPatagoniaShippingCost] = useState(20000);
   
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -16,6 +22,20 @@ export default function StoreSettings({ API_BASE_URL, token }) {
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
   useEffect(() => {
+    // Load local rates fallback if saved
+    const saved = localStorage.getItem('holux_shipping_rates');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed.cabaShippingCost) setCabaShippingCost(parsed.cabaShippingCost);
+        if (parsed.gbaShippingCost) setGbaShippingCost(parsed.gbaShippingCost);
+        if (parsed.interiorShippingCost) setInteriorShippingCost(parsed.interiorShippingCost);
+        if (parsed.patagoniaShippingCost) setPatagoniaShippingCost(parsed.patagoniaShippingCost);
+        if (parsed.freeShippingThreshold) setFreeShippingThreshold(parsed.freeShippingThreshold);
+      } catch (e) {
+        console.error(e);
+      }
+    }
     fetchSettings();
   }, []);
 
@@ -33,6 +53,10 @@ export default function StoreSettings({ API_BASE_URL, token }) {
         setSandboxSecretKey(data.sandbox_secret_key ?? '');
         setFreeShippingThreshold(data.free_shipping_threshold ?? 150000);
         setCurrencySymbol(data.currency_symbol ?? 'ARS $');
+        if (data.caba_cost) setCabaShippingCost(data.caba_cost);
+        if (data.gba_cost) setGbaShippingCost(data.gba_cost);
+        if (data.interior_cost) setInteriorShippingCost(data.interior_cost);
+        if (data.patagonia_cost) setPatagoniaShippingCost(data.patagonia_cost);
       }
     } catch (e) {
       console.error(e);
@@ -50,6 +74,15 @@ export default function StoreSettings({ API_BASE_URL, token }) {
     setIsConfirmOpen(false);
     setSaving(true);
     setStatusMsg(null);
+    // Save locally for instant reactivity in Checkout
+    localStorage.setItem('holux_shipping_rates', JSON.stringify({
+      cabaShippingCost: Number(cabaShippingCost),
+      gbaShippingCost: Number(gbaShippingCost),
+      interiorShippingCost: Number(interiorShippingCost),
+      patagoniaShippingCost: Number(patagoniaShippingCost),
+      freeShippingThreshold: Number(freeShippingThreshold)
+    }));
+
     try {
       const res = await fetch(`${API_BASE_URL}/api/admin/settings`, {
         method: 'POST',
@@ -63,12 +96,16 @@ export default function StoreSettings({ API_BASE_URL, token }) {
           sandbox_public_key: sandboxPublicKey,
           sandbox_secret_key: sandboxSecretKey,
           free_shipping_threshold: freeShippingThreshold,
-          currency_symbol: currencySymbol
+          currency_symbol: currencySymbol,
+          caba_cost: cabaShippingCost,
+          gba_cost: gbaShippingCost,
+          interior_cost: interiorShippingCost,
+          patagonia_cost: patagoniaShippingCost
         })
       });
 
       if (res.ok) {
-        setStatusMsg({ type: 'success', text: 'Configuración general guardada con éxito.' });
+        setStatusMsg({ type: 'success', text: 'Configuración general y tarifas de envío guardadas con éxito.' });
       } else {
         setStatusMsg({ type: 'error', text: 'No se pudo guardar la configuración.' });
       }
@@ -218,16 +255,78 @@ export default function StoreSettings({ API_BASE_URL, token }) {
           </div>
         </div>
 
-        {/* 3. ENVÍOS Y MONTOS MÍNIMOS */}
+        {/* 3. CONFIGURACIÓN DE TARIFAS DE ENVÍO POR REGIONAL / CÓDIGO POSTAL */}
         <div className="bg-gray-50 border border-gray-200 rounded-xl p-6 space-y-4">
           <div className="flex items-center gap-2 text-gray-900 border-b border-gray-200 pb-3">
             <Truck className="w-5 h-5 text-[#3C6E71]" />
             <h3 className="font-display text-sm font-bold tracking-wider uppercase">
-              3. UMBRAL DE ENVÍO GRATIS
+              3. TARIFAS DE ENVÍO Y MONTO MÍNIMO GRATUITO
             </h3>
           </div>
 
-          <div className="space-y-1.5 max-w-md">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-gray-700 tracking-wider block uppercase">
+                Envío CABA (CP 1000-1499)
+              </label>
+              <input
+                type="number"
+                min="0"
+                required
+                value={cabaShippingCost}
+                onChange={(e) => setCabaShippingCost(e.target.value)}
+                className="w-full px-3.5 py-2.5 bg-white border border-gray-300 rounded text-sm font-bold text-gray-900 focus:border-[#3C6E71] outline-none"
+              />
+              <span className="text-[10px] text-gray-400 font-semibold">Valor predeterminado: $5.000</span>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-gray-700 tracking-wider block uppercase">
+                Envío GBA / Gran Bs.As.
+              </label>
+              <input
+                type="number"
+                min="0"
+                required
+                value={gbaShippingCost}
+                onChange={(e) => setGbaShippingCost(e.target.value)}
+                className="w-full px-3.5 py-2.5 bg-white border border-gray-300 rounded text-sm font-bold text-gray-900 focus:border-[#3C6E71] outline-none"
+              />
+              <span className="text-[10px] text-gray-400 font-semibold">Valor predeterminado: $8.000</span>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-gray-700 tracking-wider block uppercase">
+                Envío Interior / Provincias
+              </label>
+              <input
+                type="number"
+                min="0"
+                required
+                value={interiorShippingCost}
+                onChange={(e) => setInteriorShippingCost(e.target.value)}
+                className="w-full px-3.5 py-2.5 bg-white border border-gray-300 rounded text-sm font-bold text-gray-900 focus:border-[#3C6E71] outline-none"
+              />
+              <span className="text-[10px] text-gray-400 font-semibold">Valor predeterminado: $15.000</span>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-gray-700 tracking-wider block uppercase">
+                Envío Patagonia / Lejanas
+              </label>
+              <input
+                type="number"
+                min="0"
+                required
+                value={patagoniaShippingCost}
+                onChange={(e) => setPatagoniaShippingCost(e.target.value)}
+                className="w-full px-3.5 py-2.5 bg-white border border-gray-300 rounded text-sm font-bold text-gray-900 focus:border-[#3C6E71] outline-none"
+              />
+              <span className="text-[10px] text-gray-400 font-semibold">Valor predeterminado: $20.000</span>
+            </div>
+          </div>
+
+          <div className="space-y-1.5 pt-2 max-w-md">
             <label className="text-xs font-bold text-gray-700 tracking-wider block uppercase">
               Monto Mínimo de Compra para Envío Gratis ($)
             </label>

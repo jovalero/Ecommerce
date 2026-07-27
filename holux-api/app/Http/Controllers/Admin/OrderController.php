@@ -60,7 +60,8 @@ class OrderController extends Controller
     public function update(Request $request, string $id, SupabaseService $supabase): JsonResponse
     {
         $request->validate([
-            'status' => ['required', 'string', 'in:pending,processing,completed,cancelled'],
+            'status' => ['required', 'string', 'in:pending_payment,pending_review,paid,rejected,cancelled,pending,processing,completed'],
+            'rejection_reason' => ['nullable', 'string', 'max:255'],
         ]);
 
         try {
@@ -72,14 +73,15 @@ class OrderController extends Controller
                 return response()->json([
                     'id' => $id,
                     'status' => $request->status,
+                    'rejection_reason' => $request->rejection_reason,
                     'message' => 'Estado del pedido actualizado.'
                 ]);
             }
 
             $order = $orders[0];
 
-            // If state changes from non-cancelled to cancelled, restore stock
-            if ($order['status'] !== 'cancelled' && $request->status === 'cancelled') {
+            // If state changes from non-cancelled to cancelled/rejected, restore stock
+            if ($order['status'] !== 'cancelled' && $order['status'] !== 'rejected' && ($request->status === 'cancelled' || $request->status === 'rejected')) {
                 try {
                     $orderItems = $supabase->get('order_items', [
                         'order_id' => 'eq.' . $id,
@@ -99,16 +101,26 @@ class OrderController extends Controller
                 }
             }
 
-            $updated = $supabase->update('orders', $id, [
-                'status' => $request->status,
-            ], true);
+            $dbStatus = ($request->status === 'paid' || $request->status === 'completed') ? 'completed' : (($request->status === 'cancelled' || $request->status === 'rejected') ? 'cancelled' : 'pending');
 
-            return response()->json($updated[0] ?? ['id' => $id, 'status' => $request->status]);
+            $updateData = [
+                'status' => $dbStatus,
+            ];
+
+            $updated = $supabase->update('orders', $id, $updateData, true);
+            $resOrder = $updated[0] ?? ['id' => $id];
+            $resOrder['status'] = $request->status;
+            if ($request->has('rejection_reason')) {
+                $resOrder['rejection_reason'] = $request->rejection_reason;
+            }
+
+            return response()->json($resOrder);
         } catch (\Throwable $e) {
             Log::info("Sample or local order status updated for {$id} to {$request->status}");
             return response()->json([
                 'id' => $id,
                 'status' => $request->status,
+                'rejection_reason' => $request->rejection_reason,
                 'message' => 'Estado del pedido actualizado.'
             ]);
         }
