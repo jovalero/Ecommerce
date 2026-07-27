@@ -5852,28 +5852,6 @@ export default function App() {
                 {authMode === 'login' ? 'INICIAR SESIÓN CON GOOGLE' : 'REGISTRARSE CON GOOGLE'}
               </button>
 
-              {/* Acceso Rápido Administrador 1-Clic */}
-              <button
-                type="button"
-                onClick={() => {
-                  setAuthEmail('admin@holux.com');
-                  setAuthPassword('admin123');
-                  const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
-                  const payload = btoa(JSON.stringify({
-                    sub: 'usr-admin-demo',
-                    email: 'admin@holux.com',
-                    role: 'admin',
-                    user_metadata: { full_name: 'Administrador Holux', role: 'admin' },
-                    exp: Math.floor(Date.now() / 1000) + 86400 * 7
-                  }));
-                  setToken(`${header}.${payload}.signature`);
-                  setIsAuthModalOpen(false);
-                }}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-gray-900 hover:bg-black text-white font-display text-[10px] font-bold tracking-wider rounded transition-all cursor-pointer shadow-md"
-              >
-                <span>⚡ ACCEDER COMO ADMINISTRADOR (1-CLIC)</span>
-              </button>
-
               <div className="text-center pt-2 border-t border-gray-100">
                 <button
                   onClick={() => setAuthMode(prev => prev === 'login' ? 'register' : 'login')}
