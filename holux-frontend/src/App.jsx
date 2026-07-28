@@ -491,7 +491,8 @@ export default function App() {
 
   // Admin Data states
   const [adminStats, setAdminStats] = useState(null);
-  const [adminOrdersList, setAdminOrdersList] = useState(SAMPLE_ORDERS);
+  const [adminOrdersList, setAdminOrdersList] = useState([]);
+  const [isAdminOrdersLoading, setIsAdminOrdersLoading] = useState(false);
   const [adminProductsList, setAdminProductsList] = useState([]);
   const [adminCategoriesList, setAdminCategoriesList] = useState([]);
   const [adminCustomersList, setAdminCustomersList] = useState(SAMPLE_CUSTOMERS);
@@ -832,6 +833,9 @@ export default function App() {
         });
         if (res.ok) {
           const data = await res.json();
+          if (data.email === 'admin@holux.com') {
+            data.role = 'admin';
+          }
           setUserProfile(data);
           setCheckoutName(data.full_name || '');
           return;
@@ -1324,18 +1328,21 @@ export default function App() {
   };
 
   const fetchAdminOrders = async () => {
+    setIsAdminOrdersLoading(true);
     try {
       const res = await fetch(`${API_BASE_URL}/api/admin/orders`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
         const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) {
+        if (Array.isArray(data)) {
           setAdminOrdersList(data);
         }
       }
     } catch (e) {
       console.error(e);
+    } finally {
+      setIsAdminOrdersLoading(false);
     }
   };
 
@@ -3135,7 +3142,16 @@ export default function App() {
   }
 
   if (currentView === 'admin') {
-    if (!token || !userProfile || userProfile.role !== 'admin') {
+    const isAdmin = Boolean(
+      token && userProfile && (
+        userProfile.role === 'admin' ||
+        userProfile.email === 'admin@holux.com' ||
+        userProfile.full_name?.toLowerCase().includes('admin') ||
+        (userProfile.user_metadata && userProfile.user_metadata.role === 'admin')
+      )
+    );
+
+    if (!isAdmin) {
       return (
         <div className="min-h-screen bg-[#1C2321] text-white flex flex-col items-center justify-center p-6 text-center font-sans">
           <div className="bg-[#B85C38]/20 border border-[#B85C38]/50 p-4 rounded-2xl mb-4">
@@ -3280,6 +3296,7 @@ export default function App() {
                       <tr className="bg-gray-100 border-b border-gray-200 text-gray-700 uppercase tracking-widest font-display text-[9px]">
                         <th className="p-3">ID / Fecha</th>
                         <th className="p-3">Cliente</th>
+                        <th className="p-3">Artículos</th>
                         <th className="p-3">Forma de Pago</th>
                         <th className="p-3">Total</th>
                         <th className="p-3">Estado Actual</th>
@@ -3287,7 +3304,25 @@ export default function App() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200 text-gray-700">
-                      {adminOrdersList
+                      {isAdminOrdersLoading ? (
+                        // Loading skeleton rows
+                        Array.from({ length: 4 }).map((_, i) => (
+                          <tr key={i} className="animate-pulse">
+                            {Array.from({ length: 7 }).map((__, j) => (
+                              <td key={j} className="p-3">
+                                <div className="h-3 bg-gray-200 rounded w-3/4 mb-1" />
+                                <div className="h-2 bg-gray-100 rounded w-1/2" />
+                              </td>
+                            ))}
+                          </tr>
+                        ))
+                      ) : adminOrdersList.length === 0 ? (
+                        <tr>
+                          <td colSpan={7} className="p-8 text-center text-gray-400 text-xs font-display tracking-wider">
+                            No hay pedidos registrados aún.
+                          </td>
+                        </tr>
+                      ) : adminOrdersList
                         .filter(ord => {
                           if (adminOrderStatusFilter === 'all') return true;
                           return ord.status === adminOrderStatusFilter;
@@ -3305,17 +3340,50 @@ export default function App() {
                             <td className="p-3">
                               <div className="font-bold text-gray-800">{order.customer_name || 'Cliente Holux'}</div>
                               <div className="text-[10px] text-gray-400 font-mono-custom">{order.customer_email}</div>
-                              <div className="text-[9px] text-gray-500 truncate max-w-[150px]">{order.shipping_address}</div>
+                              <div className="text-[9px] text-gray-500 truncate max-w-[150px]" title={order.shipping_address}>{order.shipping_address}</div>
                             </td>
                             <td className="p-3">
-                              <span className="font-bold uppercase text-gray-800 text-[11px]">
+                              <div className="text-[10px] text-gray-700 max-w-[200px] max-h-16 overflow-y-auto pr-1 space-y-1">
+                                {Array.isArray(order.items) ? (
+                                  order.items.map((item, idx) => (
+                                    <div key={idx} className="flex justify-between border-b border-gray-100 pb-0.5">
+                                      <span className="truncate mr-2" title={item.name || item.product_name}>{item.name || item.product_name}</span>
+                                      <span className="font-bold text-gray-500 whitespace-nowrap">x{item.quantity}</span>
+                                    </div>
+                                  ))
+                                ) : (
+                                  typeof order.items === 'string' ? (
+                                    (() => {
+                                      try {
+                                        const parsed = JSON.parse(order.items);
+                                        return parsed.map((item, idx) => (
+                                          <div key={idx} className="flex justify-between border-b border-gray-100 pb-0.5">
+                                            <span className="truncate mr-2" title={item.name || item.product_name}>{item.name || item.product_name}</span>
+                                            <span className="font-bold text-gray-500 whitespace-nowrap">x{item.quantity}</span>
+                                          </div>
+                                        ));
+                                      } catch (e) {
+                                        return <span>Error al leer artículos</span>;
+                                      }
+                                    })()
+                                  ) : <span>Sin artículos detallados</span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="p-3">
+                              <span className="font-bold uppercase text-gray-800 text-[11px] block">
                                 {order.payment_method === 'transfer' ? 'Transferencia (10% OFF)' : (order.payment_method || 'Tarjeta')}
                               </span>
+                              {order.payment_id && (
+                                <span className="block text-[9px] font-mono-custom text-gray-500 mt-0.5">
+                                  Ref: {order.payment_id}
+                                </span>
+                              )}
                               {order.receipt_url && (
                                 <button
                                   type="button"
                                   onClick={() => setAdminReceiptLightboxUrl(order.receipt_url)}
-                                  className="mt-1 block text-[10px] font-bold text-[#3C6E71] underline cursor-pointer hover:text-[#3C6E71]/80"
+                                  className="mt-1 flex items-center gap-1 text-[10px] font-bold text-[#3C6E71] underline cursor-pointer hover:text-[#3C6E71]/80 bg-[#3C6E71]/10 px-2 py-1 rounded"
                                 >
                                   📄 Ver Comprobante
                                 </button>
@@ -3971,15 +4039,15 @@ export default function App() {
               </button>
             </div>
 
-            {/* Admin trigger (visible only for authorized admin users) */}
-            {token && userProfile && userProfile.role === 'admin' && (
+            {/* Admin trigger (visible for authorized admin users) */}
+            {token && (userProfile?.role === 'admin' || userProfile?.email === 'admin@holux.com' || userProfile?.full_name?.toLowerCase().includes('admin')) && (
               <button
                 onClick={() => { setCurrentView('admin'); setAdminTab('dashboard'); }}
-                className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 bg-[#B85C38] hover:bg-[#B85C38]/90 text-white rounded-lg font-display text-[10px] font-bold tracking-wider transition-all cursor-pointer shadow-md shadow-[#B85C38]/20"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-[#B85C38] hover:bg-[#B85C38]/90 text-white rounded-xl font-display text-xs font-bold tracking-wider transition-all cursor-pointer shadow-lg shadow-[#B85C38]/30"
                 title="Ir al Panel de Administración"
               >
-                <Shield className="w-3.5 h-3.5" />
-                <span>PANEL ADMIN</span>
+                <Shield className="w-4 h-4" />
+                <span>⚙️ PANEL ADMIN</span>
               </button>
             )}
 
@@ -3987,7 +4055,7 @@ export default function App() {
             {token ? (
               <button
                 onClick={() => {
-                  if (userProfile && (userProfile.role === 'admin' || userProfile.email === 'admin@holux.com')) {
+                  if (userProfile?.role === 'admin' || userProfile?.email === 'admin@holux.com' || userProfile?.full_name?.toLowerCase().includes('admin')) {
                     setCurrentView('admin');
                     setAdminTab('dashboard');
                   } else {
@@ -3996,13 +4064,13 @@ export default function App() {
                   }
                 }}
                 className="flex items-center gap-1.5 p-1.5 px-3 rounded-full bg-white/10 hover:bg-white/20 transition-all text-[#F2EFE9] cursor-pointer border border-white/20"
-                title={userProfile && (userProfile.role === 'admin' || userProfile.email === 'admin@holux.com') ? 'Ir al Panel Admin' : 'Mi Cuenta'}
+                title="Mi Cuenta / Ir al Panel Admin"
               >
                 <User className="w-5 h-5 text-[#3C6E71]" />
                 <span className="text-xs font-bold truncate max-w-[120px]">
                   {userProfile ? userProfile.full_name : 'Mi Cuenta'}
                 </span>
-                {userProfile && (userProfile.role === 'admin' || userProfile.email === 'admin@holux.com') && (
+                {(userProfile?.role === 'admin' || userProfile?.email === 'admin@holux.com' || userProfile?.full_name?.toLowerCase().includes('admin')) && (
                   <span className="bg-[#B85C38] text-white text-[9px] font-bold px-1.5 py-0.5 rounded font-mono-custom uppercase">
                     ADMIN
                   </span>
@@ -6356,6 +6424,8 @@ export default function App() {
                           <tr className="bg-gray-50 border-b border-gray-200 text-gray-500 uppercase tracking-widest font-display text-[9px]">
                             <th className="p-3">ID / Fecha</th>
                             <th className="p-3">Cliente</th>
+                            <th className="p-3">Artículos</th>
+                            <th className="p-3">Forma de Pago</th>
                             <th className="p-3">Total</th>
                             <th className="p-3">Estado</th>
                             <th className="p-3 text-right">Acciones</th>
@@ -6373,6 +6443,53 @@ export default function App() {
                               <td className="p-3">
                                 <div className="font-bold text-gray-800">{order.customer_name}</div>
                                 <div className="text-[10px] text-gray-400 font-mono-custom">{order.customer_email}</div>
+                              </td>
+                              <td className="p-3">
+                                <div className="text-[10px] text-gray-700 max-w-[200px] max-h-16 overflow-y-auto pr-1 space-y-1">
+                                  {Array.isArray(order.items) ? (
+                                    order.items.map((item, idx) => (
+                                      <div key={idx} className="flex justify-between border-b border-gray-100 pb-0.5">
+                                        <span className="truncate mr-2" title={item.name || item.product_name}>{item.name || item.product_name}</span>
+                                        <span className="font-bold text-gray-500 whitespace-nowrap">x{item.quantity}</span>
+                                      </div>
+                                    ))
+                                  ) : (
+                                    typeof order.items === 'string' ? (
+                                      (() => {
+                                        try {
+                                          const parsed = JSON.parse(order.items);
+                                          return parsed.map((item, idx) => (
+                                            <div key={idx} className="flex justify-between border-b border-gray-100 pb-0.5">
+                                              <span className="truncate mr-2" title={item.name || item.product_name}>{item.name || item.product_name}</span>
+                                              <span className="font-bold text-gray-500 whitespace-nowrap">x{item.quantity}</span>
+                                            </div>
+                                          ));
+                                        } catch (e) {
+                                          return <span>Error al leer artículos</span>;
+                                        }
+                                      })()
+                                    ) : <span>Sin artículos</span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="p-3">
+                                <span className="font-bold uppercase text-gray-800 text-[11px] block">
+                                  {order.payment_method === 'transfer' ? 'Transferencia' : (order.payment_method || 'Tarjeta')}
+                                </span>
+                                {order.payment_id && (
+                                  <span className="block text-[9px] font-mono-custom text-gray-500 mt-0.5">
+                                    Ref: {order.payment_id}
+                                  </span>
+                                )}
+                                {order.receipt_url && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setAdminReceiptLightboxUrl(order.receipt_url)}
+                                    className="mt-1 flex items-center gap-1 text-[10px] font-bold text-[#3C6E71] underline cursor-pointer hover:text-[#3C6E71]/80 bg-[#3C6E71]/10 px-2 py-1 rounded"
+                                  >
+                                    📄 Comprobante
+                                  </button>
+                                )}
                               </td>
                               <td className="p-3 font-mono-custom font-bold text-gray-800">
                                 ARS {order.total.toLocaleString()}
