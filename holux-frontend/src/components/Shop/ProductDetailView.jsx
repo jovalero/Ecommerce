@@ -286,20 +286,43 @@ export default function ProductDetailView({
               </div>
             </div>
 
-            {/* Add to Cart Button */}
-            <div className="pt-6">
-              <button
-                onClick={handleAddToCart}
-                disabled={product.stock === 0}
-                className={`w-full py-4 rounded-xl font-display text-xs sm:text-sm font-bold tracking-widest transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md ${
-                  product.stock > 0
-                    ? 'bg-[#1C2321] text-white hover:bg-[#3C6E71]'
-                    : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                }`}
-              >
-                <ShoppingBag className="w-5 h-5" />
-                <span>{product.stock > 0 ? 'AGREGAR AL CARRITO' : 'PRODUCTO AGOTADO'}</span>
-              </button>
+            {/* Action Buttons: Comprar Ahora (Directo) + Agregar al Carrito */}
+            <div className="pt-6 space-y-4">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleAddToCart();
+                    window.location.hash = '#/checkout';
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  disabled={product.stock === 0}
+                  className={`w-full sm:flex-grow h-12 rounded-xl font-display text-xs sm:text-sm font-black tracking-widest uppercase transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-lg cursor-pointer ${
+                    product.stock > 0
+                      ? 'bg-[#B85C38] hover:bg-[#9E4D2E] text-white'
+                      : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                  }`}
+                >
+                  <span>⚡</span>
+                  <span>{product.stock > 0 ? 'COMPRAR AHORA' : 'PRODUCTO AGOTADO'}</span>
+                </button>
+              </div>
+
+              <div>
+                <button
+                  type="button"
+                  onClick={handleAddToCart}
+                  disabled={product.stock === 0}
+                  className={`w-full h-11 rounded-xl font-sans text-xs font-bold tracking-wider transition-all flex items-center justify-center gap-2 border cursor-pointer ${
+                    product.stock > 0
+                      ? 'bg-[#1C2321] hover:bg-black text-white border-black hover:shadow-sm'
+                      : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed'
+                  }`}
+                >
+                  <ShoppingBag className="w-4 h-4" />
+                  <span>{product.stock > 0 ? 'AGREGAR AL CARRITO' : 'SIN STOCK'}</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>

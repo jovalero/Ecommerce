@@ -548,6 +548,77 @@ export default function ProductEditModal({ product, categories = [], onClose, on
                 );
               })()}
             </div>
+
+            {/* 2.1 FINANCIACIÓN Y CARTEL DE CUOTAS FIJAS */}
+            <div className="bg-purple-50/50 p-4 rounded-xl border border-purple-200 space-y-3 pt-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <span className="text-[11px] font-bold text-purple-900 uppercase tracking-wider block">
+                    💳 Cartel de Cuotas Fijas / Financiación Promocional:
+                  </span>
+                  <span className="text-[10px] text-purple-700">
+                    Define cuántas cuotas mostrar en el badge morado de este producto (o poné 0 si no querés mostrar cuotas).
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {[
+                    { label: 'Sin cuotas', val: 0 },
+                    { label: '3 cuotas', val: 3 },
+                    { label: '6 cuotas', val: 6 },
+                    { label: '9 cuotas', val: 9 },
+                    { label: '12 cuotas', val: 12 }
+                  ].map((opt) => (
+                    <button
+                      key={opt.val}
+                      type="button"
+                      onClick={() => setInstallments(opt.val)}
+                      className={`px-2.5 py-1 rounded text-[10px] font-bold font-mono-custom cursor-pointer transition-all border ${
+                        Number(installments) === opt.val
+                          ? 'bg-purple-700 text-white border-purple-800 shadow-xs'
+                          : 'bg-white text-purple-900 border-purple-200 hover:bg-purple-100'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                <div className="w-full sm:w-48">
+                  <label className="text-[10px] font-bold text-purple-800 uppercase block mb-1">
+                    Número de Cuotas Personalizado:
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="48"
+                    value={installments}
+                    onChange={(e) => setInstallments(Math.max(0, parseInt(e.target.value) || 0))}
+                    className="w-full px-3 py-1.5 bg-white border border-purple-300 rounded-lg text-xs font-mono-custom font-bold text-purple-950 outline-none"
+                    placeholder="0 para desactivar"
+                  />
+                </div>
+
+                <div className="flex-grow">
+                  {Number(installments) > 1 ? (
+                    <div className="p-2.5 bg-white border border-purple-200 rounded-lg flex items-center gap-2.5">
+                      <span className="bg-[#EBDCF0] text-[#7E3793] text-[10px] font-black px-2.5 py-1 rounded tracking-wide uppercase inline-block font-sans">
+                        {installments} CUOTAS FIJAS DE ${Math.round(effectiveSellPrice / Number(installments)).toLocaleString('es-AR')}
+                      </span>
+                      <span className="text-[11px] text-purple-900 font-medium">
+                        ← Así se verá el cartel morado en la tienda para este producto.
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="p-2.5 bg-white/70 border border-purple-150 rounded-lg text-purple-800 text-xs">
+                      🚫 <strong>Sin cuotas fijas:</strong> Este producto se mostrará sin el cartel morado de cuotas.
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* 3. GALERÍA DE IMÁGENES Y VIDEO DEMOSTRATIVO CON SUBIDA LOCAL & DRAG & DROP */}

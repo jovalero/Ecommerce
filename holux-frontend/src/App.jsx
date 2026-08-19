@@ -4677,7 +4677,7 @@ export default function App() {
           </aside>
 
           {/* Admin Main Body */}
-          <main className="flex-grow p-8 overflow-y-auto bg-gray-50 text-left">
+          <main className="flex-grow min-w-0 p-4 sm:p-6 lg:p-8 overflow-y-auto bg-gray-50 text-left">
             {/* Contextual Hierarchical Breadcrumbs */}
             <Breadcrumbs
               adminTab={adminTab}
@@ -7303,70 +7303,141 @@ export default function App() {
                           </ul>
                         </div>
 
-                        {/* PDP Action Box (Quantity and Add to Cart) */}
-                        <div className="pt-6 border-t border-gray-100 flex flex-col sm:flex-row items-center gap-4">
-                          {/* Quantity selector */}
-                          <div className="flex items-center justify-between border border-gray-300 rounded-xl overflow-hidden h-12 w-32 bg-white flex-shrink-0">
+                        {/* PDP Action Box (Quantity and Dual Buttons: Comprar Ahora & Agregar al Carrito) */}
+                        <div className="pt-6 border-t border-gray-100 space-y-4">
+                          
+                          {/* Row 1: Quantity + Buy Now (Direct Checkout) */}
+                          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                            {/* Quantity selector */}
+                            <div className="flex items-center justify-between border border-gray-300 rounded-xl overflow-hidden h-12 w-full sm:w-32 bg-white shrink-0 shadow-xs">
+                              <button
+                                type="button"
+                                onClick={() => setDetailQuantity(prev => Math.max(1, prev - 1))}
+                                className="w-10 h-full bg-gray-50 hover:bg-gray-100 text-gray-700 transition-colors font-bold cursor-pointer flex items-center justify-center border-r border-gray-200 text-base"
+                                title="Disminuir cantidad"
+                              >
+                                -
+                              </button>
+                              <span className="text-sm font-bold text-gray-900 font-mono-custom">{detailQuantity}</span>
+                              <button
+                                type="button"
+                                onClick={() => setDetailQuantity(prev => Math.min(effectiveStock || 1, prev + 1))}
+                                className="w-10 h-full bg-gray-50 hover:bg-gray-100 text-gray-700 transition-colors font-bold cursor-pointer flex items-center justify-center border-l border-gray-200 text-base"
+                                title="Aumentar cantidad"
+                              >
+                                +
+                              </button>
+                            </div>
+
+                            {/* ⚡ COMPRAR AHORA (DIRECTO AL PAGO) */}
                             <button
                               type="button"
-                              onClick={() => setDetailQuantity(prev => Math.max(1, prev - 1))}
-                              className="w-10 h-full bg-gray-50 hover:bg-gray-100 text-gray-700 transition-colors font-bold cursor-pointer flex items-center justify-center border-r border-gray-200"
+                              onClick={() => {
+                                if (effectiveStock <= 0) return;
+                                if (variantsList.length > 0 && !selectedSize) {
+                                  setSizeError(true);
+                                  return;
+                                }
+                                if (selectedVariantObj && selectedVariantObj.stock <= 0) {
+                                  setSizeError(true);
+                                  return;
+                                }
+                                setSizeError(false);
+                                
+                                const targetSize = variantsList.length > 0 ? selectedSize : 'Talla Única';
+                                const effectivePrice = getEffectiveProductPrice(selectedDetailProduct);
+                                
+                                setCart(prev => {
+                                  const existing = prev.find(item => item.id === selectedDetailProduct.id && item.sizeLabel === targetSize);
+                                  const productWithSize = {
+                                    ...selectedDetailProduct,
+                                    price: effectivePrice,
+                                    original_price: selectedDetailProduct.price,
+                                    sizeLabel: targetSize
+                                  };
+                                  const maxStock = selectedVariantObj ? selectedVariantObj.stock : selectedDetailProduct.stock;
+                                  if (existing) {
+                                    const newQty = Math.min(maxStock, existing.quantity + detailQuantity);
+                                    return prev.map(item => 
+                                      (item.id === selectedDetailProduct.id && item.sizeLabel === targetSize)
+                                        ? { ...item, quantity: newQty } 
+                                        : item
+                                    );
+                                  }
+                                  return [...prev, { ...productWithSize, quantity: detailQuantity }];
+                                });
+
+                                // Navigate directly to checkout
+                                setIsCartOpen(false);
+                                setCurrentView('checkout');
+                                window.location.hash = '#/checkout';
+                                window.scrollTo({ top: 0, behavior: 'smooth' });
+                              }}
+                              disabled={effectiveStock <= 0 || (variantsList.length > 0 && selectedVariantObj && selectedVariantObj.stock <= 0)}
+                              className={`w-full sm:flex-grow h-12 rounded-xl font-display text-xs font-black tracking-widest uppercase transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-lg cursor-pointer ${
+                                effectiveStock > 0
+                                  ? 'bg-[#B85C38] hover:bg-[#9E4D2E] text-white'
+                                  : 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none'
+                              }`}
                             >
-                              -
-                            </button>
-                            <span className="text-sm font-bold text-gray-900 font-sans">{detailQuantity}</span>
-                            <button
-                              type="button"
-                              onClick={() => setDetailQuantity(prev => Math.min(effectiveStock || 1, prev + 1))}
-                              className="w-10 h-full bg-gray-50 hover:bg-gray-100 text-gray-700 transition-colors font-bold cursor-pointer flex items-center justify-center border-l border-gray-200"
-                            >
-                              +
+                              <span className="text-base">⚡</span>
+                              <span>{effectiveStock > 0 ? 'COMPRAR AHORA' : 'PRODUCTO AGOTADO'}</span>
                             </button>
                           </div>
 
-                          {/* Add to cart button */}
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (effectiveStock <= 0) return;
-                              if (variantsList.length > 0 && !selectedSize) {
-                                setSizeError(true);
-                                return;
-                              }
-                              if (selectedVariantObj && selectedVariantObj.stock <= 0) {
-                                setSizeError(true);
-                                return;
-                              }
-                              setSizeError(false);
-                              setCart(prev => {
-                                const targetSize = variantsList.length > 0 ? selectedSize : 'Talla Única';
-                                const existing = prev.find(item => item.id === selectedDetailProduct.id && item.sizeLabel === targetSize);
-                                const productWithSize = {
-                                  ...selectedDetailProduct,
-                                  sizeLabel: targetSize
-                                };
-                                const maxStock = selectedVariantObj ? selectedVariantObj.stock : selectedDetailProduct.stock;
-                                if (existing) {
-                                  const newQty = Math.min(maxStock, existing.quantity + detailQuantity);
-                                  return prev.map(item => 
-                                    (item.id === selectedDetailProduct.id && item.sizeLabel === targetSize)
-                                      ? { ...item, quantity: newQty } 
-                                      : item
-                                  );
+                          {/* Row 2: Secondary Button - AGREGAR AL CARRITO */}
+                          <div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (effectiveStock <= 0) return;
+                                if (variantsList.length > 0 && !selectedSize) {
+                                  setSizeError(true);
+                                  return;
                                 }
-                                return [...prev, { ...productWithSize, quantity: detailQuantity }];
-                              });
-                            }}
-                            disabled={effectiveStock <= 0 || (variantsList.length > 0 && selectedVariantObj && selectedVariantObj.stock <= 0)}
-                            className={`w-full sm:flex-grow h-12 rounded-xl font-sans text-xs font-bold tracking-wider transition-all flex items-center justify-center gap-2.5 cursor-pointer ${
-                              effectiveStock > 0
-                                ? 'bg-[#1C2321] text-white hover:bg-black hover:shadow-md'
-                                : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                            }`}
-                          >
-                            <ShoppingBag className="w-4 h-4" />
-                            <span>{effectiveStock > 0 ? 'AGREGAR AL CARRITO' : 'AGOTADO'}</span>
-                          </button>
+                                if (selectedVariantObj && selectedVariantObj.stock <= 0) {
+                                  setSizeError(true);
+                                  return;
+                                }
+                                setSizeError(false);
+                                
+                                const targetSize = variantsList.length > 0 ? selectedSize : 'Talla Única';
+                                const effectivePrice = getEffectiveProductPrice(selectedDetailProduct);
+
+                                setCart(prev => {
+                                  const existing = prev.find(item => item.id === selectedDetailProduct.id && item.sizeLabel === targetSize);
+                                  const productWithSize = {
+                                    ...selectedDetailProduct,
+                                    price: effectivePrice,
+                                    original_price: selectedDetailProduct.price,
+                                    sizeLabel: targetSize
+                                  };
+                                  const maxStock = selectedVariantObj ? selectedVariantObj.stock : selectedDetailProduct.stock;
+                                  if (existing) {
+                                    const newQty = Math.min(maxStock, existing.quantity + detailQuantity);
+                                    return prev.map(item => 
+                                      (item.id === selectedDetailProduct.id && item.sizeLabel === targetSize)
+                                        ? { ...item, quantity: newQty } 
+                                        : item
+                                    );
+                                  }
+                                  return [...prev, { ...productWithSize, quantity: detailQuantity }];
+                                });
+
+                                // Open Cart Drawer to show item added
+                                setIsCartOpen(true);
+                              }}
+                              disabled={effectiveStock <= 0 || (variantsList.length > 0 && selectedVariantObj && selectedVariantObj.stock <= 0)}
+                              className={`w-full h-11 rounded-xl font-sans text-xs font-bold tracking-wider transition-all flex items-center justify-center gap-2 border cursor-pointer ${
+                                effectiveStock > 0
+                                  ? 'bg-[#1C2321] hover:bg-black text-white border-black hover:shadow-sm'
+                                  : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed'
+                              }`}
+                            >
+                              <ShoppingBag className="w-4 h-4" />
+                              <span>{effectiveStock > 0 ? 'AGREGAR AL CARRITO' : 'SIN STOCK'}</span>
+                            </button>
+                          </div>
                         </div>
                       </div>
                     );
@@ -7491,61 +7562,108 @@ export default function App() {
               </h3>
               
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                {products
-                  .filter(p => p.id !== selectedDetailProduct.id && p.category_id === selectedDetailProduct.category_id)
-                  .slice(0, 4)
-                  .map(product => {
-                    const discount = getProductDiscount(product);
-                    const effectivePrice = getEffectiveProductPrice(product);
-                    const originalPrice = getOriginalProductPrice(product);
-                    return (
-                      <div
-                        key={product.id}
-                        className="group bg-white border border-gray-200 rounded-lg overflow-hidden flex flex-col justify-between hover:shadow-xl hover:border-gray-300 transition-all duration-300"
+                {(products
+                  .filter(p => p.id !== selectedDetailProduct.id && (selectedDetailProduct.category_id ? p.category_id === selectedDetailProduct.category_id : true))
+                  .slice(0, 4).length > 0
+                    ? products.filter(p => p.id !== selectedDetailProduct.id && (selectedDetailProduct.category_id ? p.category_id === selectedDetailProduct.category_id : true)).slice(0, 4)
+                    : products.filter(p => p.id !== selectedDetailProduct.id).slice(0, 4)
+                ).map(product => {
+                  const discount = getProductDiscount(product);
+                  const effectivePrice = getEffectiveProductPrice(product);
+                  const originalPrice = getOriginalProductPrice(product);
+                  return (
+                    <div
+                      key={product.id}
+                      className="group bg-white border border-gray-200 rounded-xl overflow-hidden flex flex-col justify-between hover:shadow-xl hover:border-gray-300 transition-all duration-300"
+                    >
+                      {/* Image Area */}
+                      <div 
+                        onClick={() => handleProductClick(product)}
+                        className="relative bg-gray-50 aspect-square overflow-hidden border-b border-gray-100 group-hover:bg-gray-100/50 transition-colors cursor-pointer"
                       >
-                        <div 
-                          onClick={() => handleProductClick(product)}
-                          className="relative bg-gray-50 aspect-square overflow-hidden border-b border-gray-100 group-hover:bg-gray-100/50 transition-colors cursor-pointer"
-                        >
-                          {discount > 0 && (
-                            <span className="absolute top-3 left-3 bg-[#B85C38] text-white text-[9px] font-display font-bold tracking-widest px-2 py-0.5 rounded shadow z-10">
-                              {discount}% OFF
-                            </span>
-                          )}
-                          <img 
-                            src={product.image_url || (product.images && product.images[0]) || getProductImage(product.name)} 
-                            alt={product.name} 
-                            onError={(e) => {
-                              e.target.onerror = null;
-                              e.target.src = getProductImage(product.name);
-                            }}
-                            className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-all duration-500"
-                          />
+                        {discount > 0 && (
+                          <span className="absolute top-3 left-3 bg-[#B85C38] text-white text-[9px] font-display font-bold tracking-widest px-2 py-0.5 rounded shadow z-10">
+                            {discount}% OFF
+                          </span>
+                        )}
+                        {product.is_featured && (
+                          <span className="absolute top-3 right-3 bg-amber-500 text-white text-[9px] font-display font-bold tracking-widest px-2 py-0.5 rounded shadow z-10">
+                            ⭐ DESTACADO
+                          </span>
+                        )}
+                        {product.stock === 0 && (
+                          <span className="absolute top-3 right-3 bg-red-600 text-white text-[9px] font-display font-medium tracking-widest px-2 py-0.5 rounded">
+                            SIN STOCK
+                          </span>
+                        )}
+                        <img 
+                          src={product.image_url || (product.images && product.images[0]) || getProductImage(product.name)} 
+                          alt={product.name} 
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.src = getProductImage(product.name);
+                          }}
+                          className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-all duration-500"
+                        />
+                      </div>
+
+                      {/* Content Area */}
+                      <div className="p-4 flex-grow flex flex-col justify-between space-y-3">
+                        <div className="space-y-1.5 text-left">
+                          <div className="text-[10px] text-[#3C6E71] font-bold uppercase tracking-widest font-sans truncate">
+                            {(product.brand || 'HOLUX').toUpperCase()} • {product.categories?.name?.toUpperCase() || 'AVENTURA'}
+                          </div>
+                          
+                          <h4 
+                            onClick={() => handleProductClick(product)}
+                            className="font-sans font-bold text-gray-900 text-sm tracking-wide line-clamp-1 hover:text-[#3C6E71] transition-colors cursor-pointer"
+                          >
+                            {product.name}
+                          </h4>
+
+                          <p className="text-xs text-gray-500 line-clamp-2 leading-relaxed font-sans font-normal">
+                            {product.description || "Equipamiento técnico de alta performance Holux con costuras reforzadas y materiales impermeables de alta durabilidad."}
+                          </p>
                         </div>
 
-                        <div className="p-4 flex-grow flex flex-col justify-between space-y-3">
-                          <div className="space-y-1 text-left">
-                            <h4 
-                              onClick={() => handleProductClick(product)}
-                              className="font-sans font-bold text-gray-900 text-xs tracking-wide line-clamp-1 hover:text-[#3C6E71] transition-colors cursor-pointer"
-                            >
-                              {product.name}
-                            </h4>
-                            <div className="flex items-baseline gap-2">
-                              <span className="text-sm font-bold text-gray-955 font-sans">
-                                ${Math.round(effectivePrice).toLocaleString('es-AR')}
+                        {/* Price & Tax Transparency (Ley 27.743) */}
+                        <div className="space-y-2 pt-2 border-t border-gray-100 text-left">
+                          <div className="flex items-baseline gap-2">
+                            <span className="text-lg font-black text-gray-950 font-sans">
+                              ${Math.round(effectivePrice).toLocaleString('es-AR')}
+                            </span>
+                            {discount > 0 && originalPrice > 0 && (
+                              <span className="text-xs text-gray-400 line-through font-sans">
+                                ${Math.round(originalPrice).toLocaleString('es-AR')}
                               </span>
-                              {discount > 0 && originalPrice > 0 && (
-                                <span className="text-xs text-gray-400 line-through font-sans">
-                                  ${Math.round(originalPrice).toLocaleString('es-AR')}
-                                </span>
-                              )}
-                            </div>
+                            )}
                           </div>
+
+                          <div>
+                            <span className="bg-[#EBDCF0] text-[#7E3793] text-[9.5px] font-bold px-2 py-0.5 rounded tracking-wide uppercase inline-block font-sans">
+                              3 cuotas fijas de ${Math.round(effectivePrice / 3).toLocaleString('es-AR')}
+                            </span>
+                          </div>
+
+                          <span className="text-[9px] text-gray-400 font-sans block leading-tight">
+                            CFT: 0% | Precio sin impuestos: ${Math.round(effectivePrice * 0.79).toLocaleString('es-AR')} (IVA 21% discriminado - Ley N° 27.743)
+                          </span>
+
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleProductClick(product);
+                            }}
+                            className="w-full mt-2 py-2 bg-[#1C2321] hover:bg-black text-white rounded-lg text-xs font-bold font-sans tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+                          >
+                            <span>VER DETALLES</span>
+                          </button>
                         </div>
                       </div>
-                    );
-                  })}
+                    </div>
+                  );
+                })}
               </div>
             </div>
 

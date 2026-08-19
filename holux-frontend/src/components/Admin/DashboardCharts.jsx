@@ -262,22 +262,22 @@ export default function DashboardCharts({ adminStats, productsList = [], ordersL
       </div>
 
       {/* RENDERED CHART & LOW STOCK ALERT ROW */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start w-full">
         
         {/* REAL CHART CONTAINER (2 COLS) */}
-        <div className="lg:col-span-2 bg-white border border-gray-200 p-6 rounded-2xl space-y-4 shadow-sm">
-          <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+        <div className="lg:col-span-2 bg-white border border-gray-200 p-5 sm:p-6 rounded-2xl space-y-4 shadow-sm min-w-0 overflow-hidden">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-gray-100 pb-3 gap-2">
             <h3 className="font-display text-sm font-bold tracking-wider text-gray-900 uppercase flex items-center gap-2">
               <BarChart2 className="w-4 h-4 text-[#3C6E71]" />
-              EVOLUCIÓN DE INGRESOS Y VENTAS (DATOS REALES)
+              <span>EVOLUCIÓN DE INGRESOS Y VENTAS (DATOS REALES)</span>
             </h3>
-            <span className="text-[11px] font-mono-custom text-[#3C6E71] font-bold bg-[#3C6E71]/10 px-2 py-0.5 rounded">
+            <span className="text-[11px] font-mono-custom text-[#3C6E71] font-bold bg-[#3C6E71]/10 px-2 py-0.5 rounded self-start sm:self-auto">
               {totalChartPeriodOrders} {totalChartPeriodOrders === 1 ? 'pedido' : 'pedidos'} (${totalChartPeriodSales.toLocaleString('es-AR')})
             </span>
           </div>
 
-          {/* Real Bar Graph */}
-          <div className="h-60 flex items-end justify-between gap-2 pt-6 px-2">
+          {/* Real Bar Graph Container */}
+          <div className="h-60 flex items-end justify-between gap-1 sm:gap-2 pt-8 pb-1 px-1 sm:px-2 w-full overflow-hidden">
             {chartData.map((d, i) => {
               const hasSales = d.sales > 0;
               const heightPercent = hasSales 
@@ -285,15 +285,15 @@ export default function DashboardCharts({ adminStats, productsList = [], ordersL
                 : 4; // Flat base line if 0 sales
 
               return (
-                <div key={i} className="flex-1 flex flex-col items-center gap-2 h-full justify-end group">
-                  {/* Tooltip on hover */}
-                  <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-gray-900 text-white text-[9px] font-mono-custom py-1 px-1.5 rounded shadow whitespace-nowrap mb-1 pointer-events-none z-10">
+                <div key={i} className="flex-1 min-w-0 flex flex-col items-center justify-end h-full group relative">
+                  {/* Tooltip on hover (Absolute so it doesn't break layout) */}
+                  <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-gray-900 text-white text-[9px] font-mono-custom py-1 px-1.5 rounded shadow whitespace-nowrap pointer-events-none absolute bottom-[calc(100%+4px)] left-1/2 -translate-x-1/2 z-30">
                     {d.orders} ped. | ${d.sales.toLocaleString('es-AR')}
                   </div>
                   
                   {/* Bar */}
                   <div 
-                    className={`w-full rounded-t transition-all duration-300 ${
+                    className={`w-full max-w-[42px] rounded-t transition-all duration-300 ${
                       hasSales 
                         ? 'bg-[#3C6E71] hover:bg-[#3C6E71]/80 shadow-sm' 
                         : 'bg-gray-200/80 hover:bg-gray-300'
@@ -303,7 +303,7 @@ export default function DashboardCharts({ adminStats, productsList = [], ordersL
                   />
                   
                   {/* Label */}
-                  <span className={`text-[10px] font-mono-custom font-bold uppercase truncate max-w-[65px] text-center ${
+                  <span className={`text-[9px] sm:text-[10px] font-mono-custom font-bold uppercase truncate max-w-full text-center mt-1 ${
                     hasSales ? 'text-[#3C6E71] font-black' : 'text-gray-400'
                   }`}>
                     {d.label}
@@ -315,15 +315,15 @@ export default function DashboardCharts({ adminStats, productsList = [], ordersL
         </div>
 
         {/* LOW STOCK ALERTS (1 COL) */}
-        <div className="bg-red-50/60 border border-red-200 p-6 rounded-2xl space-y-4 shadow-sm text-left">
+        <div className="lg:col-span-1 bg-red-50/60 border border-red-200 p-5 sm:p-6 rounded-2xl space-y-4 shadow-sm text-left min-w-0 overflow-hidden">
           <div className="flex items-center justify-between border-b border-red-200 pb-3 text-red-900">
             <div className="flex items-center gap-2">
-              <AlertTriangle className="w-5 h-5 text-red-600 animate-pulse" />
-              <h3 className="font-display text-sm font-bold tracking-wider uppercase">
+              <AlertTriangle className="w-5 h-5 text-red-600 animate-pulse shrink-0" />
+              <h3 className="font-display text-sm font-bold tracking-wider uppercase truncate">
                 ALERTAS DE STOCK BAJO
               </h3>
             </div>
-            <span className="bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full font-mono-custom">
+            <span className="bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full font-mono-custom shrink-0">
               {displayLowStock.length}
             </span>
           </div>
@@ -333,13 +333,13 @@ export default function DashboardCharts({ adminStats, productsList = [], ordersL
               <p className="text-xs text-gray-500 text-center py-6">Todo el inventario tiene niveles óptimos de stock.</p>
             ) : (
               displayLowStock.map(prod => (
-                <div key={prod.id} className="flex items-center justify-between bg-white p-3 rounded-xl border border-red-100 shadow-sm">
-                  <div className="space-y-0.5">
-                    <p className="text-xs font-bold text-gray-800 line-clamp-1">{prod.name}</p>
+                <div key={prod.id} className="flex items-center justify-between bg-white p-3 rounded-xl border border-red-100 shadow-sm gap-2">
+                  <div className="space-y-0.5 min-w-0 flex-1">
+                    <p className="text-xs font-bold text-gray-800 truncate">{prod.name}</p>
                     <p className="text-[10px] text-gray-400 font-mono-custom uppercase">{prod.brand || 'HOLUX'}</p>
                   </div>
-                  <div className="text-right">
-                    <span className={`text-xs font-black font-mono-custom px-2 py-1 rounded border ${
+                  <div className="text-right shrink-0">
+                    <span className={`text-xs font-black font-mono-custom px-2 py-1 rounded border whitespace-nowrap ${
                       Number(prod.stock) <= 0 
                         ? 'text-red-700 bg-red-50 border-red-200' 
                         : Number(prod.stock) <= 5

@@ -150,6 +150,10 @@ Route::prefix('admin')->middleware(['throttle:api', 'auth.supabase', 'auth.admin
     // Store Settings
     Route::get('/settings', [\App\Http\Controllers\Admin\SettingController::class, 'index']);
     Route::post('/settings', [\App\Http\Controllers\Admin\SettingController::class, 'update']);
+    Route::put('/settings/tax', [\App\Http\Controllers\Admin\SettingController::class, 'updateTax']);
+    Route::put('/settings/payment', [\App\Http\Controllers\Admin\SettingController::class, 'updatePayment']);
+    Route::put('/settings/shipping', [\App\Http\Controllers\Admin\SettingController::class, 'updateShipping']);
+    Route::get('/settings/logs', [\App\Http\Controllers\Admin\SettingController::class, 'getLogs']);
 
     // Media Upload (Supabase Storage CDN)
     Route::post('/upload', [\App\Http\Controllers\Admin\MediaUploadController::class, 'store']);
