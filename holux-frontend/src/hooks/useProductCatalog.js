@@ -155,10 +155,13 @@ export function useProductCatalog(token) {
     setPerPage('10');
   };
 
-  // Bulk Price Action
-  const executeBulkPrice = async (type, value) => {
-    if (selectedIds.length === 0) return;
+  // Bulk Price Action (Supports custom items array or formula)
+  const executeBulkPrice = async (itemsOrType, value) => {
     try {
+      const payload = Array.isArray(itemsOrType)
+        ? { items: itemsOrType }
+        : { ids: selectedIds, type: itemsOrType, value: Number(value) };
+
       const res = await fetch(`${API_BASE}/api/admin/productos/bulk-price`, {
         method: 'POST',
         headers: {
@@ -166,11 +169,7 @@ export function useProductCatalog(token) {
           'Authorization': `Bearer ${token}`,
           'Accept': 'application/json',
         },
-        body: JSON.stringify({
-          ids: selectedIds,
-          type,
-          value: Number(value),
-        })
+        body: JSON.stringify(payload)
       });
 
       const json = await res.json();

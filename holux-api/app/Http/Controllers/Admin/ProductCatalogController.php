@@ -140,21 +140,77 @@ class ProductCatalogController extends Controller
     }
 
     /**
-     * Bulk price update (Percentage or Fixed amount).
+     * Bulk price update (Individual custom prices array OR Percentage/Fixed formula).
      */
     public function bulkPrice(Request $request, SupabaseService $supabase): JsonResponse
     {
+        $user = $request->user()?->email ?? 'admin@holux.com';
+
+        // Mode A: Individual custom prices array [{ id, price, offer_price }, ...]
+        if ($request->has('items') && is_array($request->items)) {
+            $request->validate([
+                'items' => ['required', 'array', 'min:1'],
+                'items.*.id' => ['required', 'string'],
+                'items.*.price' => ['required', 'numeric', 'min:0'],
+                'items.*.offer_price' => ['nullable', 'numeric', 'min:0'],
+            ]);
+
+            $updatedCount = 0;
+            $details = [];
+
+            foreach ($request->items as $item) {
+                $id = $item['id'];
+                $newPrice = max(0, (float) $item['price']);
+                $newOfferPrice = isset($item['offer_price']) ? max(0, (float) $item['offer_price']) : 0;
+
+                $product = $supabase->getOne('products', $id, true);
+                if (!$product) continue;
+
+                $currentPrice = (float) ($product['price'] ?? 0);
+
+                try {
+                    $supabase->update('products', $id, ['price' => $newPrice], true);
+                    if ($newOfferPrice > 0) {
+                        ProductMetadataService::set($id, [
+                            'offer_price' => $newOfferPrice,
+                        ]);
+                    }
+                    $updatedCount++;
+                    $details[] = [
+                        'id' => $id,
+                        'name' => $product['name'],
+                        'old_price' => $currentPrice,
+                        'new_price' => $newPrice,
+                        'offer_price' => $newOfferPrice,
+                    ];
+                } catch (\Throwable $e) {
+                    Log::error("Custom bulk price update failed for product {$id}: " . $e->getMessage());
+                }
+            }
+
+            AdminLog::record($user, 'BULK_PRICE_CUSTOM_UPDATE', 'products', [
+                'products_count' => $updatedCount,
+                'modified_items' => $details,
+            ]);
+
+            return response()->json([
+                'message' => "Se actualizaron los precios de {$updatedCount} productos correctamente.",
+                'updated_count' => $updatedCount,
+                'items' => $details,
+            ]);
+        }
+
+        // Mode B: Percentage or Fixed Formula
         $request->validate([
             'ids' => ['required', 'array', 'min:1'],
             'ids.*' => ['required', 'string'],
             'type' => ['required', 'string', 'in:percentage,fixed'],
-            'value' => ['required', 'numeric'], // e.g. 10 for +10%, -15 for -15%, or 5000 fixed
+            'value' => ['required', 'numeric'],
         ]);
 
         $ids = $request->ids;
         $type = $request->type;
         $value = (float) $request->value;
-        $user = $request->user()?->email ?? 'admin@holux.com';
 
         $updatedCount = 0;
         $details = [];

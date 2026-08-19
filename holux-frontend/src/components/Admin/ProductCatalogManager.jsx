@@ -67,8 +67,8 @@ export default function ProductCatalogManager({
 
   // Modals Local State
   const [isBulkPriceModalOpen, setIsBulkPriceModalOpen] = useState(false);
-  const [bulkPriceType, setBulkPriceType] = useState('percentage');
-  const [bulkPriceValue, setBulkPriceValue] = useState(10);
+  const [editableProducts, setEditableProducts] = useState([]);
+  const [quickPercent, setQuickPercent] = useState('');
   const [isBulkPriceSubmitting, setIsBulkPriceSubmitting] = useState(false);
 
   const [isBulkCategoryModalOpen, setIsBulkCategoryModalOpen] = useState(false);
@@ -87,15 +87,58 @@ export default function ProductCatalogManager({
   const allVisibleSelected = visibleIds.length > 0 && visibleIds.every(id => selectedIds.includes(id));
   const hasActiveFilters = Boolean(search || (category && category !== 'all') || (stockFilter && stockFilter !== 'all'));
 
-  // Handler for bulk price submit
+  // Open Bulk Price Modal with selected products data
+  const handleOpenBulkPriceModal = () => {
+    const selected = products
+      .filter(p => selectedIds.includes(p.id))
+      .map(p => ({
+        id: p.id,
+        name: p.name,
+        brand: p.brand || 'HOLUX',
+        image_url: p.image_url || (p.images && p.images[0]) || 'https://images.unsplash.com/photo-1551028719-00167b16eac5?w=200',
+        currentPrice: Number(p.price || 0),
+        newPrice: Number(p.price || 0),
+        offerPrice: Number(p.offer_price || 0),
+      }));
+    setEditableProducts(selected);
+    setQuickPercent('');
+    setIsBulkPriceModalOpen(true);
+  };
+
+  // Change individual product price in modal
+  const handlePriceItemChange = (id, field, val) => {
+    setEditableProducts(prev => prev.map(item => {
+      if (item.id === id) {
+        return { ...item, [field]: val };
+      }
+      return item;
+    }));
+  };
+
+  // Apply quick percentage calculation to all selected items
+  const handleApplyQuickPercent = (pct) => {
+    const num = parseFloat(pct);
+    if (isNaN(num)) return;
+    setEditableProducts(prev => prev.map(item => {
+      const calculated = Math.round(item.currentPrice * (1 + (num / 100)));
+      return { ...item, newPrice: Math.max(0, calculated) };
+    }));
+  };
+
+  // Submit custom bulk prices
   const handleBulkPriceSubmit = async (e) => {
     e.preventDefault();
     setIsBulkPriceSubmitting(true);
     try {
-      await executeBulkPrice(bulkPriceType, bulkPriceValue);
+      const itemsPayload = editableProducts.map(p => ({
+        id: p.id,
+        price: Number(p.newPrice),
+        offer_price: Number(p.offerPrice || 0),
+      }));
+      await executeBulkPrice(itemsPayload);
       setIsBulkPriceModalOpen(false);
     } catch (err) {
-      alert(err.message || 'Error al aplicar ajuste de precios.');
+      alert(err.message || 'Error al guardar los nuevos precios.');
     } finally {
       setIsBulkPriceSubmitting(false);
     }
@@ -350,11 +393,11 @@ export default function ProductCatalogManager({
             {/* Ajustar Precios */}
             <button
               type="button"
-              onClick={() => setIsBulkPriceModalOpen(true)}
+              onClick={handleOpenBulkPriceModal}
               className="px-3.5 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-xl text-xs font-bold font-display tracking-wider flex items-center gap-1.5 transition-all cursor-pointer border border-gray-200 shadow-sm"
             >
               <DollarSign className="w-3.5 h-3.5 text-emerald-600" />
-              <span>AJUSTAR PRECIO %</span>
+              <span>AJUSTAR PRECIOS</span>
             </button>
 
             {/* Cambiar Categoría */}
@@ -718,15 +761,21 @@ export default function ProductCatalogManager({
         </div>
       </div>
 
-      {/* --- MODAL: BULK PRICE ADJUSTMENT --- */}
+      {/* --- MODAL: INDIVIDUAL & BULK PRICE ADJUSTMENT --- */}
       {isBulkPriceModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 border border-gray-200 animate-in fade-in zoom-in duration-150">
-            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
-              <h3 className="font-display text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
-                <DollarSign className="w-4 h-4 text-emerald-600" />
-                AJUSTE MASIVO DE PRECIOS ({selectedIds.length} PRODUCTOS)
-              </h3>
+          <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-4 border border-gray-200 animate-in fade-in zoom-in duration-150 max-h-[90vh] flex flex-col">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3 flex-shrink-0">
+              <div>
+                <h3 className="font-display text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
+                  <DollarSign className="w-4 h-4 text-emerald-600" />
+                  AJUSTAR PRECIOS ({editableProducts.length} PRODUCTOS SELECCIONADOS)
+                </h3>
+                <p className="text-[11px] text-gray-500 mt-0.5">
+                  Editá el precio individual de cada producto o aplicá un cálculo porcentual a todos.
+                </p>
+              </div>
               <button 
                 type="button" 
                 onClick={() => setIsBulkPriceModalOpen(false)}
@@ -736,73 +785,132 @@ export default function ProductCatalogManager({
               </button>
             </div>
 
-            <form onSubmit={handleBulkPriceSubmit} className="space-y-4 text-xs">
-              <div className="space-y-2">
-                <label className="font-bold text-gray-700 block">Tipo de Ajuste:</label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setBulkPriceType('percentage')}
-                    className={`py-2 px-3 rounded-xl border text-center font-bold transition-all cursor-pointer ${
-                      bulkPriceType === 'percentage'
-                        ? 'bg-[#3C6E71] text-white border-[#3C6E71]'
-                        : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'
-                    }`}
-                  >
-                    Porcentual (%)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setBulkPriceType('fixed')}
-                    className={`py-2 px-3 rounded-xl border text-center font-bold transition-all cursor-pointer ${
-                      bulkPriceType === 'fixed'
-                        ? 'bg-[#3C6E71] text-white border-[#3C6E71]'
-                        : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'
-                    }`}
-                  >
-                    Monto Fijo ($)
-                  </button>
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="font-bold text-gray-700 block">
-                  {bulkPriceType === 'percentage' ? 'Porcentaje a aplicar:' : 'Monto a sumar o restar:'}
-                </label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    step="any"
-                    value={bulkPriceValue}
-                    onChange={(e) => setBulkPriceValue(e.target.value)}
-                    required
-                    placeholder={bulkPriceType === 'percentage' ? 'Ej: 10 para +10% o -15 para descuento' : 'Ej: 5000 o -2000'}
-                    className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-300 rounded-xl font-mono-custom text-sm font-bold outline-none focus:border-[#3C6E71] focus:bg-white"
-                  />
-                  <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 font-bold font-mono-custom">
-                    {bulkPriceType === 'percentage' ? '%' : 'ARS $'}
-                  </span>
-                </div>
-                <p className="text-[11px] text-gray-500 italic">
-                  💡 Tip: Podés usar números negativos para aplicar descuentos (ej. <code>-10</code>).
+            {/* Quick Percentage Calculator Panel (Optional Assistant) */}
+            <div className="bg-gray-50 border border-gray-200 rounded-xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 flex-shrink-0">
+              <div className="text-xs space-y-0.5">
+                <span className="font-bold text-gray-800 flex items-center gap-1.5 font-display text-[11px] uppercase">
+                  ⚡ Cálculo rápido para todos:
+                </span>
+                <p className="text-[10px] text-gray-500">
+                  Calcula el % sobre el precio actual y llena los casilleros para que los revises.
                 </p>
               </div>
 
-              <div className="pt-3 border-t border-gray-100 flex justify-end gap-2">
+              <div className="flex items-center gap-2">
+                <div className="relative w-28">
+                  <input
+                    type="number"
+                    step="any"
+                    value={quickPercent}
+                    onChange={(e) => setQuickPercent(e.target.value)}
+                    placeholder="Ej: 10 o -15"
+                    className="w-full pl-2.5 pr-6 py-1.5 bg-white border border-gray-300 rounded-lg text-xs font-mono-custom font-bold outline-none focus:border-[#3C6E71]"
+                  />
+                  <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-[10px]">%</span>
+                </div>
                 <button
                   type="button"
-                  onClick={() => setIsBulkPriceModalOpen(false)}
-                  className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-display font-bold uppercase cursor-pointer"
+                  onClick={() => handleApplyQuickPercent(quickPercent)}
+                  className="px-3 py-1.5 bg-[#3C6E71] hover:bg-[#3C6E71]/90 text-white rounded-lg font-display text-[10px] font-bold tracking-wider uppercase transition-all cursor-pointer shadow-sm"
                 >
-                  Cancelar
+                  Calcular
                 </button>
-                <button
-                  type="submit"
-                  disabled={isBulkPriceSubmitting}
-                  className="px-5 py-2 bg-[#3C6E71] hover:bg-[#3C6E71]/90 text-white rounded-xl font-display font-bold uppercase tracking-wider flex items-center gap-1.5 cursor-pointer shadow-md"
-                >
-                  {isBulkPriceSubmitting ? 'Guardando...' : 'Aplicar Ajuste'}
-                </button>
+              </div>
+            </div>
+
+            {/* Scrollable Products Price Table */}
+            <form onSubmit={handleBulkPriceSubmit} className="flex-grow flex flex-col overflow-hidden space-y-4">
+              <div className="overflow-y-auto pr-1 flex-grow divide-y divide-gray-100 border border-gray-100 rounded-xl bg-gray-50/40">
+                {editableProducts.map((prod) => {
+                  const curr = Number(prod.currentPrice || 0);
+                  const next = Number(prod.newPrice || 0);
+                  const diff = next - curr;
+                  const diffPercent = curr > 0 ? ((diff / curr) * 100).toFixed(1) : 0;
+                  const hasChanged = next !== curr;
+
+                  return (
+                    <div key={prod.id} className="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-white transition-colors bg-white/70">
+                      {/* Product Info & Thumbnail */}
+                      <div className="flex items-center gap-3 min-w-0 flex-grow">
+                        <div className="w-11 h-11 rounded-lg bg-gray-100 border border-gray-200 overflow-hidden flex-shrink-0 shadow-sm">
+                          <img
+                            src={prod.image_url}
+                            alt={prod.name}
+                            onError={(e) => {
+                              e.target.onerror = null;
+                              e.target.src = 'https://images.unsplash.com/photo-1551028719-00167b16eac5?w=200';
+                            }}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-bold text-gray-900 text-xs truncate" title={prod.name}>
+                            {prod.name}
+                          </p>
+                          <div className="flex items-center gap-2 text-[10px] text-gray-400 font-mono-custom mt-0.5">
+                            <span>{prod.brand}</span>
+                            <span>•</span>
+                            <span className="text-gray-600 font-medium">
+                              Actual: ARS ${curr.toLocaleString('es-AR')}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Inputs: New Price & Optional Offer */}
+                      <div className="flex items-center gap-3 flex-shrink-0">
+                        {/* New Price Input */}
+                        <div className="space-y-1">
+                          <div className="relative w-36">
+                            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 font-mono-custom font-bold text-xs">$</span>
+                            <input
+                              type="number"
+                              min="0"
+                              step="any"
+                              required
+                              value={prod.newPrice}
+                              onChange={(e) => handlePriceItemChange(prod.id, 'newPrice', e.target.value)}
+                              className={`w-full pl-6 pr-2.5 py-1.5 rounded-lg border font-mono-custom text-xs font-bold outline-none transition-all ${
+                                hasChanged
+                                  ? 'border-[#3C6E71] bg-[#3C6E71]/5 text-gray-900'
+                                  : 'border-gray-300 bg-white text-gray-800'
+                              }`}
+                            />
+                          </div>
+                          {hasChanged && (
+                            <span className={`text-[9px] font-mono-custom font-bold block text-right ${diff >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                              {diff >= 0 ? `+${diffPercent}%` : `${diffPercent}%`} (${diff >= 0 ? `+` : ''}${diff.toLocaleString('es-AR')})
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Modal Footer */}
+              <div className="pt-3 border-t border-gray-100 flex justify-between items-center flex-shrink-0">
+                <span className="text-[11px] text-gray-500 font-mono-custom">
+                  {editableProducts.filter(p => Number(p.newPrice) !== Number(p.currentPrice)).length} precios modificados
+                </span>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsBulkPriceModalOpen(false)}
+                    className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-display font-bold uppercase text-xs cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isBulkPriceSubmitting}
+                    className="px-5 py-2 bg-[#3C6E71] hover:bg-[#3C6E71]/90 text-white rounded-xl font-display font-bold uppercase text-xs tracking-wider flex items-center gap-1.5 cursor-pointer shadow-md"
+                  >
+                    {isBulkPriceSubmitting ? 'Guardando...' : `Guardar Precios (${editableProducts.length})`}
+                  </button>
+                </div>
               </div>
             </form>
           </div>
