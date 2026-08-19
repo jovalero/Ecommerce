@@ -2,46 +2,7 @@ import React, { useState } from 'react';
 import { MessageSquare, CheckCircle2, Clock, AlertCircle, Send, User, Search, Tag, Filter } from 'lucide-react';
 
 export default function SupportManager() {
-  const [tickets, setTickets] = useState([
-    {
-      id: 'HLX-TK-101',
-      customer_name: 'Lucía Fernández',
-      customer_email: 'lucia.fernandez@gmail.com',
-      subject: 'Consulta por tabla de talles en Campera Fitz Roy',
-      category: 'Producto & Talles',
-      status: 'RESUELTO',
-      created_at: '2026-07-22 14:30',
-      messages: [
-        { sender: 'customer', text: '¡Hola! Quería saber si la campera viene entallada o holgada para usar con abrigo abajo.', time: '14:30' },
-        { sender: 'admin', text: 'Hola Lucía, el corte es técnico (standard fit). Si vas a usar un polar grueso abajo te sugerimos llevar un talle más.', time: '14:45' }
-      ]
-    },
-    {
-      id: 'HLX-TK-102',
-      customer_name: 'Martín Palermo',
-      customer_email: 'martin.palermo@gmail.com',
-      subject: 'Seguimiento de despacho de envío a Bariloche',
-      category: 'Envíos & Logística',
-      status: 'EN PROCESO',
-      created_at: '2026-07-23 09:15',
-      messages: [
-        { sender: 'customer', text: 'Buenos días, realicé la compra ayer con envío a Bariloche. ¿Me envían el código de seguimiento por Andreani?', time: '09:15' },
-        { sender: 'admin', text: 'Hola Martín! Ya empaquetamos tu bolsa de dormir. En el transcurso de la tarde te llega el tracking.', time: '10:00' }
-      ]
-    },
-    {
-      id: 'HLX-TK-103',
-      customer_name: 'Sofía Rossi',
-      customer_email: 'sofia.rossi@gmail.com',
-      subject: 'Duda sobre aplicación de cupón HOLUX15',
-      category: 'Cupones & Pagos',
-      status: 'ABIERTO',
-      created_at: '2026-07-24 11:00',
-      messages: [
-        { sender: 'customer', text: 'Hola, intenté usar el cupón HOLUX15 en mi carrito y me dice que alcanzó el límite de uso.', time: '11:00' }
-      ]
-    }
-  ]);
+  const [tickets, setTickets] = useState([]);
 
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [replyText, setReplyText] = useState('');
@@ -129,27 +90,39 @@ export default function SupportManager() {
           </h4>
 
           <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1">
-            {filteredTickets.map(t => (
-              <div
-                key={t.id}
-                onClick={() => setSelectedTicket(t)}
-                className={`p-3.5 border rounded-xl cursor-pointer transition-all text-xs space-y-1.5 ${selectedTicket?.id === t.id ? 'border-[#3C6E71] bg-[#3C6E71]/5 shadow-sm' : 'border-gray-200 hover:bg-gray-50'}`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="font-mono-custom font-bold text-[10px] text-gray-400">{t.id}</span>
-                  <span className={`px-2 py-0.5 rounded text-[9px] font-bold ${t.status === 'ABIERTO' ? 'bg-amber-100 text-amber-800' : t.status === 'EN PROCESO' ? 'bg-blue-100 text-blue-800' : 'bg-emerald-100 text-emerald-800'}`}>
-                    {t.status}
-                  </span>
-                </div>
+            {filteredTickets.length > 0 ? (
+              filteredTickets.map(t => (
+                <div
+                  key={t.id}
+                  onClick={() => setSelectedTicket(t)}
+                  className={`p-3.5 border rounded-xl cursor-pointer transition-all text-xs space-y-1.5 ${selectedTicket?.id === t.id ? 'border-[#3C6E71] bg-[#3C6E71]/5 shadow-sm' : 'border-gray-200 hover:bg-gray-50'}`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono-custom font-bold text-[10px] text-gray-400">{t.id}</span>
+                    <span className={`px-2 py-0.5 rounded text-[9px] font-bold ${t.status === 'ABIERTO' ? 'bg-amber-100 text-amber-800' : t.status === 'EN PROCESO' ? 'bg-blue-100 text-blue-800' : 'bg-emerald-100 text-emerald-800'}`}>
+                      {t.status}
+                    </span>
+                  </div>
 
-                <h5 className="font-bold text-gray-900 font-display line-clamp-1">{t.subject}</h5>
+                  <h5 className="font-bold text-gray-900 font-display line-clamp-1">{t.subject}</h5>
 
-                <div className="flex items-center justify-between text-[10px] text-gray-500">
-                  <span className="font-medium">{t.customer_name}</span>
-                  <span>{t.created_at}</span>
+                  <div className="flex items-center justify-between text-[10px] text-gray-500">
+                    <span className="font-medium">{t.customer_name}</span>
+                    <span>{t.created_at}</span>
+                  </div>
                 </div>
+              ))
+            ) : (
+              <div className="py-16 px-4 text-center text-gray-400 space-y-2">
+                <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto stroke-1" />
+                <p className="font-display font-bold text-xs uppercase tracking-wider text-gray-700">
+                  BANDEJA AL DÍA
+                </p>
+                <p className="text-[11px] text-gray-400 max-w-xs mx-auto">
+                  No hay tickets de soporte recibidos por el momento.
+                </p>
               </div>
-            ))}
+            )}
           </div>
         </div>
 

@@ -24,6 +24,12 @@ class StoreOrderRequest extends FormRequest
         return [
             'customer_name' => ['required', 'string', 'max:255'],
             'customer_email' => ['required', 'email', 'max:255'],
+            'customer_phone' => ['nullable', 'string', 'max:50'],
+            'customer_dni' => ['nullable', 'string', 'max:50'],
+            'shipping_address' => ['nullable', 'string', 'max:500'],
+            'shipping_method' => ['nullable', 'string', 'max:100'],
+            'payment_method' => ['nullable', 'string', 'max:50'],
+            'receipt_url' => ['nullable', 'string'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.product_id' => ['required', 'string'],
             'items.*.quantity' => ['required', 'integer', 'min:1'],

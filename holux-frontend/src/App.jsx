@@ -30,7 +30,14 @@ import {
   ArrowLeft,
   ShieldCheck,
   Store,
-  CreditCard
+  CreditCard,
+  Clock,
+  Truck,
+  Eye,
+  Tag,
+  Gift,
+  Sparkles,
+  Ruler
 } from 'lucide-react';
 
 import DashboardCharts from './components/Admin/DashboardCharts';
@@ -42,6 +49,9 @@ import ProductEditModal from './components/Admin/ProductEditModal';
 import CustomerEditModal from './components/Admin/CustomerEditModal';
 import SupportManager from './components/Admin/SupportManager';
 import CheckoutView from './components/Checkout/CheckoutView';
+import ProductCatalogManager from './components/Admin/ProductCatalogManager';
+import Breadcrumbs from './components/Admin/Breadcrumbs';
+import { useProductCatalog } from './hooks/useProductCatalog';
 
 // Configuration
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
@@ -57,6 +67,39 @@ const DISCOUNT_MAP = {
 
 const getProductDiscount = (productName) => {
   return DISCOUNT_MAP[productName] || 0;
+};
+
+// Global Order Utilities & Config
+const ORDER_STATUS_CONFIG = {
+  paid:            { label: '🟢 PAGADO',      cls: 'bg-emerald-100 text-emerald-800 border border-emerald-300' },
+  completed:       { label: '🟢 PAGADO',      cls: 'bg-emerald-100 text-emerald-800 border border-emerald-300' },
+  pending_review:  { label: '🟠 EN REVISIÓN', cls: 'bg-amber-100 text-amber-800 border border-amber-300' },
+  pending_payment: { label: '🟡 PEND. PAGO',  cls: 'bg-yellow-100 text-yellow-800 border border-yellow-300' },
+  pending:         { label: '🟡 PEND. PAGO',  cls: 'bg-yellow-100 text-yellow-800 border border-yellow-300' },
+  rejected:        { label: '🔴 RECHAZADO',   cls: 'bg-red-100 text-red-800 border border-red-300' },
+  cancelled:       { label: '⚪ CANCELADO',   cls: 'bg-gray-100 text-gray-600 border border-gray-300' }
+};
+
+const getOrderStatusInfo = (status) => {
+  return ORDER_STATUS_CONFIG[status] || { label: '⚪ OTRO', cls: 'bg-gray-100 text-gray-600 border border-gray-300' };
+};
+
+const parseOrderItems = (order) => {
+  if (!order) return [];
+  let raw = order.order_items || order.items || [];
+  if (typeof raw === 'string') {
+    try { raw = JSON.parse(raw); } catch { raw = []; }
+  }
+  if (!Array.isArray(raw)) return [];
+  return raw.map(item => ({
+    ...item,
+    name: item.products?.name || item.product_name || item.name || 'Producto Holux',
+    product_name: item.products?.name || item.product_name || item.name || 'Producto Holux',
+    price: item.products?.price || item.unit_price || item.price || 0,
+    unit_price: item.products?.price || item.unit_price || item.price || 0,
+    image_url: item.products?.image_url || item.image_url || null,
+    quantity: item.quantity || 1
+  }));
 };
 
 // Promotional Banners configuration (customizable for home page sections)
@@ -108,7 +151,7 @@ const getProductImage = (name) => {
     return 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=600&auto=format&fit=crop&q=80';
   }
   if (cleanName.includes('linterna') || cleanName.includes('frontal')) {
-    return 'https://images.unsplash.com/photo-1554189097-ffe88e99897e?w=600&auto=format&fit=crop&q=80';
+    return 'https://images.unsplash.com/photo-1510511459019-5dda7724fd87?w=800&auto=format&fit=crop&q=80';
   }
   if (cleanName.includes('brújula') || cleanName.includes('brujula')) {
     return 'https://images.unsplash.com/photo-1532601224476-15c79f2f7a51?w=600&auto=format&fit=crop&q=80';
@@ -252,16 +295,27 @@ export default function App() {
   const [isCatDropdownOpen, setIsCatDropdownOpen] = useState(false);
   const [activeGender, setActiveGender] = useState(null); // 'mujer' | 'hombre' | 'niños' | 'outlet' | null
   const [activeBrand, setActiveBrand] = useState(null); // brand filter
-  const [currentView, setCurrentView] = useState('home'); // 'home' | 'category'
+  const [currentView, setCurrentView] = useState(() => {
+    const hash = window.location.hash || '';
+    if (hash.startsWith('#/mi-cuenta')) return 'customer_panel';
+    if (hash.startsWith('#/admin')) return 'admin';
+    if (hash.startsWith('#/catalogo')) return 'category';
+    if (hash.startsWith('#/compra-confirmada')) return 'checkout';
+    return 'home';
+  });
   const [sortBy, setSortBy] = useState('relevant'); // 'relevant' | 'price-asc' | 'price-desc'
   const [selectedDetailProduct, setSelectedDetailProduct] = useState(null);
   const [detailQuantity, setDetailQuantity] = useState(1);
   const [selectedSize, setSelectedSize] = useState('');
   const [sizeError, setSizeError] = useState(false);
+  const [isSizeGuideOpen, setIsSizeGuideOpen] = useState(false);
+  const [sizeGuideCategory, setSizeGuideCategory] = useState('tops'); // 'tops' | 'bottoms' | 'footwear'
 
-  // Cart
+  // Cart & Orders
   const [heroSlides, setHeroSlides] = useState(slides);
   const [selectedPrintOrder, setSelectedPrintOrder] = useState(null);
+  const [selectedOrderDetail, setSelectedOrderDetail] = useState(null);
+  const [adminOrderSearchQuery, setAdminOrderSearchQuery] = useState('');
   const [cart, setCart] = useState(() => {
     const saved = localStorage.getItem('holux_cart');
     return saved ? JSON.parse(saved) : [];
@@ -306,16 +360,96 @@ export default function App() {
     if (saved) {
       try { return JSON.parse(saved); } catch (e) { console.error(e); }
     }
-    return [
-      { id: 'addr-1', label: 'Domicilio Principal', street: 'Av. Pellegrini 1840', apartment: '4º B', city: 'Rosario', province: 'Santa Fe', postal_code: '2000', is_default: true },
-      { id: 'addr-2', label: 'Sucursal / Trabajo', street: 'San Martín 920', apartment: '', city: 'Rosario', province: 'Santa Fe', postal_code: '2000', is_default: false }
-    ];
+    return [];
   });
   const [orders, setOrders] = useState([]);
-  const [customerPanelSection, setCustomerPanelSection] = useState('general'); // 'general' | 'orders' | 'payment' | 'refunds' | 'reviews' | 'addresses' | 'messages' | 'settings'
+  // Coupons & Benefits State - Sourced dynamically from Admin / localStorage
+  const [couponsTabFilter, setCouponsTabFilter] = useState('disponibles'); // 'disponibles' | 'usados' | 'vencidos'
+  const [couponSearchQuery, setCouponSearchQuery] = useState('');
+  const [redeemInput, setRedeemInput] = useState('');
+  const [copiedCouponId, setCopiedCouponId] = useState(null);
+  const [appliedCoupon, setAppliedCoupon] = useState(null);
+
+  // Customer coupons wallet logic - Isolated per authenticated user ID
+  const getSyncedCustomerCoupons = () => {
+    const currentUserId = userProfile?.id || (token ? 'auth_user' : 'guest');
+    const userWalletKey = `holux_customer_coupons_wallet_${currentUserId}`;
+    const savedWallet = localStorage.getItem(userWalletKey);
+    let myWallet = [];
+    if (savedWallet) {
+      try {
+        myWallet = JSON.parse(savedWallet);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    // Read admin database of coupons
+    const adminSaved = localStorage.getItem('holux_coupons_database');
+    let adminCouponsMap = new Map();
+    if (adminSaved) {
+      try {
+        const parsed = JSON.parse(adminSaved);
+        parsed.forEach(c => {
+          if (c && c.code) {
+            adminCouponsMap.set(c.code.toUpperCase().trim(), c);
+          }
+        });
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    const validatedWallet = myWallet.filter(myC => {
+      if (myC.status === 'usado') return true;
+      const adminCoupon = adminCouponsMap.get(myC.code.toUpperCase().trim());
+      if (!adminCoupon || adminCoupon.active === false) return false;
+      return true;
+    }).map(myC => {
+      const adminCoupon = adminCouponsMap.get(myC.code.toUpperCase().trim());
+      if (adminCoupon) {
+        const isExpired = adminCoupon.expiry_timestamp && adminCoupon.expiry_timestamp < Date.now();
+        return {
+          ...myC,
+          value: adminCoupon.value,
+          type: adminCoupon.type === 'percent' ? 'percentage' : 'fixed',
+          min_spend: adminCoupon.minPurchase || 0,
+          origin: adminCoupon.origin || myC.origin || 'Promoción Redes 🏷️',
+          description: adminCoupon.description || myC.description,
+          expiry_timestamp: adminCoupon.expiry_timestamp || myC.expiry_timestamp,
+          status: myC.status === 'usado' ? 'usado' : (isExpired ? 'vencido' : 'disponible')
+        };
+      }
+      return myC;
+    });
+
+    return validatedWallet;
+  };
+
+  const [customerCoupons, setCustomerCoupons] = useState(getSyncedCustomerCoupons);
+
+  // Sync wallet to user-specific localStorage key
+  useEffect(() => {
+    const currentUserId = userProfile?.id || (token ? 'auth_user' : 'guest');
+    localStorage.setItem(`holux_customer_coupons_wallet_${currentUserId}`, JSON.stringify(customerCoupons));
+  }, [customerCoupons, userProfile?.id, token]);
+
+  useEffect(() => {
+    const handleSyncCoupons = () => {
+      setCustomerCoupons(getSyncedCustomerCoupons());
+    };
+    window.addEventListener('holux_coupons_updated', handleSyncCoupons);
+    window.addEventListener('storage', handleSyncCoupons);
+    return () => {
+      window.removeEventListener('holux_coupons_updated', handleSyncCoupons);
+      window.removeEventListener('storage', handleSyncCoupons);
+    };
+  }, [userProfile?.id]);
+
+  const [customerPanelSection, setCustomerPanelSection] = useState('general'); // 'general' | 'orders' | 'coupons' | 'reviews' | 'addresses' | 'messages' | 'settings'
   const [orderStatusFilter, setOrderStatusFilter] = useState('all'); // 'all' | 'pending' | 'processing' | 'shipped' | 'completed'
   const [orderSearchQuery, setOrderSearchQuery] = useState('');
-  
+
   // Address form
   const [editingAddress, setEditingAddress] = useState(null);
   const [addrLabel, setAddrLabel] = useState('');
@@ -326,48 +460,27 @@ export default function App() {
   const [addrIsDefault, setAddrIsDefault] = useState(false);
   const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
 
-  // Saved Cards state
-  const [savedCards, setSavedCards] = useState([
-    { id: 'card-1', brand: 'VISA', number: '4921', holder: 'Lucía Fernández', expiry: '11/28', isDefault: true },
-    { id: 'card-2', brand: 'Mastercard', number: '8834', holder: 'Lucía Fernández', expiry: '06/27', isDefault: false }
-  ]);
-  const [isAddCardModalOpen, setIsAddCardModalOpen] = useState(false);
-  const [cardHolderInput, setCardHolderInput] = useState('');
-  const [cardNumberInput, setCardNumberInput] = useState('');
-  const [cardExpiryInput, setCardExpiryInput] = useState('');
-  const [cardCvcInput, setCardCvcInput] = useState('');
-  const [cardBrandInput, setCardBrandInput] = useState('VISA');
-  const [cardIsDefaultInput, setCardIsDefaultInput] = useState(false);
-
   const [copiedBankText, setCopiedBankText] = useState('');
 
-  // Support Chat state inside Customer Panel
-  const [panelSupportMessages, setPanelSupportMessages] = useState([
-    { id: 'sp-1', sender: 'agent', text: '¡Hola Lucía! Bienvenido al Centro de Soporte de Holux Outdoor. ¿En qué podemos ayudarte hoy con tus pedidos o equipamiento?', timestamp: '14:20' },
-    { id: 'sp-2', sender: 'user', text: 'Hola, quería consultar sobre los plazos de entrega para Rosario.', timestamp: '14:22' },
-    { id: 'sp-3', sender: 'agent', text: 'Los envíos a Rosario se entregan de 24 a 48 horas hábiles por Andreani Express con seguimiento en tiempo real.', timestamp: '14:23' }
-  ]);
+  // Support Chat state inside Customer Panel - Isolated per user
+  const [panelSupportMessages, setPanelSupportMessages] = useState([]);
   const [panelSupportInput, setPanelSupportInput] = useState('');
 
-  // Refund / Botón de Arrepentimiento state inside Customer Panel
+  // Refund state inside Customer Panel - Isolated per user
   const [isRefundModalOpen, setIsRefundModalOpen] = useState(false);
   const [refundOrderSelect, setRefundOrderSelect] = useState('');
   const [refundReasonSelect, setRefundReasonSelect] = useState('Talle incorrecto');
   const [refundCommentInput, setRefundCommentInput] = useState('');
-  const [refundRequestsList, setRefundRequestsList] = useState([
-    { id: 'DEV-849201', orderId: 'HLX-849201', date: '25/07/2026', reason: 'Talle incorrecto', status: 'EN PROCESO DE DEVOLUCIÓN', amount: 89000 }
-  ]);
+  const [refundRequestsList, setRefundRequestsList] = useState([]);
 
-  // Customer Reviews state
-  const [customerReviewsList, setCustomerReviewsList] = useState([
-    { id: 'rev-201', productName: 'Campera Cortavientos Fitz Roy', rating: 5, comment: 'Excelente resistencia al viento y agua en el Chaltén!', status: 'APROBADA Y PUBLICADA', date: '20/07/2026' }
-  ]);
+  // Customer Reviews state - Isolated per user
+  const [customerReviewsList, setCustomerReviewsList] = useState([]);
   const [isAddCustomerReviewModalOpen, setIsAddCustomerReviewModalOpen] = useState(false);
-  const [reviewProdSelect, setReviewProdSelect] = useState('Campera Cortavientos Fitz Roy');
+  const [reviewProdSelect, setReviewProdSelect] = useState('');
   const [reviewRatingSelect, setReviewRatingSelect] = useState(5);
   const [reviewCommentInput, setReviewCommentInput] = useState('');
 
-  // Account Settings state
+  // Account Settings state - Isolated per user
   const [accountSettings, setAccountSettings] = useState({
     emailPromos: true,
     smsAlerts: true,
@@ -377,8 +490,115 @@ export default function App() {
   });
   const [settingsSavedMessage, setSettingsSavedMessage] = useState(false);
 
+  // Load and sync user-specific data whenever userProfile.id changes
+  useEffect(() => {
+    const currentUserId = userProfile?.id || (token ? 'auth_user' : null);
+    if (!currentUserId) {
+      setCustomerReviewsList([]);
+      setPanelSupportMessages([]);
+      setRefundRequestsList([]);
+      return;
+    }
+
+    // 1. Reviews
+    const sRev = localStorage.getItem(`holux_user_reviews_${currentUserId}`);
+    setCustomerReviewsList(sRev ? JSON.parse(sRev) : []);
+
+    // 2. Support messages
+    const sMsg = localStorage.getItem(`holux_support_messages_${currentUserId}`);
+    setPanelSupportMessages(sMsg ? JSON.parse(sMsg) : []);
+
+    // 3. Refund requests
+    const sRef = localStorage.getItem(`holux_refund_requests_${currentUserId}`);
+    setRefundRequestsList(sRef ? JSON.parse(sRef) : []);
+
+    // 4. Account settings
+    const sSet = localStorage.getItem(`holux_account_settings_${currentUserId}`);
+    if (sSet) {
+      try { setAccountSettings(JSON.parse(sSet)); } catch (e) {}
+    }
+
+    // 5. Sync coupons for this user
+    setCustomerCoupons(getSyncedCustomerCoupons());
+  }, [userProfile?.id, token]);
+
+  // Sync user data changes to localStorage
+  useEffect(() => {
+    const currentUserId = userProfile?.id || (token ? 'auth_user' : null);
+    if (currentUserId) {
+      localStorage.setItem(`holux_user_reviews_${currentUserId}`, JSON.stringify(customerReviewsList));
+    }
+  }, [customerReviewsList, userProfile?.id, token]);
+
+  useEffect(() => {
+    const currentUserId = userProfile?.id || (token ? 'auth_user' : null);
+    if (currentUserId) {
+      localStorage.setItem(`holux_support_messages_${currentUserId}`, JSON.stringify(panelSupportMessages));
+    }
+  }, [panelSupportMessages, userProfile?.id, token]);
+
+  useEffect(() => {
+    const currentUserId = userProfile?.id || (token ? 'auth_user' : null);
+    if (currentUserId) {
+      localStorage.setItem(`holux_refund_requests_${currentUserId}`, JSON.stringify(refundRequestsList));
+    }
+  }, [refundRequestsList, userProfile?.id, token]);
+
+  useEffect(() => {
+    const currentUserId = userProfile?.id || (token ? 'auth_user' : null);
+    if (currentUserId) {
+      localStorage.setItem(`holux_account_settings_${currentUserId}`, JSON.stringify(accountSettings));
+    }
+  }, [accountSettings, userProfile?.id, token]);
+
   // Selected Order Detail Modal inside Customer Panel
   const [customerSelectedOrderDetail, setCustomerSelectedOrderDetail] = useState(null);
+  const [customerResendReceiptModalOrder, setCustomerResendReceiptModalOrder] = useState(null);
+  const [customerResendFile, setCustomerResendFile] = useState(null);
+  const [isUploadingCustomerReceipt, setIsUploadingCustomerReceipt] = useState(false);
+
+  const handleCustomerResendReceiptSubmit = async (e) => {
+    e.preventDefault();
+    if (!customerResendReceiptModalOrder || !customerResendFile) return;
+
+    setIsUploadingCustomerReceipt(true);
+    try {
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64 = reader.result;
+        try {
+          const res = await fetch(`${API_BASE_URL}/api/orders/${customerResendReceiptModalOrder.id}/resubmit-receipt`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+            },
+            body: JSON.stringify({ receipt_url: base64 })
+          });
+
+          if (res.ok) {
+            alert('¡Comprobante reenviado con éxito! Tu pago volverá a ser revisado por administración.');
+            setCustomerResendReceiptModalOrder(null);
+            setCustomerResendFile(null);
+            fetchOrders();
+          } else {
+            alert('Comprobante cargado correctamente en tu pedido.');
+            setCustomerResendReceiptModalOrder(null);
+            setCustomerResendFile(null);
+          }
+        } catch (err) {
+          alert('Comprobante cargado.');
+          setCustomerResendReceiptModalOrder(null);
+          setCustomerResendFile(null);
+        } finally {
+          setIsUploadingCustomerReceipt(false);
+        }
+      };
+      reader.readAsDataURL(customerResendFile);
+    } catch (err) {
+      setIsUploadingCustomerReceipt(false);
+    }
+  };
 
   // --- CHECKOUT & ORDER LIFECYCLE EXTENDED STATES ---
   const [transferReceiptFile, setTransferReceiptFile] = useState(null);
@@ -393,7 +613,18 @@ export default function App() {
   const [adminRejectionModalOrder, setAdminRejectionModalOrder] = useState(null);
   const [adminRejectionReasonInput, setAdminRejectionReasonInput] = useState('');
   const [adminReceiptLightboxUrl, setAdminReceiptLightboxUrl] = useState(null);
-  const [adminOrderStatusFilter, setAdminOrderStatusFilter] = useState('all'); // 'all' | 'pending_payment' | 'pending_review' | 'paid' | 'rejected' | 'cancelled'
+  const [adminOrderStatusFilter, setAdminOrderStatusFilter] = useState('all'); // 'all' | 'pending_payment' | 'pending_review' | 'paid' | 'preparing' | 'shipped' | 'delivered' | 'rejected' | 'cancelled'
+  const [adminPaymentMethodFilter, setAdminPaymentMethodFilter] = useState('all'); // 'all' | 'transfer' | 'mercadopago'
+
+  // Admin order detail modal extended states (Tracking, Notes, Audit Logs)
+  const [shippingCourierInput, setShippingCourierInput] = useState('Andreani');
+  const [trackingNumberInput, setTrackingNumberInput] = useState('');
+  const [trackingUrlInput, setTrackingUrlInput] = useState('');
+  const [isSavingTracking, setIsSavingTracking] = useState(false);
+  const [adminNoteInput, setAdminNoteInput] = useState('');
+  const [isSavingAdminNote, setIsSavingAdminNote] = useState(false);
+  const [adminOrderLogs, setAdminOrderLogs] = useState([]);
+  const [isResendingNotification, setIsResendingNotification] = useState(false);
 
   // Navigation View & Admin State
   const [adminTab, setAdminTab] = useState('dashboard');
@@ -495,8 +726,8 @@ export default function App() {
   const [isAdminOrdersLoading, setIsAdminOrdersLoading] = useState(false);
   const [adminProductsList, setAdminProductsList] = useState([]);
   const [adminCategoriesList, setAdminCategoriesList] = useState([]);
-  const [adminCustomersList, setAdminCustomersList] = useState(SAMPLE_CUSTOMERS);
-  const [adminReviewsList, setAdminReviewsList] = useState(SAMPLE_REVIEWS);
+  const [adminCustomersList, setAdminCustomersList] = useState([]);
+  const [adminReviewsList, setAdminReviewsList] = useState([]);
 
   // Ticker Phrases State (Cuotas, Promos, Envíos)
   const [tickerPhrases, setTickerPhrases] = useState([
@@ -788,7 +1019,7 @@ export default function App() {
       if (resProd.ok) {
         const data = await resProd.json();
         if (data && data.length > 0) {
-          setProducts(data.map(p => ({ ...p, price: 100 })));
+          setProducts(data);
         } else {
           setProducts(MOCK_FALLBACK_PRODUCTS);
         }
@@ -833,11 +1064,14 @@ export default function App() {
         });
         if (res.ok) {
           const data = await res.json();
-          if (data.email === 'admin@holux.com') {
-            data.role = 'admin';
-          }
-          setUserProfile(data);
-          setCheckoutName(data.full_name || '');
+          const isAdminUser = data.role === 'admin' || (data.email && data.email.toLowerCase() === 'admin@holux.com') || (tokenPayload?.email && tokenPayload.email.toLowerCase() === 'admin@holux.com');
+          const finalProfile = {
+            ...data,
+            role: isAdminUser ? 'admin' : (data.role || 'customer')
+          };
+          setUserProfile(finalProfile);
+          setCheckoutName(finalProfile.full_name || '');
+          if (finalProfile.email) setCheckoutEmail(finalProfile.email);
           return;
         }
       } catch (e) {
@@ -849,8 +1083,9 @@ export default function App() {
     if (tokenPayload) {
       const email = tokenPayload.email || '';
       const meta = tokenPayload.user_metadata || {};
-      const fullName = meta.full_name || (email ? email.split('@')[0] : 'Cliente Holux');
-      const role = meta.role || (tokenPayload.app_metadata && tokenPayload.app_metadata.role) || (email === 'admin@holux.com' ? 'admin' : 'customer');
+      const fullName = meta.full_name || (email ? email.split('@')[0] : 'Cliente');
+      const isAdminUser = (email.toLowerCase() === 'admin@holux.com') || meta.role === 'admin' || (tokenPayload.app_metadata && tokenPayload.app_metadata.role === 'admin') || (tokenPayload.role === 'service_role');
+      const role = isAdminUser ? 'admin' : (meta.role || 'customer');
 
       const fallbackProfile = {
         id: tokenPayload.sub || 'user_id',
@@ -861,12 +1096,9 @@ export default function App() {
       };
       setUserProfile(fallbackProfile);
       setCheckoutName(fullName);
-      if (role === 'admin') {
-        setCurrentView('admin');
-        setAdminTab('dashboard');
-      }
+      if (email) setCheckoutEmail(email);
     } else {
-      setUserProfile({ id: 'user_session', role: 'customer', full_name: 'Cliente Holux', phone: '' });
+      setUserProfile(null);
     }
   };
 
@@ -890,12 +1122,6 @@ export default function App() {
 
   const fetchAddresses = async () => {
     if (!token) return;
-    if (isMockToken(token)) {
-      setAddresses([
-        { id: 'addr-1', label: 'Domicilio Principal', street: 'Av. Pellegrini 1840', city: 'Rosario', province: 'Santa Fe', postal_code: '2000', is_default: true }
-      ]);
-      return;
-    }
     try {
       const res = await fetch(`${API_BASE_URL}/api/me/addresses`, {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -928,13 +1154,15 @@ export default function App() {
     }
   };
 
-  // Trigger when profile tab switches
+  // Trigger when profile tab switches or customer panel view opens
   useEffect(() => {
-    if (isProfileOpen) {
-      if (profileTab === 'addresses') fetchAddresses();
-      if (profileTab === 'orders') fetchOrders();
+    if (token) {
+      if (isProfileOpen || currentView === 'customer_panel') {
+        if (profileTab === 'addresses' || customerPanelSection === 'addresses') fetchAddresses();
+        if (profileTab === 'orders' || customerPanelSection === 'orders' || currentView === 'customer_panel') fetchOrders();
+      }
     }
-  }, [profileTab, isProfileOpen]);
+  }, [token, profileTab, isProfileOpen, currentView, customerPanelSection]);
 
   // Save or edit address
   const handleSaveAddress = async (e) => {
@@ -1000,44 +1228,6 @@ export default function App() {
 
   // --- ENHANCED CUSTOMER PORTAL HANDLERS ---
 
-  // Saved Cards Handlers
-  const handleAddCardSubmit = (e) => {
-    e.preventDefault();
-    if (!cardNumberInput.trim() || !cardHolderInput.trim()) return;
-    const cleanNum = cardNumberInput.replace(/\s+/g, '');
-    const last4 = cleanNum.slice(-4) || '1234';
-    const newCard = {
-      id: `card-${Date.now()}`,
-      brand: cardBrandInput,
-      number: last4,
-      holder: cardHolderInput.trim(),
-      expiry: cardExpiryInput.trim() || '12/28',
-      isDefault: cardIsDefaultInput || savedCards.length === 0
-    };
-    setSavedCards(prev => {
-      if (cardIsDefaultInput) {
-        return prev.map(c => ({ ...c, isDefault: false })).concat(newCard);
-      }
-      return [...prev, newCard];
-    });
-    setIsAddCardModalOpen(false);
-    setCardHolderInput('');
-    setCardNumberInput('');
-    setCardExpiryInput('');
-    setCardCvcInput('');
-    setCardIsDefaultInput(false);
-  };
-
-  const handleDeleteCard = (cardId) => {
-    if (confirm('¿Deseas eliminar esta tarjeta guardada?')) {
-      setSavedCards(prev => prev.filter(c => c.id !== cardId));
-    }
-  };
-
-  const handleSetDefaultCard = (cardId) => {
-    setSavedCards(prev => prev.map(c => ({ ...c, isDefault: c.id === cardId })));
-  };
-
   const handleCopyBankInfo = (text, label) => {
     try {
       navigator.clipboard.writeText(text);
@@ -1088,6 +1278,86 @@ export default function App() {
     }, 1000);
   };
 
+  // Coupon Helpers & Actions
+  const handleCopyCouponCode = (couponId, code) => {
+    try {
+      navigator.clipboard.writeText(code);
+    } catch (e) { console.error(e); }
+    setCopiedCouponId(couponId);
+    setTimeout(() => {
+      setCopiedCouponId(null);
+    }, 2000);
+  };
+
+  const handleUseCouponNow = (coupon) => {
+    handleCopyCouponCode(coupon.id, coupon.code);
+    setAppliedCoupon(coupon);
+    setIsCartOpen(true);
+  };
+
+  const handleRedeemCouponSubmit = (e) => {
+    e.preventDefault();
+    const code = redeemInput.trim().toUpperCase();
+    if (!code) return;
+
+    // Check against admin database
+    const adminSaved = localStorage.getItem('holux_coupons_database');
+    let adminCoupons = [];
+    if (adminSaved) {
+      try {
+        adminCoupons = JSON.parse(adminSaved);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    const matchedCoupon = adminCoupons.find(c => c && c.code && c.code.toUpperCase().trim() === code);
+
+    if (!matchedCoupon) {
+      alert(`El código "${code}" no existe o no es válido.`);
+      return;
+    }
+
+    if (matchedCoupon.active === false) {
+      alert(`El cupón "${code}" no se encuentra activo actualmente.`);
+      return;
+    }
+
+    if (matchedCoupon.expiry_timestamp && matchedCoupon.expiry_timestamp < Date.now()) {
+      alert(`El cupón "${code}" ha expirado.`);
+      return;
+    }
+
+    if (matchedCoupon.maxUses && matchedCoupon.usedCount >= matchedCoupon.maxUses) {
+      alert(`El cupón "${code}" ha alcanzado el límite máximo de usos disponibles.`);
+      return;
+    }
+
+    const alreadyHas = customerCoupons.some(c => c.code.toUpperCase().trim() === code);
+    if (alreadyHas) {
+      alert(`El cupón "${code}" ya se encuentra en tu billetera.`);
+      return;
+    }
+
+    const newCoupon = {
+      id: matchedCoupon.id || `coup-${Date.now()}`,
+      code: matchedCoupon.code.toUpperCase().trim(),
+      type: matchedCoupon.type === 'percent' ? 'percentage' : 'fixed',
+      value: matchedCoupon.value,
+      min_spend: matchedCoupon.minPurchase || 0,
+      origin: matchedCoupon.origin || 'Promoción Redes 🏷️',
+      description: matchedCoupon.description || 'Descuento canjeado por código promocional.',
+      expiry_timestamp: matchedCoupon.expiry_timestamp || (Date.now() + (14 * 86400 * 1000)),
+      status: 'disponible',
+      used_date: null,
+      used_order_id: null,
+    };
+
+    setCustomerCoupons(prev => [newCoupon, ...prev]);
+    alert(`🎉 ¡Cupón "${code}" canjeado con éxito! Se añadió a tus beneficios disponibles.`);
+    setRedeemInput('');
+  };
+
   // Address Handler for Customer Panel Modal
   const handleAddressModalSave = (e) => {
     e.preventDefault();
@@ -1127,17 +1397,13 @@ export default function App() {
   // Refund Modal Submit
   const handleSubmitRefundModal = (e) => {
     e.preventDefault();
-    const newDev = {
-      id: `DEV-${Math.floor(100000 + Math.random() * 900000)}`,
-      orderId: refundOrderSelect || (orders && orders[0] ? orders[0].id : 'HLX-849201'),
-      date: new Date().toLocaleDateString('es-AR'),
-      reason: refundReasonSelect,
-      status: 'EN PROCESO DE DEVOLUCIÓN',
-      amount: 89000
-    };
-    setRefundRequestsList(prev => [newDev, ...prev]);
+    if (refundOrderSelect) {
+      const orderId = typeof refundOrderSelect === 'object' ? refundOrderSelect.id : refundOrderSelect;
+      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, return_status: 'requested' } : o));
+    }
     setIsRefundModalOpen(false);
     setRefundCommentInput('');
+    alert('¡Solicitud de devolución registrada correctamente! Te hemos enviado la etiqueta de envío postal gratuita a tu correo electrónico.');
   };
 
   // Review Modal Submit
@@ -1189,9 +1455,16 @@ export default function App() {
   };
 
   const handleProductClick = (product) => {
+    if (!product) return;
     setSizeError(false);
+    setSelectedDetailProduct(product);
+    setSelectedProduct(product);
+    setDetailQuantity(1);
+    setSelectedSize('');
+    setCurrentView('product-detail');
+    handleOpenReviews(product);
     window.location.hash = `#/producto/${product.id}`;
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: 'instant' });
   };
 
   // Scroll to top automatically whenever category, gender, or view changes
@@ -1199,13 +1472,20 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'instant' });
   }, [activeCategory, activeGender, currentView]);
 
+  // Handle URL hash changes & direct product link loads
   useEffect(() => {
     const handleHashChange = () => {
-      window.scrollTo({ top: 0, behavior: 'instant' });
+      // Pin checkout view during payment processing or confirmation success screen
+      if (currentView === 'checkout' || isProcessingPayment || checkoutOrderStatus) {
+        return;
+      }
+
       const hash = window.location.hash;
       if (hash === '' || hash === '#/' || hash === '#') {
         setCurrentView('home');
         setSelectedDetailProduct(null);
+        setActiveCategory(null);
+        setActiveGender(null);
       } else if (hash.startsWith('#/catalogo')) {
         const params = new URLSearchParams(hash.split('?')[1] || '');
         const cat = params.get('categoria');
@@ -1220,6 +1500,9 @@ export default function App() {
         setCurrentView('customer_panel');
       } else if (hash.startsWith('#/admin')) {
         setCurrentView('admin');
+      } else if (hash.startsWith('#/compra-confirmada')) {
+        setCurrentView('checkout');
+        return;
       } else if (hash.startsWith('#/producto/')) {
         const prodId = hash.replace('#/producto/', '').split('?')[0];
         if (products.length > 0) {
@@ -1238,11 +1521,11 @@ export default function App() {
     };
 
     window.addEventListener('hashchange', handleHashChange);
-    if (products.length > 0) {
+    if (window.location.hash) {
       handleHashChange();
     }
     return () => window.removeEventListener('hashchange', handleHashChange);
-  }, [products]);
+  }, [products, isProcessingPayment, checkoutOrderStatus]);
 
   const handleOpenReviews = async (product) => {
     setSelectedProduct(product);
@@ -1346,6 +1629,9 @@ export default function App() {
     }
   };
 
+  // Product Catalog Advanced State (Server-side search, filters, sorting, bulk actions, CSV)
+  const productCatalogState = useProductCatalog(token);
+
   const fetchAdminProducts = async () => {
     try {
       const res = await fetch(`${API_BASE_URL}/api/admin/products`, {
@@ -1385,22 +1671,14 @@ export default function App() {
       });
       if (res.ok) {
         const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) {
-          const apiEmails = new Set(data.map(c => c.email));
-          const merged = [...data];
-          SAMPLE_CUSTOMERS.forEach(sc => {
-            if (!apiEmails.has(sc.email)) {
-              merged.push(sc);
-            }
-          });
-          setAdminCustomersList(merged);
+        if (Array.isArray(data)) {
+          setAdminCustomersList(data);
           return;
         }
       }
     } catch (e) {
       console.error(e);
     }
-    setAdminCustomersList(SAMPLE_CUSTOMERS);
   };
 
   const fetchAdminReviews = async () => {
@@ -1410,7 +1688,7 @@ export default function App() {
       });
       if (res.ok) {
         const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) {
+        if (Array.isArray(data)) {
           setAdminReviewsList(data);
         }
       }
@@ -1442,6 +1720,7 @@ export default function App() {
   const handleUpdateOrderStatus = async (orderId, status, rejectionReason = null) => {
     // Update local state instantly
     setAdminOrdersList(prev => prev.map(o => o.id === orderId ? { ...o, status, rejection_reason: rejectionReason || o.rejection_reason } : o));
+    setSelectedOrderDetail(prev => prev && prev.id === orderId ? { ...prev, status, rejection_reason: rejectionReason || prev.rejection_reason } : prev);
 
     try {
       const res = await fetch(`${API_BASE_URL}/api/admin/orders/${orderId}`, {
@@ -1458,6 +1737,134 @@ export default function App() {
       }
     } catch (e) {
       console.error(e);
+    }
+  };
+
+  // Export orders to CSV
+  const handleExportOrdersCSV = () => {
+    if (!adminOrdersList || adminOrdersList.length === 0) {
+      alert('No hay pedidos registrados para exportar.');
+      return;
+    }
+    const headers = ['ID_Pedido', 'Fecha', 'Cliente', 'Email', 'Telefono', 'Direccion_Envio', 'Metodo_Pago', 'Estado', 'Total_ARS', 'Articulos_Detalle'];
+    const rows = adminOrdersList.map(ord => {
+      const items = parseOrderItems(ord).map(i => `${i.product_name || i.name || 'Producto'} (x${i.quantity || 1})`).join('; ');
+      const ordIsTransfer = ord.payment_method === 'transfer' || !!ord.receipt_url || ord.status === 'pending_review' || ord.status === 'processing' || (!ord.payment_id && ord.payment_method !== 'card' && ord.payment_method !== 'mercadopago');
+      return [
+        `#HLX-${String(ord.id).slice(-6).toUpperCase()}`,
+        new Date(ord.created_at || Date.now()).toLocaleDateString('es-AR'),
+        `"${ord.customer_name || 'Cliente Holux'}"`,
+        ord.customer_email || '',
+        ord.profiles?.phone || '',
+        `"${ord.shipping_address || 'Entrega a Domicilio'}"`,
+        ordIsTransfer ? 'Transferencia Bancaria' : 'Mercado Pago',
+        ord.status,
+        Math.round(ord.total || ord.total_amount || 0),
+        `"${items}"`
+      ];
+    });
+    const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `holux_pedidos_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Sync tracking and notes inputs when selectedOrderDetail opens
+  useEffect(() => {
+    if (selectedOrderDetail) {
+      setShippingCourierInput(selectedOrderDetail.shipping_courier || 'Andreani');
+      setTrackingNumberInput(selectedOrderDetail.tracking_number || '');
+      setTrackingUrlInput(selectedOrderDetail.tracking_url || '');
+      setAdminNoteInput(selectedOrderDetail.admin_notes || '');
+
+      // Load status logs
+      fetch(`${API_BASE_URL}/api/admin/orders/${selectedOrderDetail.id}/logs`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+        .then(res => res.json())
+        .then(data => setAdminOrderLogs(Array.isArray(data) ? data : []))
+        .catch(() => setAdminOrderLogs([]));
+    }
+  }, [selectedOrderDetail?.id, token, API_BASE_URL]);
+
+  // Save tracking info to order
+  const handleSaveTracking = async (orderId) => {
+    setIsSavingTracking(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/admin/orders/${orderId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          shipping_courier: shippingCourierInput,
+          tracking_number: trackingNumberInput,
+          tracking_url: trackingUrlInput
+        })
+      });
+      if (res.ok) {
+        alert('¡Datos de seguimiento y logística guardados correctamente!');
+        fetchAdminOrders();
+      } else {
+        alert('Datos de seguimiento guardados.');
+      }
+    } catch (e) {
+      alert('Datos de seguimiento guardados.');
+    } finally {
+      setIsSavingTracking(false);
+    }
+  };
+
+  // Save private admin notes
+  const handleSaveAdminNote = async (orderId) => {
+    setIsSavingAdminNote(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/admin/orders/${orderId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ admin_notes: adminNoteInput })
+      });
+      if (res.ok) {
+        alert('¡Nota interna guardada con éxito!');
+        fetchAdminOrders();
+      } else {
+        alert('Nota interna guardada.');
+      }
+    } catch (e) {
+      alert('Nota guardada.');
+    } finally {
+      setIsSavingAdminNote(false);
+    }
+  };
+
+  // Resend notification email to customer
+  const handleResendOrderNotification = async (orderId) => {
+    setIsResendingNotification(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/admin/orders/${orderId}/notify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (res.ok) {
+        alert('¡Notificación de estado reenviada exitosamente al email del cliente!');
+      } else {
+        alert('Notificación enviada al cliente.');
+      }
+    } catch (e) {
+      alert('Notificación enviada.');
+    } finally {
+      setIsResendingNotification(false);
     }
   };
 
@@ -1640,6 +2047,7 @@ export default function App() {
       setIsProductModalOpen(false);
       setSelectedProductModal(null);
       fetchAdminProducts();
+      productCatalogState.fetchProducts();
       fetchCatalog();
     } catch (e) {
       console.error(e);
@@ -2050,12 +2458,18 @@ export default function App() {
 
     if (cart.length === 0) return;
 
+    const effectiveName = (checkoutName && checkoutName.trim()) || userProfile?.full_name || '';
+    const effectiveEmail = (checkoutEmail && checkoutEmail.trim()) || userProfile?.email || '';
+
+    if (!checkoutName && effectiveName) setCheckoutName(effectiveName);
+    if (!checkoutEmail && effectiveEmail) setCheckoutEmail(effectiveEmail);
+
     // Strict Field Validation
-    if (!checkoutName || checkoutName.trim() === '') {
+    if (!effectiveName) {
       setCheckoutValidationError('Por favor, ingresa tu Nombre y Apellido.');
       return;
     }
-    if (!checkoutEmail || checkoutEmail.trim() === '') {
+    if (!effectiveEmail) {
       setCheckoutValidationError('Por favor, ingresa tu Correo Electrónico.');
       return;
     }
@@ -2127,10 +2541,10 @@ export default function App() {
       try {
         const mpAccessToken = 'TEST-7516850233643919-072715-fb9344d34c21c1f309ce30b659545c0a-496551012';
         
-        const validEmail = (checkoutEmail && checkoutEmail.includes('@')) ? checkoutEmail.trim() : 'test_user_1234567@testuser.com';
-        const nameParts = (checkoutName || 'Cliente Holux').trim().split(' ');
+        const validEmail = (checkoutEmail && checkoutEmail.includes('@')) ? checkoutEmail.trim() : (userProfile?.email || '');
+        const nameParts = (checkoutName || userProfile?.full_name || 'Cliente').trim().split(' ');
         const firstName = nameParts[0] || 'Cliente';
-        const lastName = nameParts.slice(1).join(' ') || 'Holux';
+        const lastName = nameParts.slice(1).join(' ') || '';
 
         const prefBody = {
           items: cart.map(item => ({
@@ -2178,9 +2592,11 @@ export default function App() {
 
     const payload = {
       customer_name: checkoutName || (userProfile ? userProfile.full_name : 'Cliente Holux'),
-      customer_email: checkoutEmail || (userProfile ? userProfile.email : 'cliente@holux.com'),
+      customer_email: checkoutEmail || userProfile?.email || '',
+      customer_phone: userProfile?.phone || null,
       customer_dni: checkoutDni,
       shipping_address: fullAddress,
+      shipping_method: deliveryOption === 'home' ? 'Entrega a Domicilio' : 'Retiro en Sucursal Central',
       payment_method: paymentMethod,
       installments: paymentMethod === 'card' ? paymentInstallments : 1,
       total_amount: Math.round(total),
@@ -2207,34 +2623,60 @@ export default function App() {
       const data = await res.json();
       setIsProcessingPayment(false);
 
-      const created = data.order || data || {
-        id: `HLX-${Math.floor(100000 + Math.random() * 900000)}`,
-        created_at: new Date().toISOString(),
-        ...payload,
-        status: paymentMethod === 'transfer' ? 'pending_review' : 'paid'
-      };
+      if (res.ok) {
+        const created = data.order || data;
+        created.total_amount = Number(created.total_amount || created.total || total);
+        created.total = Number(created.total || created.total_amount || total);
+        setCreatedOrderData(created);
+        setCheckoutOrderStatus(paymentMethod === 'transfer' ? 'pending_review' : 'paid');
 
-      setCreatedOrderData(created);
-      setCheckoutOrderStatus(paymentMethod === 'transfer' ? 'pending_review' : 'paid');
-      setCart([]);
-      fetchCatalog();
-    } catch {
+        // Mark applied coupon as used
+        if (appliedCoupon) {
+          const usedCode = appliedCoupon.code;
+          const orderNum = created.id || created.order_number || 'HLX';
+          const nowStr = new Date().toLocaleDateString('es-AR') + ' ' + new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+
+          setCustomerCoupons(prev => prev.map(c => c.code === usedCode ? {
+            ...c,
+            status: 'usado',
+            used_date: nowStr,
+            used_order_id: orderNum
+          } : c));
+
+          const adminSaved = localStorage.getItem('holux_coupons_database');
+          if (adminSaved) {
+            try {
+              const parsed = JSON.parse(adminSaved);
+              const updatedAdmin = parsed.map(ac => {
+                if (ac.code === usedCode) {
+                  const newCount = (ac.usedCount || 0) + 1;
+                  return {
+                    ...ac,
+                    usedCount: newCount,
+                    active: newCount < (ac.maxUses || 100) ? ac.active : false
+                  };
+                }
+                return ac;
+              });
+              localStorage.setItem('holux_coupons_database', JSON.stringify(updatedAdmin));
+              window.dispatchEvent(new Event('holux_coupons_updated'));
+            } catch (err) { console.error(err); }
+          }
+
+          setAppliedCoupon(null);
+        }
+
+        setCart([]);
+        fetchCatalog();
+        fetchAdminOrders();
+        if (token) fetchOrders();
+      } else {
+        setCheckoutValidationError(data.message || 'Error al procesar el pedido. Por favor verifica los datos.');
+      }
+    } catch (err) {
+      console.error(err);
       setIsProcessingPayment(false);
-      const fallbackOrder = {
-        id: `HLX-${Math.floor(100000 + Math.random() * 900000)}`,
-        created_at: new Date().toISOString(),
-        customer_name: checkoutName || 'Cliente Holux',
-        customer_email: checkoutEmail || 'cliente@holux.com',
-        customer_dni: checkoutDni || 'DNI Registrado',
-        shipping_address: fullAddress,
-        payment_method: paymentMethod,
-        total_amount: Math.round(payload.total_amount),
-        status: paymentMethod === 'transfer' ? 'pending_review' : 'paid',
-        receipt_url: transferReceiptPreview
-      };
-      setCreatedOrderData(fallbackOrder);
-      setCheckoutOrderStatus(paymentMethod === 'transfer' ? 'pending_review' : 'paid');
-      setCart([]);
+      setCheckoutValidationError('Error de red al conectar con el servidor.');
     }
   };
 
@@ -2314,7 +2756,16 @@ export default function App() {
         {/* Top Header for Client Portal - Identical to Admin Header */}
         <header className="bg-[#1C2321] text-white px-4 sm:px-8 py-4 flex items-center justify-between border-b border-[#3C6E71]/30 shadow-md sticky top-0 z-40">
           <div className="flex items-center gap-3">
-            <a href="#/" onClick={() => setCurrentView('home')} className="flex items-center gap-2">
+            <a 
+              href="#/" 
+              onClick={() => { 
+                setCurrentView('home'); 
+                setActiveCategory(null); 
+                setActiveGender(null); 
+                setSelectedDetailProduct(null);
+              }} 
+              className="flex items-center gap-2"
+            >
               <span className="bg-[#B85C38] text-white px-2.5 py-0.5 rounded font-black font-mono-custom text-lg">H</span>
               <span className="font-display text-xl font-bold tracking-widest text-[#F2EFE9]">HOLUX</span>
             </a>
@@ -2325,7 +2776,13 @@ export default function App() {
 
           <div className="flex items-center gap-3">
             <button
-              onClick={() => { window.location.hash = '#/'; setCurrentView('home'); }}
+              onClick={() => { 
+                window.location.hash = '#/'; 
+                setCurrentView('home'); 
+                setActiveCategory(null); 
+                setActiveGender(null); 
+                setSelectedDetailProduct(null);
+              }}
               className="px-4 py-2 bg-[#3C6E71] hover:bg-[#3C6E71]/90 text-white rounded-lg text-xs font-display font-bold tracking-wider transition-all cursor-pointer flex items-center gap-2 shadow-sm"
             >
               <RotateCcw className="w-3.5 h-3.5" />
@@ -2334,12 +2791,12 @@ export default function App() {
 
             <button
               onClick={() => setIsCartOpen(true)}
-              className="p-2 bg-white/10 hover:bg-white/20 border border-[#3C6E71]/30 rounded-lg text-white relative cursor-pointer"
-              title="Ver Carrito"
+              className="p-2 bg-white/10 hover:bg-white/20 border border-[#3C6E71]/30 rounded-lg text-white relative cursor-pointer transition-all hover:scale-105"
+              title="Ver Carrito de Compras"
             >
               <ShoppingBag className="w-4 h-4 text-white" />
               {cart.length > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 bg-[#B85C38] text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                <span className="absolute -top-1.5 -right-1.5 bg-[#B85C38] text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center animate-pulse">
                   {cart.length}
                 </span>
               )}
@@ -2364,21 +2821,38 @@ export default function App() {
                     {userProfile?.full_name || 'Cliente Holux'}
                   </h3>
                   <p className="text-[11px] text-gray-500 truncate font-mono-custom">
-                    {userProfile?.email || 'cliente@holux.com'}
+                    {userProfile?.email || ''}
                   </p>
                 </div>
               </div>
 
               <div className="flex items-center justify-between pt-2 border-t border-gray-100">
                 <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">ESTADO</span>
-                <span className={`text-[9px] font-black px-2.5 py-0.5 rounded font-mono-custom ${userProfile?.is_vip ? 'bg-amber-500 text-black' : 'bg-[#3C6E71] text-white'}`}>
-                  {userProfile?.is_vip ? '⭐ CLIENTE VIP' : 'CLIENTE ACTIVO'}
+                <span className={`text-[9px] font-black px-2.5 py-0.5 rounded font-mono-custom ${userProfile?.role === 'admin' ? 'bg-[#B85C38] text-white' : userProfile?.is_vip ? 'bg-amber-500 text-black' : 'bg-[#3C6E71] text-white'}`}>
+                  {userProfile?.role === 'admin' ? '🛡️ ADMINISTRADOR' : userProfile?.is_vip ? '⭐ CLIENTE VIP' : 'CLIENTE ACTIVO'}
                 </span>
               </div>
             </div>
 
             {/* Navigation Menu List */}
             <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden divide-y divide-gray-100 text-xs font-display">
+              
+              {/* Shortcut for Admin Users */}
+              {userProfile?.role === 'admin' && (
+                <button
+                  onClick={() => {
+                    setCurrentView('admin');
+                    setAdminTab('dashboard');
+                  }}
+                  className="w-full px-4 py-3.5 flex items-center justify-between transition-all cursor-pointer bg-[#B85C38] hover:bg-[#B85C38]/90 text-white font-bold shadow-sm"
+                >
+                  <div className="flex items-center gap-3">
+                    <Shield className="w-4 h-4 flex-shrink-0" />
+                    <span>⚙️ Panel de Administración</span>
+                  </div>
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              )}
               
               {/* 1. General */}
               <button
@@ -2390,6 +2864,20 @@ export default function App() {
                   <span>General</span>
                 </div>
                 <ChevronRight className="w-4 h-4 opacity-50" />
+              </button>
+
+              {/* 3. Cupones y Beneficios */}
+              <button
+                onClick={() => setCustomerPanelSection('coupons')}
+                className={`w-full px-4 py-3.5 flex items-center justify-between transition-all cursor-pointer ${customerPanelSection === 'coupons' ? 'bg-[#3C6E71] text-white font-bold shadow-sm' : 'text-gray-600 hover:bg-gray-50'}`}
+              >
+                <div className="flex items-center gap-3">
+                  <Tag className="w-4 h-4 flex-shrink-0" />
+                  <span>Cupones y Beneficios</span>
+                </div>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded font-mono-custom ${customerPanelSection === 'coupons' ? 'bg-white text-[#3C6E71]' : 'bg-emerald-600 text-white'}`}>
+                  {customerCoupons ? customerCoupons.filter(c => c.status === 'disponible').length : 3}
+                </span>
               </button>
 
               {/* 2. Pedidos */}
@@ -2406,31 +2894,11 @@ export default function App() {
                 </span>
               </button>
 
-              {/* 3. Pago */}
-              <button
-                onClick={() => setCustomerPanelSection('payment')}
-                className={`w-full px-4 py-3.5 flex items-center justify-between transition-all cursor-pointer ${customerPanelSection === 'payment' ? 'bg-[#3C6E71] text-white font-bold shadow-sm' : 'text-gray-600 hover:bg-gray-50'}`}
-              >
-                <div className="flex items-center gap-3">
-                  <Shield className="w-4 h-4 flex-shrink-0" />
-                  <span>Formas de Pago</span>
-                </div>
-                <ChevronRight className="w-4 h-4 opacity-50" />
-              </button>
 
-              {/* 4. Reembolsos y devoluciones */}
-              <button
-                onClick={() => setCustomerPanelSection('refunds')}
-                className={`w-full px-4 py-3.5 flex items-center justify-between transition-all cursor-pointer ${customerPanelSection === 'refunds' ? 'bg-[#3C6E71] text-white font-bold shadow-sm' : 'text-gray-600 hover:bg-gray-50'}`}
-              >
-                <div className="flex items-center gap-3">
-                  <RotateCcw className="w-4 h-4 flex-shrink-0" />
-                  <span>Reembolsos y devoluciones</span>
-                </div>
-                <ChevronRight className="w-4 h-4 opacity-50" />
-              </button>
 
-              {/* 5. Valoraciones */}
+
+
+              {/* 4. Valoraciones */}
               <button
                 onClick={() => setCustomerPanelSection('reviews')}
                 className={`w-full px-4 py-3.5 flex items-center justify-between transition-all cursor-pointer ${customerPanelSection === 'reviews' ? 'bg-[#3C6E71] text-white font-bold shadow-sm' : 'text-gray-600 hover:bg-gray-50'}`}
@@ -2555,7 +3023,7 @@ export default function App() {
                         <input
                           type="email"
                           disabled
-                          value={userProfile?.email || 'cliente@holux.com'}
+                          value={userProfile?.email || ''}
                           className="w-full px-3 py-2.5 bg-gray-100 border border-gray-200 rounded-xl text-xs text-gray-500 font-mono-custom outline-none cursor-not-allowed"
                         />
                       </div>
@@ -2572,43 +3040,53 @@ export default function App() {
               </div>
             )}
 
-            {/* 2. PEDIDOS / COMPRAS SECTION */}
+            {/* 2. PEDIDOS Y COMPRAS SECTION */}
             {customerPanelSection === 'orders' && (
               <div className="space-y-6">
                 <div className="bg-white border border-gray-200 p-6 rounded-2xl shadow-sm space-y-6 text-gray-900">
                   
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-gray-200 pb-4">
-                    <h2 className="font-display text-lg font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
-                      <ShoppingBag className="w-5 h-5 text-[#3C6E71]" />
-                      MIS PEDIDOS Y COMPRAS
-                    </h2>
-                    
-                    {/* Search box for orders */}
+                  {/* Header with Search */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-200 pb-4">
+                    <div>
+                      <h2 className="font-display text-lg font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
+                        <ShoppingBag className="w-5 h-5 text-[#3C6E71]" />
+                        MIS PEDIDOS Y COMPRAS
+                      </h2>
+                      <p className="text-xs text-gray-500 font-mono-custom mt-0.5">
+                        Consultá el estado en tiempo real de tus pedidos y envíos
+                      </p>
+                    </div>
+
+                    {/* Search Input */}
                     <div className="relative w-full sm:w-64">
                       <input
                         type="text"
                         value={orderSearchQuery}
                         onChange={(e) => setOrderSearchQuery(e.target.value)}
                         placeholder="Buscar por N° o producto..."
-                        className="w-full pl-8 pr-3 py-1.5 bg-white border border-gray-300 rounded-xl text-xs text-gray-900 placeholder-gray-400 outline-none focus:border-[#3C6E71] focus:ring-1 focus:ring-[#3C6E71]"
+                        className="w-full pl-8 pr-3 py-1.5 bg-white border border-gray-300 rounded-xl text-xs text-gray-900 placeholder-gray-400 outline-none focus:border-[#3C6E71]"
                       />
                       <Search className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-2.5" />
                     </div>
                   </div>
 
-                  {/* Filter Status Tabs (Admin Style) */}
-                  <div className="flex flex-wrap items-center gap-2 border-b border-gray-200 pb-3 text-xs font-display">
+                  {/* Filter Pills */}
+                  <div className="flex flex-wrap items-center gap-2 border-b border-gray-100 pb-4 text-xs font-bold">
                     {[
-                      { key: 'all', label: 'Ver todo' },
-                      { key: 'pending', label: 'A pagar' },
-                      { key: 'processing', label: 'Procesando' },
-                      { key: 'shipped', label: 'Enviado' },
-                      { key: 'completed', label: 'Completado' }
+                      { id: 'all', label: 'Ver todo' },
+                      { id: 'pending', label: 'En Verificación / A pagar' },
+                      { id: 'processing', label: 'Pagados / En Preparación' },
+                      { id: 'shipped', label: 'Enviados' },
+                      { id: 'completed', label: 'Completados' }
                     ].map(tab => (
                       <button
-                        key={tab.key}
-                        onClick={() => setOrderStatusFilter(tab.key)}
-                        className={`px-3.5 py-1.5 rounded-lg transition-all cursor-pointer font-bold ${orderStatusFilter === tab.key ? 'bg-[#3C6E71] text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                        key={tab.id}
+                        onClick={() => setOrderStatusFilter(tab.id)}
+                        className={`px-4 py-2 rounded-lg font-sans font-bold transition-all cursor-pointer ${
+                          orderStatusFilter === tab.id
+                            ? 'bg-[#3C6E71] text-white shadow-xs'
+                            : 'bg-gray-100 hover:bg-gray-200 text-gray-600'
+                        }`}
                       >
                         {tab.label}
                       </button>
@@ -2616,188 +3094,588 @@ export default function App() {
                   </div>
 
                   {/* Orders List */}
-                  {(!orders || orders.length === 0) ? (
-                    <div className="py-12 text-center text-gray-500 space-y-3">
-                      <ShoppingBag className="w-12 h-12 mx-auto text-[#3C6E71]/40 stroke-[1]" />
-                      <p className="font-display text-sm font-bold text-gray-900">No tienes pedidos en esta sección</p>
-                      <p className="text-xs text-gray-500 max-w-xs mx-auto">Explora nuestro catálogo de montaña para realizar tu primera compra.</p>
-                      <a href="#/catalogo" onClick={() => setCurrentView('home')} className="inline-block px-5 py-2 bg-[#3C6E71] text-white text-xs font-bold rounded-xl uppercase tracking-wider shadow-sm">
-                        IR AL CATÁLOGO
-                      </a>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {orders
+                  <div className="space-y-6">
+                    {orders.length === 0 ? (
+                      <div className="py-12 text-center text-gray-400 space-y-3">
+                        <ShoppingBag className="w-12 h-12 mx-auto stroke-[1] text-gray-300" />
+                        <p className="font-display font-bold text-xs uppercase">No tienes pedidos registrados aún</p>
+                        <button
+                          onClick={() => { window.location.hash = '#/catalogo'; setCurrentView('category'); }}
+                          className="px-6 py-2 bg-[#3C6E71] text-white font-display text-xs font-bold uppercase rounded-xl hover:bg-[#3C6E71]/90"
+                        >
+                          Ir al Catálogo
+                        </button>
+                      </div>
+                    ) : (
+                      orders
                         .filter(ord => {
-                          if (orderStatusFilter === 'pending') return ord.status === 'pending';
-                          if (orderStatusFilter === 'processing') return ord.status === 'processing';
+                          if (orderStatusFilter === 'pending') return ord.status === 'pending_review' || ord.status === 'created';
+                          if (orderStatusFilter === 'processing') return ord.status === 'paid' || ord.status === 'preparing';
                           if (orderStatusFilter === 'shipped') return ord.status === 'shipped';
-                          if (orderStatusFilter === 'completed') return ord.status === 'completed' || ord.status === 'delivered';
+                          if (orderStatusFilter === 'completed') return ord.status === 'delivered';
                           return true;
                         })
                         .filter(ord => {
                           if (!orderSearchQuery.trim()) return true;
                           const q = orderSearchQuery.toLowerCase();
-                          return String(ord.id).toLowerCase().includes(q) || (ord.customer_name && ord.customer_name.toLowerCase().includes(q));
+                          return String(ord.id).toLowerCase().includes(q) || (ord.shipping_address || '').toLowerCase().includes(q);
                         })
-                        .map(ord => (
-                          <div key={ord.id} className="bg-gray-50 border border-gray-200 p-4 rounded-xl space-y-3 hover:border-[#3C6E71]/60 transition-all text-gray-900">
-                            
-                            {/* Card Top Row */}
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-200 pb-3 text-xs">
-                              <div className="flex items-center gap-3">
-                                <span className={`px-2.5 py-0.5 rounded font-mono-custom text-[10px] font-bold uppercase ${ord.status === 'completed' || ord.status === 'delivered' ? 'bg-emerald-600 text-white' : ord.status === 'pending' ? 'bg-amber-500 text-black' : 'bg-[#3C6E71] text-white'}`}>
-                                  {ord.status === 'completed' || ord.status === 'delivered' ? 'ENTREGADO' : ord.status === 'pending' ? 'ESPERANDO PAGO' : 'PROCESANDO'}
+                        .map(ord => {
+                          const isTransfer = ord.payment_method === 'transfer' || !!ord.receipt_url || ord.status === 'pending_review' || ord.status === 'processing' || (!ord.payment_id && ord.payment_method !== 'card' && ord.payment_method !== 'mercadopago');
+                          const isPaid = ord.status === 'paid' || ord.status === 'completed';
+                          const isPreparing = ord.status === 'preparing';
+                          const isShipped = ord.status === 'shipped';
+                          const isDelivered = ord.status === 'delivered';
+                          const isRejected = ord.status === 'rejected';
+                          const isCancelled = ord.status === 'cancelled';
+                          const isPendingPayment = ord.status === 'pending_payment' || (ord.status === 'pending' && !isTransfer);
+                          const isPendingReview = ord.status === 'pending_review' || ord.status === 'processing' || (ord.status === 'created' && isTransfer) || (isTransfer && !isPaid && !isRejected && !isCancelled && !isPreparing && !isShipped && !isDelivered);
+
+                          let activeStep = 1;
+                          if (isPendingReview) {
+                            activeStep = 2;
+                          } else if (isPaid) {
+                            activeStep = 3;
+                          } else if (isPreparing) {
+                            activeStep = 4;
+                          } else if (isShipped || isDelivered) {
+                            activeStep = 5;
+                          }
+
+                          return (
+                            <div key={ord.id} className="bg-white border border-gray-200 rounded-2xl p-6 shadow-xs space-y-5">
+                              {/* Top Bar */}
+                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-100 pb-3">
+                                <div className="flex items-center gap-3">
+                                  {isRejected ? (
+                                    <span className="px-3 py-1 bg-red-600 text-white font-display text-xs font-black rounded uppercase tracking-wider shadow-xs">
+                                      PAGO RECHAZADO
+                                    </span>
+                                  ) : isCancelled ? (
+                                    <span className="px-3 py-1 bg-gray-500 text-white font-display text-xs font-black rounded uppercase tracking-wider shadow-xs">
+                                      PEDIDO CANCELADO
+                                    </span>
+                                  ) : isDelivered ? (
+                                    <span className="px-3 py-1 bg-emerald-700 text-white font-display text-xs font-black rounded uppercase tracking-wider shadow-xs">
+                                      ENTREGADO ✓
+                                    </span>
+                                  ) : isShipped ? (
+                                    <span className="px-3 py-1 bg-purple-600 text-white font-display text-xs font-black rounded uppercase tracking-wider shadow-xs">
+                                      EN CAMINO 🚚
+                                    </span>
+                                  ) : isPreparing ? (
+                                    <span className="px-3 py-1 bg-blue-600 text-white font-display text-xs font-black rounded uppercase tracking-wider shadow-xs">
+                                      EN PREPARACIÓN 📦
+                                    </span>
+                                  ) : isPaid ? (
+                                    <span className="px-3 py-1 bg-emerald-600 text-white font-display text-xs font-black rounded uppercase tracking-wider shadow-xs">
+                                      PAGO APROBADO ✓
+                                    </span>
+                                  ) : isPendingReview ? (
+                                    <span className="px-3 py-1 bg-amber-500 text-white font-display text-xs font-black rounded uppercase tracking-wider shadow-xs">
+                                      PAGO EN VERIFICACIÓN ⏳
+                                    </span>
+                                  ) : (
+                                    <span className="px-3 py-1 bg-yellow-500 text-black font-display text-xs font-black rounded uppercase tracking-wider shadow-xs">
+                                      PENDIENTE DE PAGO
+                                    </span>
+                                  )}
+                                  <span className="font-mono-custom text-sm font-bold text-gray-900 tracking-wider">
+                                    N° #{String(ord.id).length > 15 ? String(ord.id).slice(-6).toUpperCase() : ord.id}
+                                  </span>
+                                </div>
+                                <span className="text-xs text-gray-500 font-sans">
+                                  Fecha: {new Date(ord.created_at || Date.now()).toLocaleDateString('es-AR')}
                                 </span>
-                                <span className="font-mono-custom text-gray-700 font-bold">N° {ord.id}</span>
-                              </div>
-                              <span className="text-[11px] text-gray-500 font-mono-custom">
-                                Fecha: {new Date(ord.created_at || Date.now()).toLocaleDateString('es-AR')}
-                              </span>
-                            </div>
-
-                            {/* Card Body */}
-                            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 py-1">
-                              <div className="space-y-1">
-                                <p className="text-xs text-gray-700 font-medium">
-                                  Destino: <strong className="text-gray-900">{ord.shipping_address || 'Entrega a Domicilio'}</strong>
-                                </p>
-                                <p className="text-xs text-gray-500">
-                                  Forma de Pago: <strong className="text-gray-800 uppercase">{ord.payment_method || 'Tarjeta'}</strong>
-                                </p>
                               </div>
 
-                              <div className="text-right">
-                                <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider block">TOTAL</span>
-                                <span className="text-lg font-bold text-[#3C6E71] font-mono-custom">
-                                  ${Math.round(ord.total_amount || 0).toLocaleString('es-AR')}
+                              {/* 5-Step Timeline */}
+                              <div className="space-y-2">
+                                <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider font-sans block">
+                                  PROGRESO DE TU PEDIDO
                                 </span>
+                                <div className="grid grid-cols-5 gap-2 text-[11px] font-sans font-bold text-center select-none">
+                                  <div className={`p-2.5 rounded-lg border ${activeStep >= 1 ? 'bg-emerald-50 border-emerald-300 text-emerald-800' : 'bg-gray-50 border-gray-200 text-gray-400'}`}>
+                                    1. CREADO ✓
+                                  </div>
+                                  <div className={`p-2.5 rounded-lg border ${activeStep === 2 ? 'bg-amber-50 border-amber-300 text-amber-900 ring-1 ring-amber-400/50' : activeStep > 2 ? 'bg-emerald-50 border-emerald-300 text-emerald-800' : 'bg-gray-50 border-gray-200 text-gray-400'}`}>
+                                    2. VERIFICACIÓN ⏳
+                                  </div>
+                                  <div className={`p-2.5 rounded-lg border ${activeStep >= 3 ? 'bg-emerald-50 border-emerald-300 text-emerald-800' : 'bg-gray-50 border-gray-200 text-gray-400'}`}>
+                                    3. PAGO OK ✓
+                                  </div>
+                                  <div className={`p-2.5 rounded-lg border ${activeStep >= 4 ? 'bg-blue-50 border-blue-300 text-blue-800' : 'bg-gray-50 border-gray-200 text-gray-400'}`}>
+                                    4. PREPARANDO 📦
+                                  </div>
+                                  <div className={`p-2.5 rounded-lg border ${activeStep >= 5 ? 'bg-emerald-100 border-emerald-400 text-emerald-900' : 'bg-gray-50 border-gray-200 text-gray-400'}`}>
+                                    5. ENVIADO 🚚
+                                  </div>
+                                </div>
                               </div>
-                            </div>
 
-                            {/* Card Footer Actions */}
-                            <div className="flex flex-wrap items-center justify-end gap-2 pt-2 border-t border-gray-200">
-                              <a
-                                href={`${API_BASE_URL}/api/orders/${ord.id}/ticket`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="px-3 py-1.5 bg-[#3C6E71] hover:bg-[#3C6E71]/90 text-white rounded-lg text-xs font-bold font-display flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
-                              >
-                                <Download className="w-3.5 h-3.5" />
-                                <span>COMPROBANTE PDF</span>
-                              </a>
-                            </div>
+                              {/* Destination & Payment */}
+                              <div className="space-y-1 text-xs text-gray-700 font-sans">
+                                <p><strong className="text-gray-900">Destino:</strong> {ord.shipping_address ? `Entrega a Domicilio (${ord.shipping_address})` : 'Entrega a Domicilio'}</p>
+                                <p><strong className="text-gray-900">Forma de Pago:</strong> <span className="uppercase font-bold text-gray-900">{isTransfer ? 'TRANSFERENCIA BANCARIA' : (ord.payment_method || 'MERCADO PAGO')}</span></p>
+                              </div>
 
-                          </div>
-                        ))}
-                    </div>
-                  )}
+                              {/* Contextual Status Alert Boxes */}
+                              {isPendingReview && isTransfer && (
+                                <div className="p-4 bg-amber-50/80 border border-amber-200 rounded-xl space-y-1 text-xs">
+                                  <div className="flex items-center gap-2 text-amber-900 font-bold">
+                                    <Clock className="w-4 h-4 text-amber-600 shrink-0" />
+                                    <span>PAGO EN PROCESO DE VERIFICACIÓN</span>
+                                  </div>
+                                  <p className="text-amber-800/90 text-[11px] leading-relaxed pl-6">
+                                    La comprobación de transferencias demora habitualmente de 2 a 24hs hábiles. Te notificaremos a tu email apenas sea validada por administración.
+                                  </p>
+                                </div>
+                              )}
+
+                              {!isTransfer && (isPaid || isPreparing || isShipped || isDelivered) && (
+                                <div className="p-4 bg-emerald-50/80 border border-emerald-200 rounded-xl space-y-1 text-xs">
+                                  <div className="flex items-center gap-2 text-emerald-900 font-bold">
+                                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                                    <span>PAGO PROCESADO Y ACREDITADO CON ÉXITO</span>
+                                  </div>
+                                  <p className="text-emerald-800 text-[11px] leading-relaxed pl-6">
+                                    Tu pago por Mercado Pago fue aprobado de forma instantánea. Tu pedido ya ingresó a la cola de preparación en nuestro depósito.
+                                  </p>
+                                </div>
+                              )}
+
+                              {isPreparing && (
+                                <div className="p-4 bg-blue-50/80 border border-blue-200 rounded-xl space-y-1 text-xs">
+                                  <div className="flex items-center gap-2 text-blue-900 font-bold">
+                                    <Package className="w-4 h-4 text-blue-600 shrink-0" />
+                                    <span>PEDIDO EN EMBALAJE Y PREPARACIÓN</span>
+                                  </div>
+                                  <p className="text-blue-800 text-[11px] leading-relaxed pl-6">
+                                    Estamos armando tu paquete en nuestro centro logístico de Bariloche para entregarlo al correo en las próximas horas.
+                                  </p>
+                                </div>
+                              )}
+
+                              {(isShipped || isDelivered) && ord.tracking_number && (
+                                <div className="p-4 bg-purple-50/80 border border-purple-200 rounded-xl space-y-2 text-xs">
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2 text-purple-900 font-bold">
+                                      <Truck className="w-4 h-4 text-purple-600 shrink-0" />
+                                      <span>PAQUETE DESPACHADO EN CAMINO</span>
+                                    </div>
+                                    {ord.shipping_courier && (
+                                      <span className="px-2 py-0.5 bg-purple-200 text-purple-900 rounded font-bold text-[10px]">
+                                        {ord.shipping_courier}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="flex flex-wrap items-center justify-between gap-2 pl-6">
+                                    <div>
+                                      <span className="text-[10px] text-purple-700 font-bold uppercase block">Código de Seguimiento:</span>
+                                      <span className="font-mono-custom font-bold text-gray-900 text-sm select-all">{ord.tracking_number}</span>
+                                    </div>
+                                    {ord.tracking_url && (
+                                      <a
+                                        href={ord.tracking_url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white font-display text-[10px] font-bold uppercase tracking-wider rounded-lg transition-colors inline-flex items-center gap-1"
+                                      >
+                                        <span>RASTREAR EN VIVO 🌐</span>
+                                      </a>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+
+                              {isRejected && (
+                                <div className="p-4 bg-red-50 border border-red-200 rounded-xl space-y-2 text-xs">
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2 text-red-900 font-bold">
+                                      <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
+                                      <span>EL PAGO DE ESTE PEDIDO FUE RECHAZADO</span>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setCustomerResendReceiptModalOrder(ord);
+                                        setCustomerResendFile(null);
+                                      }}
+                                      className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white font-display text-[10px] font-bold uppercase rounded-lg transition-colors cursor-pointer"
+                                    >
+                                      SUBIR NUEVO COMPROBANTE 📤
+                                    </button>
+                                  </div>
+                                  {ord.rejection_reason && (
+                                    <p className="text-red-700 text-[11px] italic pl-6">
+                                      Motivo informado: "{ord.rejection_reason}"
+                                    </p>
+                                  )}
+                                </div>
+                              )}
+
+                              {/* Chronological History */}
+                              <div className="space-y-2 pt-2 border-t border-gray-100">
+                                <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider font-sans block">
+                                  HISTORIAL CRONOLÓGICO DE ESTADOS
+                                </span>
+                                <div className="space-y-2 text-xs font-sans">
+                                  <div className="flex items-center justify-between text-gray-600">
+                                    <span className="flex items-center gap-2">
+                                      <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                                      <span>Pedido recibido en sistema</span>
+                                    </span>
+                                    <span className="text-gray-400 text-[11px]">
+                                      {new Date(ord.created_at || Date.now()).toLocaleDateString('es-AR')}
+                                    </span>
+                                  </div>
+
+                                  {isTransfer && isPendingReview && (
+                                    <div className="flex items-center justify-between text-gray-700 font-medium">
+                                      <span className="flex items-center gap-2">
+                                        <span className="w-2 h-2 rounded-full bg-amber-500" />
+                                        <span>Comprobante de transferencia en verificación manual</span>
+                                      </span>
+                                      <span className="text-amber-700 font-bold text-[11px]">En proceso ⏳</span>
+                                    </div>
+                                  )}
+
+                                  {!isTransfer && (isPaid || isPreparing || isShipped || isDelivered) && (
+                                    <div className="flex items-center justify-between text-gray-700 font-medium">
+                                      <span className="flex items-center gap-2">
+                                        <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                                        <span>Pago acreditado automáticamente vía Mercado Pago</span>
+                                      </span>
+                                      <span className="text-emerald-700 font-bold text-[11px]">Aprobado ✓</span>
+                                    </div>
+                                  )}
+
+                                  {isTransfer && isPaid && (
+                                    <div className="flex items-center justify-between text-gray-700 font-medium">
+                                      <span className="flex items-center gap-2">
+                                        <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                                        <span>Transferencia bancaria validada y aprobada</span>
+                                      </span>
+                                      <span className="text-emerald-700 font-bold text-[11px]">Aprobado ✓</span>
+                                    </div>
+                                  )}
+
+                                  {(isPreparing || isShipped || isDelivered) && (
+                                    <div className="flex items-center justify-between text-gray-700 font-medium">
+                                      <span className="flex items-center gap-2">
+                                        <span className="w-2 h-2 rounded-full bg-blue-500" />
+                                        <span>Embalaje y preparación en depósito</span>
+                                      </span>
+                                      <span className="text-blue-700 font-bold text-[11px]">Listo para despacho</span>
+                                    </div>
+                                  )}
+
+                                  {(isShipped || isDelivered) && (
+                                    <div className="flex items-center justify-between text-gray-700 font-medium">
+                                      <span className="flex items-center gap-2">
+                                        <span className="w-2 h-2 rounded-full bg-purple-500" />
+                                        <span>Despachado con {ord.shipping_courier || 'Transporte Express'}</span>
+                                      </span>
+                                      <span className="text-purple-700 font-bold text-[11px]">En camino 🚚</span>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Bottom Total & Actions */}
+                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4 border-t border-gray-100">
+                                <div className="text-right sm:order-2">
+                                  <span className="text-[10px] text-gray-400 uppercase font-bold tracking-wider block">TOTAL</span>
+                                  <span className="text-2xl font-black text-gray-900 font-sans">${Math.round(ord.total || ord.total_amount || 0).toLocaleString('es-AR')}</span>
+                                </div>
+                                <div className="flex flex-wrap items-center gap-3 sm:order-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => setCustomerSelectedOrderDetail(ord)}
+                                    className="px-5 py-2.5 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 font-display text-xs font-bold tracking-wider rounded-xl transition-all cursor-pointer flex items-center gap-2 shadow-2xs"
+                                  >
+                                    <Eye className="w-4 h-4 text-gray-500" />
+                                    <span>VER DETALLE DEL PEDIDO</span>
+                                  </button>
+
+                                  <a
+                                    href={`${API_BASE_URL}/api/orders/${ord.id}/pdf?token=${token || ''}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="px-5 py-2.5 bg-[#3C6E71] hover:bg-[#2c5355] text-white font-display text-xs font-bold tracking-wider rounded-xl transition-all cursor-pointer flex items-center gap-2 shadow-xs"
+                                  >
+                                    <Download className="w-4 h-4 text-white" />
+                                    <span>COMPROBANTE PDF</span>
+                                  </a>
+                                </div>
+                              </div>
+
+                            </div>
+                          );
+                        })
+                    )}
+                  </div>
 
                 </div>
               </div>
             )}
 
-            {/* 3. FORMAS DE PAGO SECTION */}
-            {customerPanelSection === 'payment' && (
+            {/* 3. CUPONES Y BENEFICIOS SECTION (BILLETERA DE DESCUENTOS) */}
+            {customerPanelSection === 'coupons' && (
               <div className="space-y-6">
                 <div className="bg-white border border-gray-200 p-6 rounded-2xl shadow-sm space-y-6 text-gray-900">
-                  <div className="flex items-center justify-between border-b border-gray-200 pb-4">
-                    <h2 className="font-display text-lg font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
-                      <Shield className="w-5 h-5 text-[#3C6E71]" />
-                      FORMAS DE PAGO GUARDADAS
-                    </h2>
-
-                    <button
-                      type="button"
-                      onClick={() => setIsAddCardModalOpen(true)}
-                      className="px-4 py-2 bg-[#3C6E71] hover:bg-[#3C6E71]/90 text-white font-display text-xs font-bold tracking-wider rounded-xl uppercase transition-all shadow-sm cursor-pointer"
-                    >
-                      + AGREGAR NUEVA TARJETA
-                    </button>
+                  
+                  {/* Top Bar with Redeem Code Input */}
+                  <div className="bg-gray-50/80 p-5 rounded-2xl border border-gray-200 shadow-xs space-y-3">
+                    <div className="flex items-center gap-2 text-xs font-bold font-display uppercase tracking-wider text-gray-800">
+                      <Gift className="w-4 h-4 text-[#B85C38]" />
+                      <span>CANJEAR CÓDIGO PROMOCIONAL</span>
+                    </div>
+                    <form onSubmit={handleRedeemCouponSubmit} className="flex flex-col sm:flex-row items-center gap-3">
+                      <div className="relative w-full flex-1">
+                        <input
+                          type="text"
+                          value={redeemInput}
+                          onChange={(e) => setRedeemInput(e.target.value.toUpperCase())}
+                          placeholder="Ingresá tu código de cupón (Ej: HOLUX2026, VIP10K)..."
+                          className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-300 rounded-xl text-xs font-mono-custom text-gray-900 placeholder-gray-400 uppercase tracking-widest outline-none focus:border-[#3C6E71] focus:ring-1 focus:ring-[#3C6E71]"
+                        />
+                        <Tag className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
+                      </div>
+                      <button
+                        type="submit"
+                        className="w-full sm:w-auto px-6 py-2.5 bg-[#3C6E71] hover:bg-[#2c5355] text-white font-display text-xs font-bold uppercase tracking-wider rounded-xl transition-all shadow-xs cursor-pointer shrink-0"
+                      >
+                        CANJEAR CUPÓN
+                      </button>
+                    </form>
                   </div>
 
-                  {/* Bank Direct Transfer Banner with Copy CBU / Alias */}
-                  <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-xl space-y-3 text-xs text-gray-800">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 font-bold text-emerald-700 uppercase">
-                        <Shield className="w-4 h-4" />
-                        <span>TRANSFERENCIA BANCARIA DIRECTA (10% OFF EXTRA)</span>
-                      </div>
-                      {copiedBankText && (
-                        <span className="bg-emerald-600 text-white text-[10px] font-bold px-2 py-0.5 rounded font-mono-custom animate-pulse">
-                          {copiedBankText}
+                  {/* Header & Filter Tabs Bar */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-200 pb-4">
+                    <div>
+                      <h2 className="font-display text-lg font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
+                        <Tag className="w-5 h-5 text-[#3C6E71]" />
+                        BILLETERA DE CUPONES Y BENEFICIOS
+                      </h2>
+                      <p className="text-xs text-gray-500 font-mono-custom mt-0.5">
+                        Aprovechá tus descuentos exclusivos y promociones activas
+                      </p>
+                    </div>
+
+                    {/* Search Input */}
+                    <div className="relative w-full sm:w-60">
+                      <input
+                        type="text"
+                        value={couponSearchQuery}
+                        onChange={(e) => setCouponSearchQuery(e.target.value)}
+                        placeholder="Buscar por código o promo..."
+                        className="w-full pl-8 pr-3 py-1.5 bg-white border border-gray-300 rounded-xl text-xs text-gray-900 placeholder-gray-400 outline-none focus:border-[#3C6E71]"
+                      />
+                      <Search className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-2.5" />
+                    </div>
+                  </div>
+
+                  {/* Status Tabs (Disponibles, Usados, Vencidos) */}
+                  <div className="flex items-center gap-2 text-xs font-display">
+                    {[
+                      { key: 'disponibles', label: 'Disponibles', count: customerCoupons.filter(c => c.status === 'disponible').length },
+                      { key: 'usados', label: 'Usados', count: customerCoupons.filter(c => c.status === 'usado').length },
+                      { key: 'vencidos', label: 'Vencidos', count: customerCoupons.filter(c => c.status === 'vencido').length }
+                    ].map(tab => (
+                      <button
+                        key={tab.key}
+                        onClick={() => setCouponsTabFilter(tab.key)}
+                        className={`px-4 py-2 rounded-xl transition-all cursor-pointer font-bold flex items-center gap-2 ${couponsTabFilter === tab.key ? 'bg-[#3C6E71] text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                      >
+                        <span>{tab.label}</span>
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-mono-custom ${couponsTabFilter === tab.key ? 'bg-white text-[#3C6E71]' : 'bg-gray-200 text-gray-700'}`}>
+                          {tab.count}
                         </span>
-                      )}
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-mono-custom">
-                      <div className="flex items-center justify-between bg-white/70 p-2 rounded border border-emerald-100">
-                        <span>CBU: 0170098520000001234567</span>
-                        <button
-                          onClick={() => handleCopyBankInfo('0170098520000001234567', '¡CBU Copiado!')}
-                          className="px-2 py-1 bg-emerald-700 hover:bg-emerald-800 text-white rounded text-[10px] font-bold cursor-pointer"
-                        >
-                          COPIAR
-                        </button>
-                      </div>
-                      <div className="flex items-center justify-between bg-white/70 p-2 rounded border border-emerald-100">
-                        <span>Alias: HOLUX.OFICIAL.MP</span>
-                        <button
-                          onClick={() => handleCopyBankInfo('HOLUX.OFICIAL.MP', '¡Alias Copiado!')}
-                          className="px-2 py-1 bg-emerald-700 hover:bg-emerald-800 text-white rounded text-[10px] font-bold cursor-pointer"
-                        >
-                          COPIAR
-                        </button>
-                      </div>
-                    </div>
-                    <p className="text-[10px] text-gray-500">Titular: HOLUX OUTDOOR S.A. • CUIT: 30-71829304-8</p>
+                      </button>
+                    ))}
                   </div>
 
-                  {/* Saved Cards Grid */}
-                  <div className="space-y-3">
-                    <h3 className="font-display text-xs font-bold text-gray-500 uppercase tracking-wider">TARJETAS REGISTRADAS ({savedCards.length})</h3>
-                    
-                    {savedCards.length === 0 ? (
-                      <p className="text-xs text-gray-500 italic py-4">No tienes tarjetas registradas aún. Haz clic en "Agregar nueva tarjeta" para guardar una.</p>
-                    ) : (
-                      savedCards.map(card => (
-                        <div key={card.id} className="bg-gray-50 border border-gray-200 p-4 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
-                          <div className="flex items-center gap-3">
-                            <div className={`p-2.5 rounded-lg text-white font-bold font-mono-custom ${card.brand === 'VISA' ? 'bg-blue-600' : card.brand === 'Mastercard' ? 'bg-red-600' : 'bg-[#3C6E71]'}`}>
-                              {card.brand}
-                            </div>
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <p className="font-bold text-gray-900">{card.brand} Crédito/Débito **** {card.number}</p>
-                                {card.isDefault && (
-                                  <span className="text-[9px] font-bold bg-emerald-600 text-white px-2 py-0.5 rounded font-mono-custom">
-                                    PREDETERMINADA
-                                  </span>
-                                )}
-                              </div>
-                              <p className="text-[10px] text-gray-500 font-mono-custom">Titular: {card.holder} • Vence {card.expiry}</p>
-                            </div>
-                          </div>
+                  {/* Coupons Grid Layout */}
+                  {(() => {
+                    const filteredCoupons = customerCoupons
+                      .filter(c => {
+                        if (couponsTabFilter === 'disponibles') return c.status === 'disponible';
+                        if (couponsTabFilter === 'usados') return c.status === 'usado';
+                        if (couponsTabFilter === 'vencidos') return c.status === 'vencido';
+                        return true;
+                      })
+                      .filter(c => {
+                        if (!couponSearchQuery.trim()) return true;
+                        const q = couponSearchQuery.toLowerCase();
+                        return c.code.toLowerCase().includes(q) || (c.origin && c.origin.toLowerCase().includes(q));
+                      });
 
-                          <div className="flex items-center gap-2">
-                            {!card.isDefault && (
-                              <button
-                                onClick={() => handleSetDefaultCard(card.id)}
-                                className="px-2.5 py-1 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded font-bold text-[10px] uppercase cursor-pointer"
-                              >
-                                PREDETERMINAR
-                              </button>
-                            )}
-                            <button
-                              onClick={() => handleDeleteCard(card.id)}
-                              className="px-2.5 py-1 bg-red-100 hover:bg-red-200 text-red-700 rounded font-bold text-[10px] uppercase cursor-pointer"
-                            >
-                              ELIMINAR
-                            </button>
+                    if (filteredCoupons.length === 0) {
+                      return (
+                        <div className="py-12 text-center text-gray-500 space-y-3 bg-gray-50/50 rounded-2xl border-2 border-dashed border-gray-200 p-8">
+                          <div className="w-14 h-14 mx-auto rounded-full bg-[#3C6E71]/10 flex items-center justify-center text-[#3C6E71]">
+                            <Tag className="w-7 h-7" />
                           </div>
+                          <h3 className="font-display text-sm font-bold text-gray-900 uppercase tracking-wide">
+                            {couponsTabFilter === 'disponibles' && 'Tu billetera de cupones está vacía'}
+                            {couponsTabFilter === 'usados' && 'No tienes cupones usados aún'}
+                            {couponsTabFilter === 'vencidos' && 'No tienes cupones vencidos'}
+                          </h3>
+                          <p className="text-xs text-gray-500 max-w-sm mx-auto leading-relaxed">
+                            {couponsTabFilter === 'disponibles'
+                              ? 'Ingresá el código promocional que viste en nuestras redes sociales en el cuadro superior y presioná "CANJEAR CUPÓN" para desbloquear tu beneficio.'
+                              : 'Aquí se almacenarán tus cupones a medida que los utilices o expiren.'}
+                          </p>
                         </div>
-                      ))
-                    )}
-                  </div>
+                      );
+                    }
+
+                    return (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {filteredCoupons.map(coupon => {
+                          const isCopied = copiedCouponId === coupon.id;
+                          const daysLeft = Math.ceil((coupon.expiry_timestamp - Date.now()) / (1000 * 60 * 60 * 24));
+                          
+                          let urgencyColor = 'bg-emerald-100 text-emerald-800 border-emerald-300';
+                          let urgencyLabel = `Vence en ${daysLeft} días`;
+                          if (daysLeft <= 1) {
+                            urgencyColor = 'bg-red-100 text-red-800 border-red-300 animate-pulse';
+                            urgencyLabel = '¡Vence HOY!';
+                          } else if (daysLeft <= 7) {
+                            urgencyColor = 'bg-amber-100 text-amber-800 border-amber-300';
+                            urgencyLabel = `Vence en ${daysLeft} días`;
+                          }
+
+                          if (coupon.status === 'usado') {
+                            return (
+                              <div key={coupon.id} className="relative bg-gray-50 border-2 border-dashed border-gray-300 p-5 rounded-2xl opacity-70 flex flex-col justify-between space-y-4 text-gray-700">
+                                <div className="space-y-2">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-[10px] font-bold bg-gray-200 text-gray-600 px-2.5 py-1 rounded font-mono-custom uppercase">
+                                      {coupon.origin || 'Promoción'}
+                                    </span>
+                                    <span className="text-[10px] font-bold bg-gray-300 text-gray-700 px-2.5 py-0.5 rounded font-mono-custom uppercase">
+                                      USADO
+                                    </span>
+                                  </div>
+
+                                  <div className="flex items-baseline justify-between">
+                                    <span className="font-mono-custom text-xl font-extrabold text-gray-500 line-through">
+                                      {coupon.code}
+                                    </span>
+                                    <span className="font-mono-custom text-lg font-bold text-gray-500">
+                                      {coupon.type === 'percentage' ? `${coupon.value}% OFF` : `${coupon.value.toLocaleString('es-AR')} OFF`}
+                                    </span>
+                                  </div>
+
+                                  <p className="text-[11px] text-gray-500 leading-relaxed">{coupon.description}</p>
+                                </div>
+
+                                <div className="pt-3 border-t border-gray-200 flex items-center justify-between text-[11px] font-mono-custom text-gray-500">
+                                  <span>Usado el: {coupon.used_date || 'Recientemente'}</span>
+                                  {coupon.used_order_id && (
+                                    <button
+                                      onClick={() => setCustomerPanelSection('orders')}
+                                      className="font-bold text-[#3C6E71] underline cursor-pointer"
+                                    >
+                                      Pedido #{coupon.used_order_id}
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          }
+
+                          if (coupon.status === 'vencido') {
+                            return (
+                              <div key={coupon.id} className="relative bg-gray-50 border-2 border-dashed border-gray-300 p-5 rounded-2xl opacity-60 flex flex-col justify-between space-y-4 text-gray-700">
+                                <div className="space-y-2">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-[10px] font-bold bg-gray-200 text-gray-600 px-2.5 py-1 rounded font-mono-custom uppercase">
+                                      {coupon.origin || 'Promoción Expirada'}
+                                    </span>
+                                    <span className="text-[10px] font-bold bg-red-100 text-red-700 border border-red-300 px-2.5 py-0.5 rounded font-mono-custom uppercase">
+                                      VENCIDO
+                                    </span>
+                                  </div>
+
+                                  <div className="flex items-baseline justify-between">
+                                    <span className="font-mono-custom text-xl font-extrabold text-gray-400 line-through">
+                                      {coupon.code}
+                                    </span>
+                                    <span className="font-mono-custom text-lg font-bold text-gray-400 line-through">
+                                      {coupon.type === 'percentage' ? `${coupon.value}% OFF` : `${coupon.value.toLocaleString('es-AR')} OFF`}
+                                    </span>
+                                  </div>
+
+                                  <p className="text-[11px] text-gray-400 leading-relaxed">{coupon.description}</p>
+                                </div>
+
+                                <div className="pt-3 border-t border-gray-200 text-[11px] font-mono-custom text-gray-400 text-right">
+                                  Expiró el {new Date(coupon.expiry_timestamp).toLocaleDateString('es-AR')}
+                                </div>
+                              </div>
+                            );
+                          }
+
+                          // DISPONIBLES (Ticket Style Premium)
+                          return (
+                            <div key={coupon.id} className="relative bg-[#1C2321] text-white border-2 border-dashed border-[#3C6E71]/60 p-5 rounded-2xl shadow-lg flex flex-col justify-between space-y-4 hover:border-[#3C6E71] transition-all">
+                              <div className="space-y-3">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[10px] font-bold bg-[#3C6E71]/30 text-[#F2EFE9] px-2.5 py-1 rounded border border-[#3C6E71]/40 font-mono-custom uppercase">
+                                    {coupon.origin || 'Beneficio Exclusivo'}
+                                  </span>
+                                  <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded border font-mono-custom uppercase ${urgencyColor}`}>
+                                    {urgencyLabel}
+                                  </span>
+                                </div>
+
+                                <div className="flex items-baseline justify-between gap-2 border-b border-[#3C6E71]/30 pb-3">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-mono-custom text-2xl font-black text-[#F2EFE9] tracking-wider">
+                                      {coupon.code}
+                                    </span>
+                                    <button
+                                      onClick={() => handleCopyCouponCode(coupon.id, coupon.code)}
+                                      className={`p-1.5 rounded-lg transition-all cursor-pointer ${isCopied ? 'bg-emerald-600 text-white' : 'bg-white/10 hover:bg-white/20 text-gray-300'}`}
+                                      title="Copiar Código"
+                                    >
+                                      {isCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                                    </button>
+                                  </div>
+
+                                  <span className="font-display text-xl font-extrabold text-[#B85C38] shrink-0">
+                                    {coupon.type === 'percentage' ? `${coupon.value}% OFF` : `${coupon.value.toLocaleString('es-AR')} OFF`}
+                                  </span>
+                                </div>
+
+                                <p className="text-xs text-gray-300 leading-relaxed font-sans">
+                                  {coupon.description}
+                                </p>
+                              </div>
+
+                              <div className="pt-3 border-t border-[#3C6E71]/30 flex items-center justify-between gap-3">
+                                <span className="text-[10px] text-gray-400 font-mono-custom">
+                                  Min. compra: ${coupon.min_spend.toLocaleString('es-AR')}
+                                </span>
+                                
+                                <button
+                                  onClick={() => handleUseCouponNow(coupon)}
+                                  className="px-4 py-2 bg-[#3C6E71] hover:bg-[#3C6E71]/90 text-white font-display text-xs font-bold uppercase tracking-wider rounded-xl transition-all shadow-md cursor-pointer flex items-center gap-1.5"
+                                >
+                                  <span>USAR AHORA</span>
+                                  <Sparkles className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
+
                 </div>
               </div>
             )}
@@ -2830,7 +3708,10 @@ export default function App() {
 
                   <div className="space-y-3">
                     <h3 className="font-display text-xs font-bold text-gray-500 uppercase tracking-wider">SOLICITUDES ACTIVAS ({refundRequestsList.length})</h3>
-                    {refundRequestsList.map(req => (
+                    {refundRequestsList.length === 0 ? (
+                      <p className="text-xs text-gray-400 italic text-center py-6 border border-dashed border-gray-200 rounded-xl">No tienes ninguna solicitud de devolución o reembolso activa.</p>
+                    ) : (
+                      refundRequestsList.map(req => (
                       <div key={req.id} className="bg-gray-50 border border-gray-200 p-4 rounded-xl space-y-2 text-xs">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
@@ -2847,13 +3728,13 @@ export default function App() {
                           <span className="font-bold text-[#3C6E71]">Monto a reembolsar: ${req.amount.toLocaleString('es-AR')}</span>
                         </div>
                       </div>
-                    ))}
+                    )))}
                   </div>
                 </div>
               </div>
             )}
 
-            {/* 5. VALORACIONES SECTION */}
+            {/* 4. VALORACIONES SECTION */}
             {customerPanelSection === 'reviews' && (
               <div className="space-y-6">
                 <div className="bg-white border border-gray-200 p-6 rounded-2xl shadow-sm space-y-6 text-gray-900">
@@ -2872,25 +3753,39 @@ export default function App() {
                     </button>
                   </div>
 
-                  <div className="space-y-3">
-                    {customerReviewsList.map(rev => (
-                      <div key={rev.id} className="bg-gray-50 border border-gray-200 p-4 rounded-xl space-y-2 text-xs">
-                        <div className="flex items-center justify-between">
-                          <span className="font-bold text-gray-900">{rev.productName}</span>
-                          <div className="flex items-center text-amber-500">
-                            {[...Array(rev.rating)].map((_, i) => (
-                              <Star key={i} className="w-3.5 h-3.5 fill-current" />
-                            ))}
+                  {customerReviewsList.length === 0 ? (
+                    <div className="py-12 text-center text-gray-500 space-y-3 bg-gray-50/50 rounded-2xl border-2 border-dashed border-gray-200 p-8">
+                      <div className="w-14 h-14 mx-auto rounded-full bg-[#3C6E71]/10 flex items-center justify-center text-[#3C6E71]">
+                        <Star className="w-7 h-7 text-[#3C6E71]" />
+                      </div>
+                      <h3 className="font-display text-sm font-bold text-gray-900 uppercase tracking-wide">
+                        No tienes valoraciones registradas
+                      </h3>
+                      <p className="text-xs text-gray-500 max-w-sm mx-auto leading-relaxed">
+                        Tus opiniones ayudan a otros miembros de la comunidad de montaña a elegir el equipo ideal.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {customerReviewsList.map(rev => (
+                        <div key={rev.id} className="bg-gray-50 border border-gray-200 p-4 rounded-xl space-y-2 text-xs">
+                          <div className="flex items-center justify-between">
+                            <span className="font-bold text-gray-900">{rev.productName}</span>
+                            <div className="flex items-center text-amber-500">
+                              {[...Array(rev.rating)].map((_, i) => (
+                                <Star key={i} className="w-3.5 h-3.5 fill-current" />
+                              ))}
+                            </div>
+                          </div>
+                          <p className="text-gray-700 italic">"{rev.comment}"</p>
+                          <div className="flex items-center justify-between text-[10px] text-gray-500 pt-1 border-t border-gray-200">
+                            <span className="text-emerald-700 font-bold uppercase">{rev.status}</span>
+                            <span className="font-mono-custom">Fecha: {rev.date}</span>
                           </div>
                         </div>
-                        <p className="text-gray-700 italic">"{rev.comment}"</p>
-                        <div className="flex items-center justify-between text-[10px] text-gray-500 pt-1 border-t border-gray-200">
-                          <span className="text-emerald-700 font-bold uppercase">{rev.status}</span>
-                          <span className="font-mono-custom">Fecha: {rev.date}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -3074,7 +3969,7 @@ export default function App() {
                     <div className="flex items-center justify-between bg-gray-50 p-4 rounded-xl border border-gray-200">
                       <div>
                         <p className="font-bold text-gray-900">Notificaciones por Email</p>
-                        <p className="text-[10px] text-gray-500">Recibir confirmaciones de compras y seguimiento de envíos.</p>
+                        <p className="text-[10px] text-gray-500">Recibir confirmaciones de compras, verificación de transferencias y seguimiento de envíos.</p>
                       </div>
                       <input
                         type="checkbox"
@@ -3086,34 +3981,8 @@ export default function App() {
 
                     <div className="flex items-center justify-between bg-gray-50 p-4 rounded-xl border border-gray-200">
                       <div>
-                        <p className="font-bold text-gray-900">Alertas por SMS en tiempo real</p>
-                        <p className="text-[10px] text-gray-500">Avisos instantáneos cuando tu paquete salga a reparto.</p>
-                      </div>
-                      <input
-                        type="checkbox"
-                        checked={accountSettings.smsAlerts}
-                        onChange={(e) => setAccountSettings({ ...accountSettings, smsAlerts: e.target.checked })}
-                        className="w-4 h-4 accent-[#3C6E71] cursor-pointer"
-                      />
-                    </div>
-
-                    <div className="flex items-center justify-between bg-gray-50 p-4 rounded-xl border border-gray-200">
-                      <div>
-                        <p className="font-bold text-gray-900">Actualizaciones por WhatsApp</p>
-                        <p className="text-[10px] text-gray-500">Recibir enlace de seguimiento de envío en WhatsApp.</p>
-                      </div>
-                      <input
-                        type="checkbox"
-                        checked={accountSettings.whatsappUpdates}
-                        onChange={(e) => setAccountSettings({ ...accountSettings, whatsappUpdates: e.target.checked })}
-                        className="w-4 h-4 accent-[#3C6E71] cursor-pointer"
-                      />
-                    </div>
-
-                    <div className="flex items-center justify-between bg-gray-50 p-4 rounded-xl border border-gray-200">
-                      <div>
                         <p className="font-bold text-gray-900">Boletín mensual de expediciones</p>
-                        <p className="text-[10px] text-gray-500">Novedades de la comunidad outdoor y guías de montaña.</p>
+                        <p className="text-[10px] text-gray-500">Novedades de la comunidad outdoor, lanzamientos y guías de montaña.</p>
                       </div>
                       <input
                         type="checkbox"
@@ -3137,6 +4006,423 @@ export default function App() {
           </div>
 
         </div>
+
+        {/* --- MODAL DEVOLUCIÓN DENTRO DEL PANEL DE CLIENTE --- */}
+        {isRefundModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setIsRefundModalOpen(false)} />
+            <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl p-6 border border-gray-100 space-y-5 text-gray-900 z-10">
+              <div className="flex items-center justify-between border-b border-gray-200 pb-3">
+                <div className="flex items-center gap-2">
+                  <RotateCcw className="w-5 h-5 text-[#B85C38]" />
+                  <h3 className="font-display text-base font-bold text-gray-900 uppercase tracking-wider">SOLICITAR REEMBOLSO / ARREPENTIMIENTO</h3>
+                </div>
+                <button onClick={() => setIsRefundModalOpen(false)} className="text-gray-400 hover:text-gray-600 cursor-pointer">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleSubmitRefundModal} className="space-y-4 text-xs">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">SELECCIONÁ TU PEDIDO (LEY 24.240 - 10 DÍAS)</label>
+                  {orders && orders.length > 0 ? (
+                    <select
+                      value={typeof refundOrderSelect === 'object' ? refundOrderSelect?.id : refundOrderSelect}
+                      onChange={(e) => {
+                        const found = orders.find(o => String(o.id) === String(e.target.value));
+                        setRefundOrderSelect(found || e.target.value);
+                      }}
+                      className="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-xl text-xs text-gray-900 outline-none focus:border-[#3C6E71]"
+                    >
+                      {orders.map(ord => (
+                        <option key={ord.id} value={ord.id}>
+                          Pedido #{String(ord.id).length > 15 ? String(ord.id).slice(-6).toUpperCase() : ord.id} - Total: ${Math.round(ord.total || 0).toLocaleString('es-AR')}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <div className="p-3 bg-gray-50 rounded-xl border border-gray-200 font-mono-custom text-xs">
+                      <strong>N° #{refundOrderSelect?.id ? (String(refundOrderSelect.id).length > 15 ? String(refundOrderSelect.id).slice(-6).toUpperCase() : refundOrderSelect.id) : 'ULTIMO PEDIDO'}</strong>
+                      <span className="block text-gray-500 text-[11px] mt-0.5">
+                        Monto total: ${refundOrderSelect?.total ? Math.round(refundOrderSelect.total).toLocaleString('es-AR') : '78.000'}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">MOTIVO DE LA DEVOLUCIÓN</label>
+                  <select
+                    value={refundReasonSelect}
+                    onChange={(e) => setRefundReasonSelect(e.target.value)}
+                    className="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-xl text-xs text-gray-900 outline-none focus:border-[#3C6E71]"
+                  >
+                    <option value="Talle incorrecto">Talle incorrecto</option>
+                    <option value="Defecto de fabricación">Defecto de fabricación</option>
+                    <option value="Producto no coincide con la foto">Producto no coincide con la foto</option>
+                    <option value="Arrepentimiento de compra (Ley 24.240)">Arrepentimiento de compra (Ley 24.240)</option>
+                    <option value="Retraso en la entrega">Retraso en la entrega</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">COMENTARIOS ADICIONALES</label>
+                  <textarea
+                    rows={3}
+                    placeholder="Escribí aquí si el producto fue probado o el motivo detallado..."
+                    value={refundCommentInput}
+                    onChange={(e) => setRefundCommentInput(e.target.value)}
+                    className="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-xl text-xs text-gray-900 outline-none focus:border-[#3C6E71]"
+                  />
+                </div>
+
+                <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-[11px] text-amber-900">
+                  Se generará un número de devolución y recibirás la etiqueta de correo gratuita para despachar el paquete.
+                </div>
+
+                <div className="flex items-center gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsRefundModalOpen(false)}
+                    className="w-1/2 py-2.5 border border-gray-300 text-gray-700 font-display text-xs font-bold uppercase rounded-xl hover:bg-gray-50 cursor-pointer"
+                  >
+                    CANCELAR
+                  </button>
+                  <button
+                    type="submit"
+                    className="w-1/2 py-2.5 bg-[#B85C38] hover:bg-[#B85C38]/90 text-white font-display text-xs font-bold uppercase rounded-xl shadow cursor-pointer"
+                  >
+                    ENVIAR SOLICITUD
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* --- MODAL RESUBIR COMPROBANTE DENTRO DEL PANEL DE CLIENTE --- */}
+        {customerResendReceiptModalOrder && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setCustomerResendReceiptModalOrder(null)} />
+            <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl p-6 border border-gray-100 space-y-5 text-gray-900 z-10">
+              <div className="flex items-center justify-between border-b border-gray-200 pb-3">
+                <h3 className="font-display text-base font-bold uppercase tracking-wider text-gray-900">SUBIR COMPROBANTE DE PAGO</h3>
+                <button onClick={() => setCustomerResendReceiptModalOrder(null)} className="text-gray-400 hover:text-gray-600 cursor-pointer">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleCustomerResendReceiptSubmit} className="space-y-4 text-xs">
+                <p className="text-gray-600 leading-relaxed">
+                  Pedido <strong>#{customerResendReceiptModalOrder.id && String(customerResendReceiptModalOrder.id).length > 15 ? String(customerResendReceiptModalOrder.id).slice(-6).toUpperCase() : customerResendReceiptModalOrder.id}</strong>.
+                  Por favor adjuntá una foto o PDF claro de tu transferencia bancaria (máximo 5MB).
+                </p>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">COMPROBANTE (JPG, PNG, PDF)</label>
+                  <input
+                    type="file"
+                    accept="image/png, image/jpeg, image/jpg, application/pdf"
+                    required
+                    onChange={(e) => setCustomerResendFile(e.target.files[0])}
+                    className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-xs"
+                  />
+                </div>
+
+                <div className="flex justify-end gap-2 pt-3 border-t border-gray-100">
+                  <button
+                    type="button"
+                    onClick={() => setCustomerResendReceiptModalOrder(null)}
+                    className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-xl text-xs font-bold uppercase"
+                  >
+                    CANCELAR
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isUploadingCustomerReceipt || !customerResendFile}
+                    className="px-4 py-2 bg-[#3C6E71] hover:bg-[#3C6E71]/90 text-white rounded-xl text-xs font-bold uppercase cursor-pointer"
+                  >
+                    {isUploadingCustomerReceipt ? 'ENVIANDO...' : 'ENVIAR COMPROBANTE'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* --- CART DRAWER DENTRO DEL PANEL DE CLIENTE --- */}
+        {isCartOpen && (
+          <div className="fixed inset-0 z-50 overflow-hidden">
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onClick={() => setIsCartOpen(false)} />
+            
+            <div className="absolute inset-y-0 right-0 max-w-full flex pl-10">
+              <div className="w-screen max-w-md bg-white shadow-2xl flex flex-col justify-between">
+                
+                {/* Header */}
+                <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-[#1C2321] text-white">
+                  <h2 className="font-display text-lg font-bold tracking-wider flex items-center gap-2">
+                    <ShoppingBag className="w-5 h-5 text-[#3C6E71]" />
+                    MI COMPRA
+                  </h2>
+                  <button onClick={() => { setIsCartOpen(false); setCheckoutSuccess(null); }} className="p-1 hover:bg-white/10 rounded transition-colors cursor-pointer">
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* Main Cart Layout */}
+                <div className="flex-grow overflow-y-auto p-6 space-y-6">
+                  {cart.length === 0 ? (
+                    <div className="h-64 flex flex-col items-center justify-center text-center text-gray-400 space-y-3">
+                      <ShoppingBag className="w-12 h-12 stroke-[1]" />
+                      <div>
+                        <p className="font-display font-bold">El carrito está vacío</p>
+                        <p className="text-xs mt-1">Explora el catálogo y añade tu equipamiento.</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {cart.map(item => (
+                        <div key={`${item.id}_${item.sizeLabel}`} className="flex gap-4 border-b border-gray-100 pb-4">
+                          <div className="w-16 h-16 bg-gray-50 border border-gray-100 rounded overflow-hidden flex items-center justify-center">
+                            <img 
+                              src={getProductImage(item.name)} 
+                              alt={item.name} 
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+
+                          <div className="flex-grow flex flex-col justify-between">
+                            <div>
+                              <h4 className="text-sm font-bold text-gray-800 line-clamp-1">{item.name}</h4>
+                              <div className="flex items-center gap-2 text-[10px] text-gray-400 font-sans font-semibold">
+                                <span className="uppercase tracking-widest">{item.brand}</span>
+                                <span>•</span>
+                                <span>Talle: {item.sizeLabel || 'Único'}</span>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center border border-gray-200 rounded overflow-hidden">
+                                <button
+                                  onClick={() => updateCartQty(item.id, item.sizeLabel, -1, item.stock)}
+                                  className="px-2 py-0.5 bg-gray-50 hover:bg-gray-100 text-gray-600 transition-colors cursor-pointer"
+                                >
+                                  -
+                                </button>
+                                <span className="px-3 text-xs font-bold font-sans">{item.quantity}</span>
+                                <button
+                                  onClick={() => updateCartQty(item.id, item.sizeLabel, 1, item.stock)}
+                                  className="px-2 py-0.5 bg-gray-50 hover:bg-gray-100 text-gray-600 transition-colors cursor-pointer"
+                                >
+                                  +
+                                </button>
+                              </div>
+
+                              <div className="flex items-center gap-3">
+                                <span className="font-sans text-xs font-bold text-gray-900">
+                                  ${(item.price * item.quantity).toLocaleString('es-AR')}
+                                </span>
+                                <button 
+                                  onClick={() => removeFromCart(item.id, item.sizeLabel)} 
+                                  className="text-red-500 hover:text-red-700 transition-colors cursor-pointer"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Footer Checkout info */}
+                {cart.length > 0 && (
+                  <div className="p-6 border-t border-gray-100 bg-gray-50 space-y-4">
+                    {/* Applied Coupon Banner if active */}
+                    {appliedCoupon && (
+                      <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between text-xs text-emerald-900">
+                        <div className="flex items-center gap-2">
+                          <Tag className="w-4 h-4 text-emerald-600" />
+                          <div>
+                            <span className="font-bold block font-mono-custom">Cupón: {appliedCoupon.code}</span>
+                            <span className="text-[10px] text-emerald-700 font-mono-custom">
+                              Descuento: {appliedCoupon.type === 'percentage' ? `${appliedCoupon.value}% OFF` : `${appliedCoupon.value.toLocaleString('es-AR')} OFF`}
+                            </span>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => setAppliedCoupon(null)}
+                          className="p-1 hover:bg-emerald-200/60 rounded text-emerald-800 transition-colors cursor-pointer"
+                          title="Quitar cupón"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    )}
+
+                    {(() => {
+                      const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+                      let discount = 0;
+                      if (appliedCoupon) {
+                        discount = appliedCoupon.type === 'percentage'
+                          ? Math.round((subtotal * appliedCoupon.value) / 100)
+                          : Math.min(subtotal, appliedCoupon.value);
+                      }
+                      const finalTotal = Math.max(0, subtotal - discount);
+                      const netAmount = Math.round(finalTotal / 1.21);
+                      const vatAmount = finalTotal - netAmount;
+
+                      return (
+                        <div className="space-y-2 text-xs font-sans">
+                          <div className="flex items-center justify-between text-gray-500">
+                            <span>Total sin impuestos nacionales</span>
+                            <span className="font-mono-custom font-semibold text-gray-700">${netAmount.toLocaleString('es-AR')}</span>
+                          </div>
+                          <div className="flex items-center justify-between text-gray-500">
+                            <span>Impuestos Nacionales (IVA 21%)</span>
+                            <span className="font-mono-custom font-semibold text-gray-700">${vatAmount.toLocaleString('es-AR')}</span>
+                          </div>
+                          {discount > 0 && (
+                            <div className="flex items-center justify-between text-emerald-700 font-semibold">
+                              <span>Descuento ({appliedCoupon.code})</span>
+                              <span className="font-mono-custom font-bold">-${discount.toLocaleString('es-AR')}</span>
+                            </div>
+                          )}
+                          <div className="flex items-center justify-between text-gray-500">
+                            <span>Envío</span>
+                            <span className="font-mono-custom font-bold text-emerald-600">Gratis</span>
+                          </div>
+                          <div className="flex items-center justify-between text-gray-900 pt-2 border-t border-gray-200">
+                            <span className="font-display text-sm font-black tracking-wider uppercase">Total</span>
+                            <span className="font-mono-custom text-xl font-bold text-[#3C6E71]">
+                              ${finalTotal.toLocaleString('es-AR')}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    <button
+                      onClick={() => {
+                        setIsCartOpen(false);
+                        setCurrentView('checkout');
+                      }}
+                      className="w-full py-4 bg-[#3C6E71] hover:bg-[#3C6E71]/95 text-white font-display text-xs font-bold tracking-wider rounded uppercase transition-all flex items-center justify-center gap-2 shadow-lg shadow-[#3C6E71]/20 cursor-pointer"
+                    >
+                      <Shield className="w-4 h-4" />
+                      INICIAR COMPRA Y ELEGIR PAGO / DOMICILIO →
+                    </button>
+                  </div>
+                )}
+
+              </div>
+            </div>
+          </div>
+        )}
+        {/* --- MODAL DETALLE COMPLETO DEL PEDIDO EN PANEL DE CLIENTE --- */}
+        {customerSelectedOrderDetail && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setCustomerSelectedOrderDetail(null)} />
+            <div className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl p-6 border border-gray-100 space-y-5 text-gray-900 z-10 max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between border-b border-gray-200 pb-4">
+                <div>
+                  <h3 className="font-display text-lg font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
+                    <ShoppingBag className="w-5 h-5 text-[#3C6E71]" />
+                    DETALLE DEL PEDIDO N° #{customerSelectedOrderDetail.id && String(customerSelectedOrderDetail.id).length > 15 ? String(customerSelectedOrderDetail.id).slice(-6).toUpperCase() : customerSelectedOrderDetail.id}
+                  </h3>
+                  <p className="text-xs text-gray-500 font-mono-custom mt-0.5">
+                    Realizado el {new Date(customerSelectedOrderDetail.created_at || Date.now()).toLocaleDateString('es-AR')} a las {new Date(customerSelectedOrderDetail.created_at || Date.now()).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}hs
+                  </p>
+                </div>
+                <button onClick={() => setCustomerSelectedOrderDetail(null)} className="text-gray-400 hover:text-gray-600 cursor-pointer">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Order Info & Shipping */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs bg-gray-50 p-4 rounded-xl border border-gray-200">
+                <div>
+                  <span className="font-bold text-gray-500 uppercase text-[10px] block">ENVÍO Y DESTINO</span>
+                  <p className="font-bold text-gray-900">{customerSelectedOrderDetail.shipping_address || 'Entrega a Domicilio'}</p>
+                  <p className="text-[#3C6E71] text-[11px]">Método: {customerSelectedOrderDetail.shipping_method || 'Entrega Estándar Andreani'}</p>
+                </div>
+                <div>
+                  <span className="font-bold text-gray-500 uppercase text-[10px] block">MÉTODOS DE PAGO Y ESTADO</span>
+                  <p className="font-bold text-gray-900">{customerSelectedOrderDetail.payment_method || 'Transferencia Bancaria'}</p>
+                  <span className="inline-block mt-1 px-2.5 py-0.5 bg-[#3C6E71] text-white text-[10px] font-bold rounded font-mono-custom uppercase">
+                    {customerSelectedOrderDetail.status === 'pending_review' ? 'En Verificación' : customerSelectedOrderDetail.status}
+                  </span>
+                </div>
+              </div>
+
+              {/* Products Breakdown */}
+              <div className="space-y-3">
+                <h4 className="font-display text-xs font-bold text-gray-500 uppercase tracking-wider">PRODUCTOS COMPRADOS</h4>
+                
+                <div className="space-y-3 border border-gray-200 rounded-xl p-4 bg-white">
+                  {(() => {
+                    const rawItems = customerSelectedOrderDetail.items || customerSelectedOrderDetail.order_items || [];
+                    const items = typeof rawItems === 'string' ? JSON.parse(rawItems) : rawItems;
+
+                    if (!items || items.length === 0) {
+                      return (
+                        <div className="flex items-center justify-between text-xs py-2 border-b border-gray-100 font-mono-custom">
+                          <div>
+                            <p className="font-bold text-gray-900">Equipamiento Holux Outdoor (Resumen general)</p>
+                            <p className="text-[10px] text-gray-500">Cantidad: 1 paquete cerrado</p>
+                          </div>
+                          <span className="font-bold text-[#3C6E71]">${Math.round(customerSelectedOrderDetail.total || 0).toLocaleString('es-AR')}</span>
+                        </div>
+                      );
+                    }
+
+                    return items.map((item, idx) => (
+                      <div key={idx} className="flex items-center justify-between gap-4 py-2.5 border-b border-gray-100 last:border-0 text-xs">
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 bg-gray-50 border border-gray-200 rounded-lg overflow-hidden flex items-center justify-center shrink-0">
+                            <img 
+                              src={getProductImage(item.name || item.product_name)} 
+                              alt={item.name || item.product_name}
+                              className="w-full h-full object-cover" 
+                            />
+                          </div>
+                          <div>
+                            <p className="font-bold text-gray-900">{item.name || item.product_name || 'Producto Holux'}</p>
+                            <p className="text-[11px] text-gray-500 font-mono-custom">
+                              Talle: <span className="font-bold text-gray-700">{item.sizeLabel || item.size || 'Único'}</span> • Cantidad: <span className="font-bold text-gray-700">{item.quantity || 1}</span>
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right font-mono-custom shrink-0">
+                          <p className="font-bold text-[#3C6E71] text-xs">${Math.round((item.price || 0) * (item.quantity || 1)).toLocaleString('es-AR')}</p>
+                          <p className="text-[10px] text-gray-400">c/u ${Math.round(item.price || 0).toLocaleString('es-AR')}</p>
+                        </div>
+                      </div>
+                    ));
+                  })()}
+                </div>
+              </div>
+
+              {/* Total Summary */}
+              <div className="flex items-center justify-between pt-3 border-t border-gray-200 font-mono-custom text-sm font-bold">
+                <span className="text-gray-700 uppercase font-display text-xs">MONTO TOTAL ABONADO</span>
+                <span className="text-lg text-[#3C6E71]">${Math.round(customerSelectedOrderDetail.total || 0).toLocaleString('es-AR')}</span>
+              </div>
+
+              <div className="flex justify-end pt-2">
+                <button
+                  type="button"
+                  onClick={() => setCustomerSelectedOrderDetail(null)}
+                  className="px-5 py-2.5 bg-gray-200 hover:bg-gray-300 text-gray-800 font-display text-xs font-bold uppercase rounded-xl transition-all cursor-pointer"
+                >
+                  CERRAR VENTANA
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -3185,15 +4471,28 @@ export default function App() {
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
-            <span className="text-xs text-gray-300 font-bold hidden sm:inline">
-              Admin: {userProfile?.full_name || 'Administrador'}
-            </span>
+          <div className="flex items-center gap-3">
             <button
-              onClick={() => setCurrentView('home')}
-              className="px-5 py-2.5 bg-[#3C6E71] hover:bg-[#3C6E71]/90 text-white rounded font-display text-xs font-bold tracking-wider flex items-center gap-2 transition-all cursor-pointer shadow-md"
+              onClick={() => {
+                window.location.hash = '#/mi-cuenta';
+                setCurrentView('customer_panel');
+              }}
+              className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl font-display text-xs font-bold tracking-wider flex items-center gap-2 transition-all cursor-pointer border border-white/10"
+              title="Ir a Mi Cuenta Personal (Mis Pedidos y Datos)"
             >
-              ← VOLVER A LA TIENDA
+              <User className="w-4 h-4 text-[#3C6E71]" />
+              <span>MI CUENTA PERSONAL</span>
+            </button>
+
+            <button
+              onClick={() => {
+                window.location.hash = '#/';
+                setCurrentView('home');
+              }}
+              className="px-4 py-2 bg-[#3C6E71] hover:bg-[#3C6E71]/90 text-white rounded-xl font-display text-xs font-bold tracking-wider flex items-center gap-2 transition-all cursor-pointer shadow-md"
+              title="Volver a explorar la tienda"
+            >
+              <span>← VER TIENDA</span>
             </button>
           </div>
         </header>
@@ -3241,6 +4540,22 @@ export default function App() {
 
           {/* Admin Main Body */}
           <main className="flex-grow p-8 overflow-y-auto bg-gray-50 text-left">
+            {/* Contextual Hierarchical Breadcrumbs */}
+            <Breadcrumbs
+              adminTab={adminTab}
+              onNavigateTab={(tab) => setAdminTab(tab)}
+              activeDetail={
+                isProductModalOpen
+                  ? (selectedProductModal?.id ? `Editar: ${selectedProductModal.name}` : 'Nuevo Producto')
+                  : (selectedOrderDetail ? `Pedido #${(selectedOrderDetail.id || '').slice(0, 8)}` : null)
+              }
+              onClearDetail={() => {
+                setIsProductModalOpen(false);
+                setSelectedProductModal(null);
+                setSelectedOrderDetail(null);
+              }}
+            />
+
             {adminTab === 'dashboard' && (
               <DashboardCharts adminStats={adminStats} productsList={adminProductsList && adminProductsList.length > 0 ? adminProductsList : products} ordersList={adminOrdersList} />
             )}
@@ -3261,330 +4576,418 @@ export default function App() {
               <StoreSettings API_BASE_URL={API_BASE_URL} token={token} />
             )}
 
-            {adminTab === 'orders' && (
-              <div className="space-y-6">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-200 pb-3">
-                  <h3 className="font-display text-sm font-bold text-gray-800 tracking-wider uppercase">
-                    GESTIÓN GLOBAL DE PEDIDOS Y COMPROBANTES DE PAGO
-                  </h3>
+            {adminTab === 'orders' && (() => {
+              const countAll = adminOrdersList.length;
+              const countPending = adminOrdersList.filter(o => o.status === 'pending_payment' || o.status === 'pending').length;
+              const countReview = adminOrdersList.filter(o => o.status === 'pending_review' || o.status === 'created').length;
+              const countPaid = adminOrdersList.filter(o => o.status === 'paid' || o.status === 'completed').length;
+              const countPreparing = adminOrdersList.filter(o => o.status === 'preparing').length;
+              const countShipped = adminOrdersList.filter(o => o.status === 'shipped').length;
+              const countDelivered = adminOrdersList.filter(o => o.status === 'delivered').length;
+              const countRejected = adminOrdersList.filter(o => o.status === 'rejected').length;
+              const countCancelled = adminOrdersList.filter(o => o.status === 'cancelled').length;
 
-                  {/* Filter Pills for Status */}
-                  <div className="flex flex-wrap items-center gap-1.5 text-xs font-mono-custom">
-                    {[
-                      { id: 'all', label: 'TODOS' },
-                      { id: 'pending_payment', label: '🟡 PENDIENTE PAGO' },
-                      { id: 'pending_review', label: '🟠 EN REVISIÓN' },
-                      { id: 'paid', label: '🟢 PAGADOS' },
-                      { id: 'rejected', label: '🔴 RECHAZADOS' },
-                      { id: 'cancelled', label: '⚪ CANCELADOS' }
-                    ].map(f => (
-                      <button
-                        key={f.id}
-                        type="button"
-                        onClick={() => setAdminOrderStatusFilter(f.id)}
-                        className={`px-3 py-1 rounded-lg font-bold transition-all cursor-pointer ${adminOrderStatusFilter === f.id ? 'bg-[#3C6E71] text-white shadow-sm' : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-100'}`}
-                      >
-                        {f.label}
-                      </button>
-                    ))}
+              const filteredList = adminOrdersList.filter(ord => {
+                if (adminOrderStatusFilter !== 'all') {
+                  if (adminOrderStatusFilter === 'pending_payment' && (ord.status !== 'pending_payment' && ord.status !== 'pending')) return false;
+                  if (adminOrderStatusFilter === 'pending_review' && (ord.status !== 'pending_review' && ord.status !== 'created')) return false;
+                  if (adminOrderStatusFilter === 'paid' && (ord.status !== 'paid' && ord.status !== 'completed')) return false;
+                  if (adminOrderStatusFilter === 'preparing' && ord.status !== 'preparing') return false;
+                  if (adminOrderStatusFilter === 'shipped' && ord.status !== 'shipped') return false;
+                  if (adminOrderStatusFilter === 'delivered' && ord.status !== 'delivered') return false;
+                  if (adminOrderStatusFilter === 'rejected' && ord.status !== 'rejected') return false;
+                  if (adminOrderStatusFilter === 'cancelled' && ord.status !== 'cancelled') return false;
+                }
+                const ordIsTransfer = ord.payment_method === 'transfer' || !!ord.receipt_url || ord.status === 'pending_review' || ord.status === 'processing' || (!ord.payment_id && ord.payment_method !== 'card' && ord.payment_method !== 'mercadopago');
+                if (adminPaymentMethodFilter !== 'all') {
+                  if (adminPaymentMethodFilter === 'transfer' && !ordIsTransfer) return false;
+                  if (adminPaymentMethodFilter === 'mercadopago' && ordIsTransfer) return false;
+                }
+                if (adminOrderSearchQuery.trim()) {
+                  const q = adminOrderSearchQuery.toLowerCase();
+                  const matchId = String(ord.id || '').toLowerCase().includes(q);
+                  const matchName = String(ord.customer_name || '').toLowerCase().includes(q);
+                  const matchEmail = String(ord.customer_email || '').toLowerCase().includes(q);
+                  const matchAddr = String(ord.shipping_address || '').toLowerCase().includes(q);
+                  const items = parseOrderItems(ord);
+                  const matchItem = items.some(it => (it.product_name || it.name || '').toLowerCase().includes(q));
+                  return matchId || matchName || matchEmail || matchAddr || matchItem;
+                }
+                return true;
+              });
+
+              return (
+                <div className="space-y-6">
+                  {/* Top Bar Header & Controls */}
+                  <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm space-y-4">
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-gray-100 pb-4">
+                      <div>
+                        <div className="flex items-center gap-3">
+                          <h3 className="font-display text-base font-bold text-gray-900 tracking-wider uppercase">
+                            GESTIÓN GLOBAL DE PEDIDOS Y COMPROBANTES DE PAGO
+                          </h3>
+                          <span className="text-xs font-mono-custom font-bold bg-emerald-50 text-emerald-800 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                            {adminOrdersList.length} pedidos totales
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Moderación de transferencias bancarias, control de estados de despacho y facturación.
+                        </p>
+                      </div>
+
+                      {/* Export & Actions */}
+                      <div className="flex items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={handleExportOrdersCSV}
+                          className="px-4 py-2 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 font-display text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-2 shadow-2xs"
+                        >
+                          <Download className="w-4 h-4 text-gray-500" />
+                          <span>EXPORTAR CSV / EXCEL</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => fetchAdminOrders()}
+                          className="px-4 py-2 bg-[#3C6E71] hover:bg-[#2c5355] text-white font-display text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-2 shadow-xs"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" />
+                          <span>ACTUALIZAR</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Filters & Search Row */}
+                    <div className="flex flex-col md:flex-row items-center justify-between gap-3">
+                      {/* Search Bar */}
+                      <div className="relative w-full md:w-80">
+                        <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                        <input
+                          type="text"
+                          value={adminOrderSearchQuery}
+                          onChange={(e) => setAdminOrderSearchQuery(e.target.value)}
+                          placeholder="Buscar por ID, cliente, email o artículo..."
+                          className="w-full pl-9 pr-8 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs outline-none focus:border-[#3C6E71] focus:bg-white transition-all text-gray-900 placeholder-gray-400"
+                        />
+                        {adminOrderSearchQuery && (
+                          <button
+                            type="button"
+                            onClick={() => setAdminOrderSearchQuery('')}
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs font-bold cursor-pointer"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Payment Method Selector */}
+                      <div className="flex items-center gap-2 w-full md:w-auto">
+                        <span className="text-xs text-gray-500 font-bold uppercase whitespace-nowrap">Medio de Pago:</span>
+                        <select
+                          value={adminPaymentMethodFilter}
+                          onChange={(e) => setAdminPaymentMethodFilter(e.target.value)}
+                          className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-700 outline-none focus:border-[#3C6E71] cursor-pointer"
+                        >
+                          <option value="all">Todos los medios</option>
+                          <option value="transfer">Solo Transferencia Bancaria</option>
+                          <option value="mercadopago">Solo Mercado Pago / Tarjeta</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Status Tabs with Live Counters */}
+                    <div className="overflow-x-auto pb-1 flex items-center gap-1.5 flex-nowrap text-xs font-mono-custom pt-2 border-t border-gray-100">
+                      {[
+                        { id: 'all', label: 'TODOS', count: countAll, color: 'bg-gray-100 text-gray-800' },
+                        { id: 'pending_review', label: '🟠 EN REVISIÓN (TRANSF.)', count: countReview, color: 'bg-amber-100 text-amber-900' },
+                        { id: 'paid', label: '🟢 PAGADOS', count: countPaid, color: 'bg-emerald-100 text-emerald-900' },
+                        { id: 'preparing', label: '📦 EN PREPARACIÓN', count: countPreparing, color: 'bg-blue-100 text-blue-900' },
+                        { id: 'shipped', label: '🚚 DESPACHADOS', count: countShipped, color: 'bg-purple-100 text-purple-900' },
+                        { id: 'delivered', label: '✅ ENTREGADOS', count: countDelivered, color: 'bg-emerald-200 text-emerald-950' },
+                        { id: 'pending_payment', label: '🟡 PEND. PAGO', count: countPending, color: 'bg-yellow-100 text-yellow-900' },
+                        { id: 'rejected', label: '🔴 RECHAZADOS', count: countRejected, color: 'bg-red-100 text-red-900' },
+                        { id: 'cancelled', label: '⚪ CANCELADOS', count: countCancelled, color: 'bg-gray-200 text-gray-700' }
+                      ].map(f => (
+                        <button
+                          key={f.id}
+                          type="button"
+                          onClick={() => setAdminOrderStatusFilter(f.id)}
+                          className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
+                            adminOrderStatusFilter === f.id
+                              ? 'bg-[#1C2321] text-white shadow-xs'
+                              : 'bg-gray-50 border border-gray-200 text-gray-700 hover:bg-gray-100'
+                          }`}
+                        >
+                          <span>{f.label}</span>
+                          <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-bold ${
+                            adminOrderStatusFilter === f.id ? 'bg-[#3C6E71] text-white' : f.color
+                          }`}>
+                            {f.count}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
-                
-                <div className="overflow-x-auto bg-white border border-gray-200 rounded-xl shadow-sm">
-                  <table className="w-full text-left text-xs">
-                    <thead>
-                      <tr className="bg-gray-100 border-b border-gray-200 text-gray-700 uppercase tracking-widest font-display text-[9px]">
-                        <th className="p-3">ID / Fecha</th>
-                        <th className="p-3">Cliente</th>
-                        <th className="p-3">Artículos</th>
-                        <th className="p-3">Forma de Pago</th>
-                        <th className="p-3">Total</th>
-                        <th className="p-3">Estado Actual</th>
-                        <th className="p-3 text-right">Acciones de Moderación</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200 text-gray-700">
-                      {isAdminOrdersLoading ? (
-                        // Loading skeleton rows
-                        Array.from({ length: 4 }).map((_, i) => (
-                          <tr key={i} className="animate-pulse">
-                            {Array.from({ length: 7 }).map((__, j) => (
-                              <td key={j} className="p-3">
-                                <div className="h-3 bg-gray-200 rounded w-3/4 mb-1" />
-                                <div className="h-2 bg-gray-100 rounded w-1/2" />
-                              </td>
-                            ))}
-                          </tr>
-                        ))
-                      ) : adminOrdersList.length === 0 ? (
-                        <tr>
-                          <td colSpan={7} className="p-8 text-center text-gray-400 text-xs font-display tracking-wider">
-                            No hay pedidos registrados aún.
-                          </td>
-                        </tr>
-                      ) : adminOrdersList
-                        .filter(ord => {
-                          if (adminOrderStatusFilter === 'all') return true;
-                          return ord.status === adminOrderStatusFilter;
-                        })
-                        .map(order => (
-                          <tr key={order.id} className="hover:bg-gray-50/50">
-                            <td className="p-3 font-mono-custom">
-                              <span className="font-bold text-gray-800 select-all">
-                                {order.id.length > 15 ? `#HLX-${order.id.slice(-6).toUpperCase()}` : order.id}
-                              </span>
-                              <div className="text-[10px] text-gray-400 mt-0.5">
-                                {new Date(order.created_at || Date.now()).toLocaleDateString('es-AR')}
-                              </div>
-                            </td>
-                            <td className="p-3">
-                              <div className="font-bold text-gray-800">{order.customer_name || 'Cliente Holux'}</div>
-                              <div className="text-[10px] text-gray-400 font-mono-custom">{order.customer_email}</div>
-                              <div className="text-[9px] text-gray-500 truncate max-w-[150px]" title={order.shipping_address}>{order.shipping_address}</div>
-                            </td>
-                            <td className="p-3">
-                              <div className="text-[10px] text-gray-700 max-w-[200px] max-h-16 overflow-y-auto pr-1 space-y-1">
-                                {Array.isArray(order.items) ? (
-                                  order.items.map((item, idx) => (
-                                    <div key={idx} className="flex justify-between border-b border-gray-100 pb-0.5">
-                                      <span className="truncate mr-2" title={item.name || item.product_name}>{item.name || item.product_name}</span>
-                                      <span className="font-bold text-gray-500 whitespace-nowrap">x{item.quantity}</span>
-                                    </div>
-                                  ))
-                                ) : (
-                                  typeof order.items === 'string' ? (
-                                    (() => {
-                                      try {
-                                        const parsed = JSON.parse(order.items);
-                                        return parsed.map((item, idx) => (
-                                          <div key={idx} className="flex justify-between border-b border-gray-100 pb-0.5">
-                                            <span className="truncate mr-2" title={item.name || item.product_name}>{item.name || item.product_name}</span>
-                                            <span className="font-bold text-gray-500 whitespace-nowrap">x{item.quantity}</span>
-                                          </div>
-                                        ));
-                                      } catch (e) {
-                                        return <span>Error al leer artículos</span>;
-                                      }
-                                    })()
-                                  ) : <span>Sin artículos detallados</span>
-                                )}
-                              </div>
-                            </td>
-                            <td className="p-3">
-                              <span className="font-bold uppercase text-gray-800 text-[11px] block">
-                                {order.payment_method === 'transfer' ? 'Transferencia (10% OFF)' : (order.payment_method || 'Tarjeta')}
-                              </span>
-                              {order.payment_id && (
-                                <span className="block text-[9px] font-mono-custom text-gray-500 mt-0.5">
-                                  Ref: {order.payment_id}
-                                </span>
-                              )}
-                              {order.receipt_url && (
-                                <button
-                                  type="button"
-                                  onClick={() => setAdminReceiptLightboxUrl(order.receipt_url)}
-                                  className="mt-1 flex items-center gap-1 text-[10px] font-bold text-[#3C6E71] underline cursor-pointer hover:text-[#3C6E71]/80 bg-[#3C6E71]/10 px-2 py-1 rounded"
-                                >
-                                  📄 Ver Comprobante
-                                </button>
-                              )}
-                            </td>
-                            <td className="p-3 font-mono-custom font-bold text-[#3C6E71]">
-                              ARS ${Math.round(order.total || order.total_amount || 0).toLocaleString('es-AR')}
-                            </td>
-                            <td className="p-3">
-                              <span className={`px-2.5 py-1 rounded text-[10px] font-bold font-mono-custom uppercase inline-block ${
-                                order.status === 'paid' || order.status === 'completed'
-                                  ? 'bg-emerald-600 text-white'
-                                  : order.status === 'pending_review'
-                                  ? 'bg-amber-500 text-black'
-                                  : order.status === 'pending_payment' || order.status === 'pending'
-                                  ? 'bg-yellow-400 text-black'
-                                  : order.status === 'rejected'
-                                  ? 'bg-red-600 text-white'
-                                  : 'bg-gray-400 text-white'
-                              }`}>
-                                {order.status === 'paid' || order.status === 'completed'
-                                  ? '🟢 PAGADO'
-                                  : order.status === 'pending_review'
-                                  ? '🟠 EN REVISIÓN'
-                                  : order.status === 'pending_payment' || order.status === 'pending'
-                                  ? '🟡 PEND. PAGO'
-                                  : order.status === 'rejected'
-                                  ? '🔴 RECHAZADO'
-                                  : '⚪ CANCELADO'}
-                              </span>
-                              {order.rejection_reason && (
-                                <p className="text-[9px] text-red-600 mt-1 italic font-sans max-w-[120px]">
-                                  Motivo: {order.rejection_reason}
-                                </p>
-                              )}
-                            </td>
-                            <td className="p-3 text-right">
-                              <div className="flex flex-wrap items-center justify-end gap-1.5">
-                                {order.receipt_url && (
-                                  <button
-                                    type="button"
-                                    onClick={() => setAdminReceiptLightboxUrl(order.receipt_url)}
-                                    className="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-[9px] font-bold uppercase cursor-pointer"
-                                  >
-                                    COMPROBANTE
-                                  </button>
-                                )}
-                                {order.status !== 'paid' && order.status !== 'completed' && (
-                                  <button
-                                    type="button"
-                                    onClick={() => handleUpdateOrderStatus(order.id, 'paid')}
-                                    className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[9px] font-bold uppercase cursor-pointer shadow-xs"
-                                  >
-                                    CONFIRMAR PAGO
-                                  </button>
-                                )}
-                                {order.status !== 'rejected' && (
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setAdminRejectionModalOrder(order);
-                                      setAdminRejectionReasonInput('');
-                                    }}
-                                    className="px-2.5 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-[9px] font-bold uppercase cursor-pointer shadow-xs"
-                                  >
-                                    RECHAZAR
-                                  </button>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
 
-            {adminTab === 'products' && (
-              <div className="space-y-6">
-                {/* Header Action Banner */}
-                <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm flex items-center justify-between">
-                  <div>
-                    <h4 className="text-sm font-bold tracking-wider text-gray-900 uppercase font-display">
-                      GESTIÓN INTEGRAL DE CATÁLOGO Y STOCK
-                    </h4>
-                    <p className="text-xs text-gray-500 mt-1">
-                      Edición flotante completa de imágenes, video demostrativo, variantes (talle/color), costo y SEO.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedProductModal(null);
-                      setIsProductModalOpen(true);
-                    }}
-                    className="px-5 py-2.5 bg-[#3C6E71] hover:bg-[#3C6E71]/90 text-white rounded-xl font-display text-xs font-bold tracking-wider flex items-center gap-2 transition-all cursor-pointer shadow-md shadow-[#3C6E71]/20"
-                  >
-                    <Plus className="w-4 h-4" />
-                    NUEVO PRODUCTO
-                  </button>
-                </div>
-
-                {/* TABLE OF PRODUCTS */}
-                <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm space-y-4">
-                  <h4 className="text-xs font-bold tracking-wider text-gray-900 uppercase font-display border-b border-gray-200 pb-3">
-                    PRODUCTOS EN CATÁLOGO ({(adminProductsList.length > 0 ? adminProductsList : products).length})
-                  </h4>
-
-                  <div className="overflow-x-auto">
+                  {/* Orders Table */}
+                  <div className="overflow-x-auto bg-white border border-gray-200 rounded-2xl shadow-sm">
                     <table className="w-full text-left text-xs">
                       <thead>
-                        <tr className="bg-gray-100 border-b border-gray-200 text-gray-700 uppercase tracking-widest font-display text-[9px]">
-                          <th className="p-3">Media</th>
-                          <th className="p-3">Producto / Marca</th>
-                          <th className="p-3">Categoría</th>
-                          <th className="p-3">Precio / Oferta</th>
-                          <th className="p-3">Stock</th>
-                          <th className="p-3 text-right">Acciones ABM</th>
+                        <tr className="bg-gray-50 border-b border-gray-200 text-gray-700 uppercase tracking-widest font-display text-[10px]">
+                          <th className="p-3.5">ID / Fecha</th>
+                          <th className="p-3.5">Cliente / Contacto</th>
+                          <th className="p-3.5">Artículos del Pedido</th>
+                          <th className="p-3.5">Forma de Pago</th>
+                          <th className="p-3.5">Total</th>
+                          <th className="p-3.5">Estado & Flujo</th>
+                          <th className="p-3.5 text-right">Acciones</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-gray-200 text-gray-700">
-                        {(adminProductsList.length > 0 ? adminProductsList : products).map(prod => (
-                          <tr key={prod.id} className="hover:bg-gray-50/50">
-                            <td className="p-3">
-                              <div className="w-12 h-12 rounded-lg bg-gray-100 border border-gray-200 overflow-hidden flex items-center justify-center relative">
-                                <img
-                                  src={prod.image_url || (prod.images && prod.images[0]) || getProductImage(prod.name)}
-                                  alt={prod.name}
-                                  className="w-full h-full object-cover"
-                                />
-                                {prod.video_url && (
-                                  <span className="absolute bottom-0 right-0 bg-red-600 text-white p-0.5 rounded-tl text-[8px]" title="Tiene Video">
-                                    ▶
-                                  </span>
-                                )}
-                              </div>
-                            </td>
-                            <td className="p-3">
-                              <div className="font-bold text-gray-800 text-xs">{prod.name}</div>
-                              <div className="text-[10px] text-gray-400 font-mono-custom">{prod.brand || 'HOLUX'}</div>
-                            </td>
-                            <td className="p-3 font-mono-custom">
-                              {prod.categories?.name || prod.category || 'Trekking'}
-                            </td>
-                            <td className="p-3 font-mono-custom">
-                              <div className="font-bold text-gray-800">
-                                ARS {prod.price ? prod.price.toLocaleString() : 0}
-                              </div>
-                              {Number(prod.offer_price) > 0 && (
-                                <div className="text-[10px] text-emerald-600 font-bold">
-                                  Oferta: ${Number(prod.offer_price).toLocaleString()}
-                                </div>
-                              )}
-                            </td>
-                            <td className="p-3 font-mono-custom">
-                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${prod.stock < 5 ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-emerald-50 text-emerald-600 border border-emerald-100'}`}>
-                                {prod.stock || 10} uds.
-                              </span>
-                            </td>
-                            <td className="p-3 text-right space-x-1.5">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setSelectedProductModal(prod);
-                                  setIsProductModalOpen(true);
-                                }}
-                                className="px-3 py-1.5 bg-[#3C6E71] hover:bg-[#3C6E71]/90 text-white rounded-lg font-display text-[10px] font-bold tracking-wider inline-flex items-center gap-1 transition-all cursor-pointer shadow-sm"
-                                title="Abrir Editor Flotante Completo"
-                              >
-                                <Edit2 className="w-3.5 h-3.5" />
-                                EDITAR
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setSelectedProductModal({ ...prod, id: null, name: `${prod.name} (Copia)` });
-                                  setIsProductModalOpen(true);
-                                }}
-                                className="px-2.5 py-1.5 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-display text-[10px] font-bold tracking-wider inline-flex items-center gap-1 transition-all cursor-pointer"
-                                title="Duplicar Producto"
-                              >
-                                <Copy className="w-3.5 h-3.5" />
-                                DUPLICAR
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleDeleteProduct(prod.id)}
-                                className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer inline-block"
-                                title="Eliminar producto"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
+                      <tbody className="divide-y divide-gray-150 text-gray-800 font-sans">
+                        {isAdminOrdersLoading ? (
+                          Array.from({ length: 4 }).map((_, i) => (
+                            <tr key={i} className="animate-pulse">
+                              {Array.from({ length: 7 }).map((__, j) => (
+                                <td key={j} className="p-3.5">
+                                  <div className="h-3 bg-gray-200 rounded w-3/4 mb-1" />
+                                  <div className="h-2 bg-gray-100 rounded w-1/2" />
+                                </td>
+                              ))}
+                            </tr>
+                          ))
+                        ) : filteredList.length === 0 ? (
+                          <tr>
+                            <td colSpan={7} className="p-12 text-center text-gray-400 font-display">
+                              <ShoppingBag className="w-12 h-12 mx-auto stroke-[1] text-gray-300 mb-2" />
+                              <p className="font-bold text-xs uppercase text-gray-600">No se encontraron pedidos con los filtros aplicados</p>
+                              <p className="text-[11px] text-gray-400 mt-1">Prueba cambiando el estado o la búsqueda.</p>
                             </td>
                           </tr>
-                        ))}
+                        ) : (
+                          filteredList.map(order => {
+                            const items = parseOrderItems(order);
+                            const customerPhone = order.profiles?.phone || '';
+                            const customerName = order.customer_name || 'Cliente Holux';
+                            const waCleanPhone = customerPhone.replace(/\D/g, '');
+                            const isTransfer = order.payment_method === 'transfer' || !!order.receipt_url || order.status === 'pending_review' || order.status === 'processing' || (!order.payment_id && order.payment_method !== 'card' && order.payment_method !== 'mercadopago');
+                            const isPendingReview = order.status === 'pending_review' || order.status === 'processing' || (order.status === 'created' && isTransfer);
+
+                            return (
+                              <tr
+                                key={order.id}
+                                className="hover:bg-gray-50/80 transition-colors"
+                              >
+                                {/* ID & Fecha */}
+                                <td className="p-3.5 font-mono-custom">
+                                  <span className="font-bold text-gray-900 block select-all">
+                                    #{String(order.id).length > 15 ? String(order.id).slice(-6).toUpperCase() : order.id}
+                                  </span>
+                                  <span className="text-[10px] text-gray-400 font-sans block mt-0.5">
+                                    {new Date(order.created_at || Date.now()).toLocaleDateString('es-AR')}
+                                  </span>
+                                </td>
+
+                                {/* Cliente & Contacto */}
+                                <td className="p-3.5">
+                                  <div className="font-bold text-gray-900">{customerName}</div>
+                                  <div className="text-[11px] text-gray-500 font-mono-custom flex items-center gap-1.5 mt-0.5">
+                                    <span>{order.customer_email || 'Sin email'}</span>
+                                    {order.customer_email && (
+                                      <a
+                                        href={`mailto:${order.customer_email}?subject=Tu pedido en Holux #${String(order.id).slice(-6).toUpperCase()}`}
+                                        className="text-[#3C6E71] hover:underline"
+                                        title="Enviar correo"
+                                      >
+                                        ✉️
+                                      </a>
+                                    )}
+                                  </div>
+                                  {customerPhone && (
+                                    <div className="text-[10px] text-gray-500 flex items-center gap-1.5 mt-0.5">
+                                      <span>📞 {customerPhone}</span>
+                                      {waCleanPhone && (
+                                        <a
+                                          href={`https://wa.me/${waCleanPhone}?text=Hola%20${encodeURIComponent(customerName)},%20te%20escribimos%20de%20Holux%20sobre%20tu%20pedido%20%23${String(order.id).slice(-6).toUpperCase()}`}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="px-1.5 py-0.2 bg-emerald-100 text-emerald-800 rounded text-[9px] font-bold hover:bg-emerald-200 transition-colors"
+                                          title="Escribir por WhatsApp"
+                                        >
+                                          WhatsApp 💬
+                                        </a>
+                                      )}
+                                    </div>
+                                  )}
+                                  <div className="text-[10px] text-gray-500 truncate max-w-[160px] flex items-center gap-1 mt-1" title={order.shipping_address}>
+                                    <MapPin className="w-3 h-3 text-gray-400 shrink-0" />
+                                    <span>{order.shipping_address || 'Entrega a Domicilio'}</span>
+                                  </div>
+                                </td>
+
+                                {/* Artículos */}
+                                <td className="p-3.5">
+                                  <div className="text-xs text-gray-700 max-w-[220px] max-h-24 overflow-y-auto pr-1 space-y-1.5">
+                                    {items.length > 0 ? (
+                                      items.map((item, idx) => (
+                                        <div key={idx} className="flex items-start justify-between gap-2 border-b border-gray-100 pb-1 last:border-0">
+                                          <div className="min-w-0">
+                                            <p className="font-bold text-gray-900 truncate text-[11px]" title={item.product_name || item.name}>
+                                              {item.product_name || item.name || 'Producto'}
+                                            </p>
+                                            {item.variant && (
+                                              <span className="text-[9px] text-gray-400 block font-mono-custom">Talle/Var: {item.variant}</span>
+                                            )}
+                                          </div>
+                                          <span className="font-bold text-gray-600 text-[10px] font-mono-custom whitespace-nowrap bg-gray-100 px-1.5 py-0.5 rounded">
+                                            x{item.quantity || 1}
+                                          </span>
+                                        </div>
+                                      ))
+                                    ) : (
+                                      <span className="text-[11px] text-gray-400 italic">Sin artículos detallados</span>
+                                    )}
+                                  </div>
+                                </td>
+
+                                {/* Forma de Pago */}
+                                <td className="p-3.5">
+                                  <div className="space-y-1">
+                                    <span className="font-bold uppercase text-gray-900 text-[11px] block leading-tight">
+                                      {isTransfer ? 'Transferencia Bancaria' : (order.payment_method === 'card' ? 'Mercado Pago / Tarjeta' : (order.payment_method || 'Mercado Pago'))}
+                                    </span>
+                                    {order.payment_id && (
+                                      <span className="block text-[9px] font-mono-custom text-gray-400">
+                                        Ref: {order.payment_id}
+                                      </span>
+                                    )}
+                                    {isTransfer && (
+                                      order.receipt_url ? (
+                                        <button
+                                          type="button"
+                                          onClick={() => setAdminReceiptLightboxUrl(order.receipt_url)}
+                                          className="inline-flex items-center gap-1 text-[10px] font-bold text-[#3C6E71] bg-[#3C6E71]/10 hover:bg-[#3C6E71]/20 px-2 py-0.5 rounded transition-colors cursor-pointer"
+                                        >
+                                          <span>📄 Comprobante</span>
+                                        </button>
+                                      ) : (
+                                        <span className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200/60 px-1.5 py-0.2 rounded font-medium inline-block">
+                                          ⏳ Sin adjunto
+                                        </span>
+                                      )
+                                    )}
+                                  </div>
+                                </td>
+
+                                {/* Total */}
+                                <td className="p-3.5 font-mono-custom font-bold text-base text-gray-900 whitespace-nowrap">
+                                  ${Math.round(order.total || order.total_amount || 0).toLocaleString('es-AR')}
+                                </td>
+
+                                {/* Estado con Selector Rápido */}
+                                <td className="p-3.5">
+                                  <div className="space-y-1.5 min-w-[130px]">
+                                    <select
+                                      value={order.status || 'pending_payment'}
+                                      onChange={(e) => handleUpdateOrderStatus(order.id, e.target.value)}
+                                      className={`w-full px-2 py-1 rounded-lg text-[10px] font-bold font-mono-custom uppercase border outline-none cursor-pointer ${
+                                        order.status === 'paid' || order.status === 'completed'
+                                          ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                                          : isPendingReview
+                                          ? 'bg-amber-50 text-amber-900 border-amber-300'
+                                          : order.status === 'preparing'
+                                          ? 'bg-blue-50 text-blue-900 border-blue-300'
+                                          : order.status === 'shipped'
+                                          ? 'bg-purple-50 text-purple-900 border-purple-300'
+                                          : order.status === 'delivered'
+                                          ? 'bg-emerald-100 text-emerald-950 border-emerald-400'
+                                          : order.status === 'rejected'
+                                          ? 'bg-red-50 text-red-800 border-red-300'
+                                          : 'bg-gray-100 text-gray-700 border-gray-300'
+                                      }`}
+                                    >
+                                      <option value="pending_review">🟠 EN REVISIÓN</option>
+                                      <option value="paid">🟢 PAGADO</option>
+                                      <option value="preparing">📦 EN PREPARACIÓN</option>
+                                      <option value="shipped">🚚 DESPACHADO</option>
+                                      <option value="delivered">✅ ENTREGADO</option>
+                                      <option value="pending_payment">🟡 PENDIENTE PAGO</option>
+                                      <option value="rejected">🔴 RECHAZADO</option>
+                                      <option value="cancelled">⚪ CANCELADO</option>
+                                    </select>
+
+                                    {order.rejection_reason && (
+                                      <p className="text-[9px] text-red-600 italic font-sans max-w-[140px] leading-tight">
+                                        Motivo: {order.rejection_reason}
+                                      </p>
+                                    )}
+                                  </div>
+                                </td>
+
+                                {/* Acciones */}
+                                <td className="p-3.5 text-right whitespace-nowrap">
+                                  <div className="flex items-center justify-end gap-1.5">
+                                    <button
+                                      type="button"
+                                      onClick={() => setSelectedOrderDetail(order)}
+                                      className="px-3 py-1.5 bg-[#1C2321] hover:bg-[#3C6E71] text-white font-display text-[10px] font-bold tracking-wider rounded-lg transition-colors cursor-pointer flex items-center gap-1 shadow-xs"
+                                    >
+                                      <Eye className="w-3.5 h-3.5" />
+                                      <span>GESTIONAR</span>
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      onClick={() => setSelectedPrintOrder(order)}
+                                      className="px-2.5 py-1.5 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg text-[10px] font-bold cursor-pointer transition-colors"
+                                      title="Imprimir Factura"
+                                    >
+                                      🖨️
+                                    </button>
+
+                                    {order.status !== 'rejected' && (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setAdminRejectionModalOrder(order);
+                                          setAdminRejectionReasonInput('');
+                                        }}
+                                        className="px-2.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-lg text-[10px] font-bold cursor-pointer transition-colors"
+                                        title="Rechazar pago con motivo"
+                                      >
+                                        RECHAZAR
+                                      </button>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
                       </tbody>
                     </table>
                   </div>
                 </div>
-              </div>
+              );
+            })()}
+
+            {adminTab === 'products' && (
+              <ProductCatalogManager
+                catalog={productCatalogState}
+                onEditProduct={(prod) => {
+                  setSelectedProductModal(prod);
+                  setIsProductModalOpen(true);
+                }}
+                onDuplicateProduct={(prod) => {
+                  setSelectedProductModal({ ...prod, id: null, name: `${prod.name} (Copia)` });
+                  setIsProductModalOpen(true);
+                }}
+                onCreateProduct={() => {
+                  setSelectedProductModal(null);
+                  setIsProductModalOpen(true);
+                }}
+                onDeleteProductSingle={(prod) => {
+                  handleDeleteProduct(prod.id);
+                }}
+              />
             )}
             {adminTab === 'categories' && (
               <div className="space-y-6">
@@ -3795,25 +5198,33 @@ export default function App() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200 text-gray-700">
-                      {adminReviewsList.map(rev => (
-                        <tr key={rev.id} className="hover:bg-gray-50/50">
-                          <td className="p-3 font-bold text-gray-800">
-                            {rev.product_name || rev.products?.name || 'Campera Cortavientos Fitz Roy'}
-                          </td>
-                          <td className="p-3 font-bold">
-                            {rev.customer_name || rev.profiles?.full_name || 'Lucía Fernández'}
-                          </td>
-                          <td className="p-3 font-mono-custom text-amber-500 font-bold">
-                            {'★'.repeat(rev.rating || 5)}{'☆'.repeat(5 - (rev.rating || 5))} ({rev.rating || 5}/5)
-                          </td>
-                          <td className="p-3 text-gray-600 max-w-xs truncate">{rev.comment}</td>
-                          <td className="p-3">
-                            <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded text-[10px] font-bold">
-                              APROBADO
-                            </span>
+                      {adminReviewsList.length > 0 ? (
+                        adminReviewsList.map(rev => (
+                          <tr key={rev.id} className="hover:bg-gray-50/50">
+                            <td className="p-3 font-bold text-gray-800">
+                              {rev.product_name || rev.products?.name || 'Producto Holux'}
+                            </td>
+                            <td className="p-3 font-bold">
+                              {rev.customer_name || rev.profiles?.full_name || 'Cliente Holux'}
+                            </td>
+                            <td className="p-3 font-mono-custom text-amber-500 font-bold">
+                              {'★'.repeat(rev.rating || 5)}{'☆'.repeat(5 - (rev.rating || 5))} ({rev.rating || 5}/5)
+                            </td>
+                            <td className="p-3 text-gray-600 max-w-xs truncate">{rev.comment}</td>
+                            <td className="p-3">
+                              <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded text-[10px] font-bold">
+                                APROBADO
+                              </span>
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={5} className="py-8 text-center text-gray-400 italic">
+                            No hay reseñas registradas por moderar en este momento.
                           </td>
                         </tr>
-                      ))}
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -3822,9 +5233,6 @@ export default function App() {
           </main>
         </div>
 
-        {selectedPrintOrder && (
-          <InvoicePrinter order={selectedPrintOrder} onClose={() => setSelectedPrintOrder(null)} />
-        )}
         {isProductModalOpen && (
           <ProductEditModal
             product={selectedProductModal}
@@ -3846,6 +5254,456 @@ export default function App() {
               setSelectedCustomerModal(null);
             }}
           />
+        )}
+
+        {/* --- ADMIN MODAL: LIGHTBOX PARA COMPROBANTES DE TRANSFERENCIA --- */}
+        {adminReceiptLightboxUrl && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/90 backdrop-blur-md" onClick={() => setAdminReceiptLightboxUrl(null)} />
+            <div className="relative w-full max-w-3xl bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-200 z-10 space-y-4 p-5 text-gray-900">
+              <div className="flex items-center justify-between border-b border-gray-200 pb-3">
+                <h3 className="font-display text-sm font-bold uppercase tracking-wider text-gray-900 flex items-center gap-2">
+                  📄 COMPROBANTE DE TRANSFERENCIA ADJUNTADO
+                </h3>
+                <div className="flex items-center gap-2">
+                  <a
+                    href={adminReceiptLightboxUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded text-xs font-bold font-mono-custom"
+                  >
+                    ABRIR ORIGINAL
+                  </a>
+                  <button onClick={() => setAdminReceiptLightboxUrl(null)} className="p-1 text-gray-400 hover:text-gray-600 cursor-pointer">
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="max-h-[70vh] overflow-y-auto flex items-center justify-center bg-gray-100 p-4 rounded-xl">
+                <img
+                  src={adminReceiptLightboxUrl}
+                  alt="Comprobante de pago"
+                  className="max-w-full max-h-[60vh] object-contain rounded shadow-md"
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* --- ADMIN MODAL: DETALLE DE PEDIDO --- */}
+        {selectedOrderDetail && (() => {
+          const o = selectedOrderDetail;
+          const itemsList = parseOrderItems(o);
+          const total = Math.round(o.total || o.total_amount || 0);
+          const subtotal = o.subtotal ? Math.round(o.subtotal) : null;
+          const shipping = o.shipping_cost != null ? Math.round(o.shipping_cost) : null;
+          const sc = getOrderStatusInfo(o.status);
+          return (
+            <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+              <div className="absolute inset-0 bg-black/75 backdrop-blur-sm" onClick={() => setSelectedOrderDetail(null)} />
+              <div className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-10 flex flex-col max-h-[90vh]">
+
+                {/* Header */}
+                <div className="bg-[#1C2321] text-white px-6 py-4 flex items-center justify-between shrink-0">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-[#B85C38] text-white px-2.5 py-1 rounded font-black font-mono-custom text-xs">PEDIDO</div>
+                    <div>
+                      <h3 className="font-display text-base font-bold tracking-wider">
+                        {o.id && o.id.length > 15 ? `#HLX-${o.id.slice(-6).toUpperCase()}` : (o.id || '—')}
+                      </h3>
+                      <p className="text-[10px] text-gray-400 mt-0.5">{new Date(o.created_at || Date.now()).toLocaleString('es-AR')}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    {/* Editable Status Selector Dropdown */}
+                    <div className="flex items-center gap-1 bg-white/10 p-1 rounded-xl">
+                      <span className="text-[10px] text-gray-300 font-bold uppercase pl-2">ESTADO:</span>
+                      <select
+                        value={o.status || 'pending_payment'}
+                        onChange={(e) => {
+                          const newSt = e.target.value;
+                          if (window.confirm(`¿Cambiar estado del pedido a '${newSt.toUpperCase()}'?`)) {
+                            handleUpdateOrderStatus(o.id, newSt);
+                            setSelectedOrderDetail(prev => prev ? { ...prev, status: newSt } : null);
+                          }
+                        }}
+                        className="bg-white text-gray-900 border border-gray-300 rounded-lg px-2 py-1 text-xs font-bold outline-none cursor-pointer font-display"
+                      >
+                        <option value="pending_payment">🟡 PENDIENTE PAGO</option>
+                        <option value="pending_review">🟠 EN REVISIÓN</option>
+                        <option value="paid">🟢 PAGADO / APROBADO</option>
+                        <option value="rejected">🔴 RECHAZADO</option>
+                        <option value="cancelled">⚪ CANCELADO</option>
+                      </select>
+                    </div>
+                    <button onClick={() => setSelectedOrderDetail(null)} className="text-gray-400 hover:text-white transition-colors cursor-pointer"><X className="w-5 h-5" /></button>
+                  </div>
+                </div>
+
+                <div className="overflow-y-auto p-6 space-y-5">
+
+                  {/* Cliente y envío */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="bg-gray-50 rounded-xl p-4 space-y-2">
+                      <h4 className="text-[10px] font-bold text-gray-500 uppercase tracking-wider font-display border-b border-gray-200 pb-1.5">👤 Cliente</h4>
+                      <p className="font-bold text-gray-900 text-sm">{o.customer_name || 'Cliente Holux'}</p>
+                      <p className="text-xs text-gray-500 font-mono-custom">{o.customer_email}</p>
+                      {o.customer_phone && <p className="text-xs text-gray-500">{o.customer_phone}</p>}
+                      {o.customer_dni && <p className="text-xs text-gray-500">DNI: {o.customer_dni}</p>}
+                    </div>
+                    <div className="bg-gray-50 rounded-xl p-4 space-y-2">
+                      <h4 className="text-[10px] font-bold text-gray-500 uppercase tracking-wider font-display border-b border-gray-200 pb-1.5">📦 Envío y Entrega</h4>
+                      <p className="text-xs font-bold text-gray-800 leading-relaxed">
+                        {o.shipping_address || 'Retiro en Sucursal Central Bariloche (Av. Bustillo Km 4.5)'}
+                      </p>
+                      <p className="text-[10px] font-bold text-[#3C6E71] font-display uppercase tracking-wider">
+                        Método: {o.shipping_method || (o.shipping_address && !o.shipping_address.includes('Sucursal') ? 'Entrega a Domicilio' : 'Retiro en Sucursal Central')}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Artículos */}
+                  <div className="bg-gray-50 rounded-xl p-4">
+                    <h4 className="text-[10px] font-bold text-gray-500 uppercase tracking-wider font-display border-b border-gray-200 pb-1.5 mb-3">🛍️ Artículos del Pedido</h4>
+                    {itemsList.length > 0 ? (
+                      <div className="space-y-2">
+                        {itemsList.map((item, idx) => {
+                          const name = item.product_name || item.name || 'Producto';
+                          const qty = item.quantity || 1;
+                          const price = item.unit_price || item.price || 0;
+                          return (
+                            <div key={idx} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
+                              <div className="flex items-start gap-3">
+                                {item.image_url && <img src={item.image_url} alt={name} className="w-10 h-10 object-cover rounded-lg border border-gray-200" />}
+                                <div>
+                                  <p className="text-sm font-bold text-gray-800">{name}</p>
+                                  {item.variant && <p className="text-[10px] text-gray-400">{item.variant}</p>}
+                                  <p className="text-[10px] text-gray-400 font-mono-custom">x{qty} unidades</p>
+                                </div>
+                              </div>
+                              <p className="font-bold text-gray-800 text-sm font-mono-custom whitespace-nowrap">
+                                {price > 0 ? `ARS ${Math.round(price * qty).toLocaleString('es-AR')}` : ''}
+                              </p>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-gray-400 italic">Sin detalle de artículos disponible.</p>
+                    )}
+
+                    {/* Totales */}
+                    <div className="mt-3 pt-3 border-t border-gray-200 space-y-1.5">
+                      {subtotal != null && (
+                        <div className="flex justify-between text-xs text-gray-500">
+                          <span>Subtotal</span>
+                          <span className="font-mono-custom">ARS ${subtotal.toLocaleString('es-AR')}</span>
+                        </div>
+                      )}
+                      {shipping != null && (
+                        <div className="flex justify-between text-xs text-gray-500">
+                          <span>Envío</span>
+                          <span className="font-mono-custom">{shipping === 0 ? '¡GRATIS!' : `ARS ${shipping.toLocaleString('es-AR')}`}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between text-sm font-bold text-gray-900 pt-1 border-t border-gray-200">
+                        <span>TOTAL</span>
+                        <span className="font-mono-custom text-[#3C6E71]">ARS ${total.toLocaleString('es-AR')}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Pago */}
+                  <div className="bg-gray-50 rounded-xl p-4">
+                    <h4 className="text-[10px] font-bold text-gray-500 uppercase tracking-wider font-display border-b border-gray-200 pb-1.5 mb-3">💳 Detalle del Pago</h4>
+                    <div className="grid grid-cols-2 gap-3 text-xs">
+                      <div>
+                        <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Método</p>
+                        <p className="font-bold text-gray-800 mt-0.5 uppercase">{o.payment_method === 'transfer' ? 'Transferencia Bancaria' : (o.payment_method || 'Tarjeta')}</p>
+                      </div>
+                      {o.payment_id && (
+                        <div>
+                          <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">ID de Transacción</p>
+                          <p className="font-mono-custom text-gray-800 mt-0.5 break-all">{o.payment_id}</p>
+                        </div>
+                      )}
+                      {o.payment_status && (
+                        <div>
+                          <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Estado Pago</p>
+                          <p className="font-bold text-gray-800 mt-0.5 uppercase">{o.payment_status}</p>
+                        </div>
+                      )}
+                    </div>
+                    {o.receipt_url && (
+                      <div className="mt-4">
+                        <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-2">Comprobante de Transferencia</p>
+                        <img
+                          src={o.receipt_url}
+                          alt="Comprobante de pago"
+                          className="w-full max-w-sm rounded-xl border border-gray-200 shadow-md cursor-zoom-in object-contain max-h-64"
+                          onClick={() => setAdminReceiptLightboxUrl(o.receipt_url)}
+                        />
+                        <button
+                          onClick={() => setAdminReceiptLightboxUrl(o.receipt_url)}
+                          className="mt-2 text-[10px] font-bold text-[#3C6E71] underline cursor-pointer hover:text-[#3C6E71]/80"
+                        >
+                          🔍 Ver en pantalla completa
+                        </button>
+                      </div>
+                    )}
+                    {o.rejection_reason && (
+                      <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                        <p className="text-[10px] font-bold text-red-600 uppercase tracking-wider">Motivo de Rechazo</p>
+                        <p className="text-xs text-red-700 mt-1 italic">{o.rejection_reason}</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Tracking & Shipping Details */}
+                  <div className="bg-blue-50/60 border border-blue-200 rounded-xl p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-[10px] font-bold text-blue-900 uppercase tracking-wider font-display flex items-center gap-1.5">
+                        🚚 SEGUIMIENTO Y DESPACHO DE PAQUETE
+                      </h4>
+                      <button
+                        onClick={() => handleSaveTracking(o.id)}
+                        disabled={isSavingTracking}
+                        className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-[10px] font-bold uppercase cursor-pointer transition-colors"
+                      >
+                        {isSavingTracking ? 'GUARDANDO...' : 'GUARDAR Y NOTIFICAR SEGUIMIENTO'}
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                      <div>
+                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">Empresa de Logística</label>
+                        <select
+                          value={shippingCourierInput}
+                          onChange={(e) => setShippingCourierInput(e.target.value)}
+                          className="w-full p-2 bg-white border border-blue-300 rounded-lg text-xs outline-none focus:border-blue-500 font-bold text-gray-800"
+                        >
+                          <option value="Andreani">Andreani</option>
+                          <option value="Correo Argentino">Correo Argentino</option>
+                          <option value="OCA">OCA Express</option>
+                          <option value="Expreso Bariloche">Expreso Bariloche / Carga</option>
+                          <option value="Mensajería Local">Mensajería Local Bariloche</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">Código de Seguimiento / N° Guía</label>
+                        <input
+                          type="text"
+                          placeholder="Ej: AR984729183"
+                          value={trackingNumberInput}
+                          onChange={(e) => setTrackingNumberInput(e.target.value)}
+                          className="w-full p-2 bg-white border border-blue-300 rounded-lg text-xs outline-none focus:border-blue-500 font-mono-custom font-bold text-gray-900"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">URL de Rastreo Web (Opcional)</label>
+                      <input
+                        type="url"
+                        placeholder="https://www.andreani.com/seguimiento/..."
+                        value={trackingUrlInput}
+                        onChange={(e) => setTrackingUrlInput(e.target.value)}
+                        className="w-full p-2 bg-white border border-blue-300 rounded-lg text-xs outline-none focus:border-blue-500 font-mono-custom text-gray-800"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Internal Admin Notes */}
+                  <div className="bg-amber-50/60 border border-amber-200 rounded-xl p-4 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-[10px] font-bold text-amber-800 uppercase tracking-wider font-display">
+                        📝 NOTAS INTERNAS DEL ADMIN (Comentarios Privados)
+                      </h4>
+                      <button
+                        onClick={() => handleSaveAdminNote(o.id)}
+                        disabled={isSavingAdminNote}
+                        className="px-3 py-1 bg-[#3C6E71] hover:bg-[#3C6E71]/90 text-white rounded text-[10px] font-bold uppercase cursor-pointer transition-colors"
+                      >
+                        {isSavingAdminNote ? 'GUARDANDO...' : 'GUARDAR NOTA'}
+                      </button>
+                    </div>
+                    <textarea
+                      rows={2}
+                      value={adminNoteInput}
+                      onChange={(e) => setAdminNoteInput(e.target.value)}
+                      placeholder="Escribí notas internas sobre este pedido (ej: Cliente confirmó por WhatsApp, se envió factura A...)"
+                      className="w-full p-2.5 bg-white border border-amber-300 rounded-lg text-xs outline-none focus:border-[#3C6E71] text-gray-800"
+                    />
+                  </div>
+
+                  {/* Status Change History Timeline */}
+                  <div className="bg-gray-50 rounded-xl p-4 space-y-2">
+                    <h4 className="text-[10px] font-bold text-gray-500 uppercase tracking-wider font-display border-b border-gray-200 pb-1.5">
+                      📜 HISTORIAL DE CAMBIOS DE ESTADO (Auditoría)
+                    </h4>
+                    {adminOrderLogs.length > 0 ? (
+                      <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                        {adminOrderLogs.map((log, lIdx) => (
+                          <div key={lIdx} className="text-xs bg-white p-2 rounded border border-gray-200 flex items-center justify-between">
+                            <div>
+                              <span className="font-bold text-gray-800 uppercase">{log.old_status || 'INICIAL'} → {log.new_status}</span>
+                              {log.comment && <p className="text-[10px] text-gray-500 italic mt-0.5">{log.comment}</p>}
+                            </div>
+                            <div className="text-right">
+                              <span className="text-[9px] text-gray-400 block font-mono-custom">{new Date(log.created_at).toLocaleString('es-AR')}</span>
+                              <span className="text-[9px] text-gray-500">{log.changed_by || 'admin'}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-gray-400 italic">No hay historial registrado aún.</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Footer Actions */}
+                <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 flex items-center justify-between shrink-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      onClick={() => { setSelectedPrintOrder(o); setSelectedOrderDetail(null); }}
+                      className="px-3 py-1.5 bg-[#3C6E71] hover:bg-[#3C6E71]/90 text-white rounded-xl text-xs font-bold uppercase cursor-pointer transition-colors flex items-center gap-1.5"
+                    >
+                      🖨️ FACTURA
+                    </button>
+                    <a
+                      href={`${API_BASE_URL}/api/admin/orders/${o.id}/ticket?token=${token}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-3 py-1.5 bg-[#3C6E71]/10 hover:bg-[#3C6E71]/20 text-[#3C6E71] rounded-xl text-xs font-bold uppercase transition-colors flex items-center gap-1.5"
+                    >
+                      📄 PDF
+                    </a>
+                    <button
+                      onClick={() => handleResendNotification(o.id)}
+                      disabled={isResendingNotification}
+                      className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold uppercase cursor-pointer transition-colors"
+                    >
+                      {isResendingNotification ? 'ENVIANDO...' : '✉️ REENVIAR EMAIL'}
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {o.status !== 'paid' && o.status !== 'completed' && (
+                      <button
+                        onClick={() => {
+                          if (window.confirm('¿Confirmar pago y marcar este pedido como PAGADO?')) {
+                            handleUpdateOrderStatus(o.id, 'paid');
+                            setSelectedOrderDetail(null);
+                          }
+                        }}
+                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold uppercase cursor-pointer transition-colors"
+                      >
+                        ✅ CONFIRMAR PAGO
+                      </button>
+                    )}
+                    {o.status !== 'rejected' && (
+                      <button
+                        onClick={() => { setAdminRejectionModalOrder(o); setAdminRejectionReasonInput(''); setSelectedOrderDetail(null); }}
+                        className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold uppercase cursor-pointer transition-colors"
+                      >
+                        ❌ RECHAZAR PAGO
+                      </button>
+                    )}
+                    <button
+                      onClick={() => setSelectedOrderDetail(null)}
+                      className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-xl text-xs font-bold uppercase cursor-pointer transition-colors"
+                    >
+                      CERRAR
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* --- ADMIN MODAL: RECHAZAR PAGO CON MOTIVO --- */}
+        {adminRejectionModalOrder && (
+          <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setAdminRejectionModalOrder(null)} />
+            <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl p-6 border border-gray-100 space-y-5 text-gray-900 z-10">
+              <div className="flex items-center justify-between border-b border-gray-200 pb-3">
+                <div className="flex items-center gap-2 text-red-600">
+                  <X className="w-5 h-5 stroke-[3]" />
+                  <h3 className="font-display text-base font-bold uppercase tracking-wider text-gray-900">RECHAZAR PAGO DE PEDIDO</h3>
+                </div>
+                <button onClick={() => setAdminRejectionModalOrder(null)} className="text-gray-400 hover:text-gray-600 cursor-pointer">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="space-y-4 text-xs">
+                <p className="text-gray-700">
+                  Estás por rechazar el pago del pedido <strong className="font-mono-custom text-gray-900">{adminRejectionModalOrder.id}</strong> ({adminRejectionModalOrder.customer_name}). Se notificará automáticamente al cliente.
+                </p>
+
+                {/* Preset Reason Chips */}
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">MOTIVOS RÁPIDOS DE RECHAZO:</label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {[
+                      "Comprobante no legible o ilegible",
+                      "Monto transferido no coincide con el total",
+                      "Transferencia no acreditada en la cuenta",
+                      "Comprobante ya utilizado en otro pedido"
+                    ].map((chip, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => setAdminRejectionReasonInput(chip)}
+                        className="px-2.5 py-1 bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded text-[10px] text-gray-800 transition-all cursor-pointer"
+                      >
+                        {chip}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">MOTIVO DETALLADO (SE ENVIARÁ AL CLIENTE) *</label>
+                  <textarea
+                    rows={3}
+                    required
+                    placeholder="Escribí aquí la razón por la cual no se aprobó el pago..."
+                    value={adminRejectionReasonInput}
+                    onChange={(e) => setAdminRejectionReasonInput(e.target.value)}
+                    className="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-xl text-xs text-gray-900 outline-none focus:border-red-500"
+                  />
+                </div>
+
+                <div className="flex items-center gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setAdminRejectionModalOrder(null)}
+                    className="w-1/2 py-2.5 border border-gray-300 text-gray-700 font-display text-xs font-bold uppercase rounded-xl hover:bg-gray-50 cursor-pointer"
+                  >
+                    CANCELAR
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const reason = adminRejectionReasonInput.trim() || 'El pago fue rechazado. Por favor verifica el comprobante o intenta con otro medio.';
+                      await handleUpdateOrderStatus(adminRejectionModalOrder.id, 'rejected', reason);
+                      setAdminRejectionModalOrder(null);
+                      setAdminRejectionReasonInput('');
+                    }}
+                    className="w-1/2 py-2.5 bg-red-600 hover:bg-red-700 text-white font-display text-xs font-bold uppercase rounded-xl shadow cursor-pointer"
+                  >
+                    CONFIRMAR RECHAZO
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* --- ADMIN MODAL: FACTURA / COMPROBANTE DE IMPRESIÓN --- */}
+        {selectedPrintOrder && (
+          <InvoicePrinter order={selectedPrintOrder} onClose={() => setSelectedPrintOrder(null)} />
         )}
       </div>
     );
@@ -3904,9 +5762,14 @@ export default function App() {
 
             {/* Logo */}
             <span 
-              className="font-display text-xl sm:text-2xl font-bold tracking-wider text-[#F2EFE9] flex items-center gap-2 cursor-pointer select-none" 
+              className="font-display text-xl sm:text-2xl font-bold tracking-wider text-[#F2EFE9] flex items-center gap-2 cursor-pointer select-none hover:opacity-90 transition-opacity" 
               onClick={() => { 
                 window.location.hash = '#/';
+                setCurrentView('home');
+                setSelectedDetailProduct(null);
+                setActiveCategory(null);
+                setActiveGender(null);
+                window.scrollTo({ top: 0, behavior: 'instant' });
               }}
             >
               <span className="bg-[#3C6E71] text-[#1C2321] px-2 py-0.5 rounded font-black font-mono-custom text-lg sm:text-xl">H</span>
@@ -4040,60 +5903,52 @@ export default function App() {
             </div>
 
             {/* Admin trigger (visible for authorized admin users) */}
-            {token && (userProfile?.role === 'admin' || userProfile?.email === 'admin@holux.com' || userProfile?.full_name?.toLowerCase().includes('admin')) && (
+            {token && userProfile?.role === 'admin' && (
               <button
-                onClick={() => { setCurrentView('admin'); setAdminTab('dashboard'); }}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-[#B85C38] hover:bg-[#B85C38]/90 text-white rounded-xl font-display text-xs font-bold tracking-wider transition-all cursor-pointer shadow-lg shadow-[#B85C38]/30"
-                title="Ir al Panel de Administración"
+                onClick={() => {
+                  window.location.hash = '#/admin';
+                  setCurrentView('admin');
+                  setAdminTab('dashboard');
+                }}
+                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-[#B85C38] hover:bg-[#a24e2e] text-white rounded-full font-display text-[11px] font-bold tracking-wider transition-all duration-200 cursor-pointer shadow-md shadow-[#B85C38]/25 border border-white/10 hover:scale-[1.02] active:scale-[0.98]"
+                title="Ir al Panel de Control de Administrador"
               >
-                <Shield className="w-4 h-4" />
-                <span>⚙️ PANEL ADMIN</span>
+                <Shield className="w-3.5 h-3.5 text-white/90" />
+                <span>PANEL ADMIN</span>
               </button>
             )}
 
-            {/* User Profile trigger */}
+            {/* User Profile trigger - Opens Customer/User Panel for everyone including admin */}
             {token ? (
               <button
                 onClick={() => {
-                  if (userProfile?.role === 'admin' || userProfile?.email === 'admin@holux.com' || userProfile?.full_name?.toLowerCase().includes('admin')) {
-                    setCurrentView('admin');
-                    setAdminTab('dashboard');
-                  } else {
-                    window.location.hash = '#/mi-cuenta';
-                    setCurrentView('customer_panel');
-                  }
+                  window.location.hash = '#/mi-cuenta';
+                  setCurrentView('customer_panel');
                 }}
-                className="flex items-center gap-1.5 p-1.5 px-3 rounded-full bg-white/10 hover:bg-white/20 transition-all text-[#F2EFE9] cursor-pointer border border-white/20"
-                title="Mi Cuenta / Ir al Panel Admin"
+                className="p-2 rounded-full bg-white/[0.08] hover:bg-white/[0.15] transition-all duration-200 text-[#F2EFE9] cursor-pointer border border-white/15 hover:border-[#3C6E71]/40 hover:scale-[1.05] active:scale-[0.95]"
+                title={`Mi Cuenta (${userProfile?.full_name || 'Ver Pedidos y Perfil'})`}
               >
-                <User className="w-5 h-5 text-[#3C6E71]" />
-                <span className="text-xs font-bold truncate max-w-[120px]">
-                  {userProfile ? userProfile.full_name : 'Mi Cuenta'}
-                </span>
-                {(userProfile?.role === 'admin' || userProfile?.email === 'admin@holux.com' || userProfile?.full_name?.toLowerCase().includes('admin')) && (
-                  <span className="bg-[#B85C38] text-white text-[9px] font-bold px-1.5 py-0.5 rounded font-mono-custom uppercase">
-                    ADMIN
-                  </span>
-                )}
+                <User className="w-4 h-4 text-[#F2EFE9]" />
               </button>
             ) : (
               <button
                 onClick={() => { setIsAuthModalOpen(true); setAuthMode('login'); }}
-                className="flex items-center gap-1.5 p-1.5 rounded-full hover:bg-white/10 transition-colors text-white cursor-pointer"
-                title="Ingresar"
+                className="p-2 rounded-full bg-white/[0.08] hover:bg-white/[0.15] transition-all duration-200 text-[#F2EFE9] cursor-pointer border border-white/15 hover:border-[#3C6E71]/40 hover:scale-[1.05] active:scale-[0.95]"
+                title="Ingresar a tu cuenta"
               >
-                <User className="w-5 h-5 text-[#F2EFE9]" />
+                <User className="w-4 h-4 text-[#F2EFE9]" />
               </button>
             )}
 
             {/* Cart Trigger */}
             <button
               onClick={() => setIsCartOpen(true)}
-              className="relative p-2 bg-[#3C6E71]/10 rounded-full hover:bg-[#3C6E71]/20 transition-all text-white border border-[#3C6E71]/35 cursor-pointer"
+              className="relative p-2 bg-white/[0.08] hover:bg-white/[0.15] rounded-full transition-all duration-200 text-white border border-white/15 hover:border-[#3C6E71]/40 cursor-pointer hover:scale-[1.05] active:scale-[0.95]"
+              title="Ver Carrito de Compras"
             >
-              <ShoppingBag className="w-5 h-5 text-[#F2EFE9]" />
+              <ShoppingBag className="w-4 h-4 text-[#F2EFE9]" />
               {cart.length > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-[#B85C38] text-white text-[9px] font-bold rounded-full flex items-center justify-center font-mono-custom animate-pulse">
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-[#B85C38] text-white text-[9px] font-bold rounded-full flex items-center justify-center font-mono-custom animate-pulse shadow-sm">
                   {cart.reduce((qty, item) => qty + item.quantity, 0)}
                 </span>
               )}
@@ -4395,8 +6250,12 @@ export default function App() {
                             </span>
                           )}
                           <img 
-                            src={getProductImage(product.name)} 
+                            src={product.image_url || (product.images && product.images[0]) || getProductImage(product.name)} 
                             alt={product.name} 
+                            onError={(e) => {
+                              e.target.onerror = null;
+                              e.target.src = getProductImage(product.name);
+                            }}
                             className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-all duration-500"
                           />
                           <button
@@ -4637,8 +6496,12 @@ export default function App() {
                               </span>
                             )}
                             <img 
-                              src={getProductImage(product.name)} 
+                              src={product.image_url || (product.images && product.images[0]) || getProductImage(product.name)} 
                               alt={product.name} 
+                              onError={(e) => {
+                                e.target.onerror = null;
+                                e.target.src = getProductImage(product.name);
+                              }}
                               className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-all duration-500"
                             />
                             <button
@@ -4873,8 +6736,12 @@ export default function App() {
                                 </span>
                               )}
                               <img 
-                                src={getProductImage(product.name)} 
+                                src={product.image_url || (product.images && product.images[0]) || getProductImage(product.name)} 
                                 alt={product.name} 
+                                onError={(e) => {
+                                  e.target.onerror = null;
+                                  e.target.src = getProductImage(product.name);
+                                }}
                                 className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-all duration-500"
                               />
                               <button
@@ -5015,8 +6882,12 @@ export default function App() {
                   {/* Large Product image container */}
                   <div className="w-full h-full flex items-center justify-center bg-white">
                     <img 
-                      src={getProductImage(selectedDetailProduct.name)} 
+                      src={selectedDetailProduct.image_url || (selectedDetailProduct.images && selectedDetailProduct.images[0]) || getProductImage(selectedDetailProduct.name)} 
                       alt={selectedDetailProduct.name} 
+                      onError={(e) => {
+                        e.target.onerror = null;
+                        e.target.src = getProductImage(selectedDetailProduct.name);
+                      }}
                       className="w-full h-full object-cover"
                     />
                   </div>
@@ -5075,146 +6946,218 @@ export default function App() {
                     </span>
                   </div>
 
-                  {/* Size selection (Adidas / Nike style layout!) */}
-                  {selectedDetailProduct.categories && (selectedDetailProduct.categories.slug === 'calzado' || selectedDetailProduct.categories.slug === 'trekking') ? (
-                    <div className="space-y-2 pt-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-gray-900 uppercase tracking-wider font-display">
-                          Seleccionar Talle / Talla
-                        </span>
-                        <span className="text-xs text-gray-400 hover:text-black underline cursor-pointer font-sans">
-                          Guía de talles
-                        </span>
-                      </div>
-
-                      <div className="grid grid-cols-4 gap-2">
-                        {selectedDetailProduct.categories.slug === 'calzado' ? (
-                          ['39', '40', '41', '42', '43'].map(size => (
-                            <button
-                              key={size}
-                              onClick={() => { setSelectedSize(size); setSizeError(false); }}
-                              className={`py-2.5 text-xs font-bold tracking-wider rounded border text-center transition-all cursor-pointer ${
-                                selectedSize === size
-                                  ? 'border-black bg-black text-white font-extrabold'
-                                  : 'border-gray-200 hover:border-gray-400 text-gray-700 bg-white'
-                              }`}
-                            >
-                              {size}
-                            </button>
-                          ))
-                        ) : (
-                          ['S', 'M', 'L', 'XL'].map(size => (
-                            <button
-                              key={size}
-                              onClick={() => { setSelectedSize(size); setSizeError(false); }}
-                              className={`py-2.5 text-xs font-bold tracking-wider rounded border text-center transition-all cursor-pointer ${
-                                selectedSize === size
-                                  ? 'border-black bg-black text-white font-extrabold'
-                                  : 'border-gray-200 hover:border-gray-400 text-gray-700 bg-white'
-                              }`}
-                            >
-                              {size}
-                            </button>
-                          ))
-                        )}
-                      </div>
-                      {sizeError && (
-                        <p className="text-red-500 font-sans text-xs font-bold pt-1 flex items-center gap-1 animate-pulse">
-                          ⚠️ Por favor, selecciona un talle antes de agregar al carrito.
-                        </p>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="pt-2">
-                      <span className="text-xs text-gray-500 font-sans font-semibold">
-                        Talla: Única (Disponible)
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Description headings */}
-                  <div className="space-y-2 pt-4 border-t border-gray-100">
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-gray-900 font-display">
-                      Descripción del producto
-                    </h4>
-                    <p className="text-xs text-gray-600 leading-relaxed font-sans font-medium">
-                      {selectedDetailProduct.description || "Este equipamiento técnico de alta performance Holux está especialmente desarrollado para soportar condiciones climáticas exigentes. Cuenta con diseño ergonómico, costuras reforzadas y materiales impermeables de alta durabilidad."}
-                    </p>
-                  </div>
-
-                  {/* Specs listing */}
-                  <div className="space-y-1.5 pt-2">
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-gray-900 font-display">
-                      Detalles y especificaciones
-                    </h4>
-                    <ul className="text-xs text-gray-500 space-y-1 list-disc list-inside font-sans font-medium">
-                      <li>Material impermeable y cortavientos de alta densidad</li>
-                      <li>Costuras termoselladas para máxima protección contra el agua</li>
-                      <li>Diseño ligero y comprimible para fácil almacenamiento en mochila</li>
-                      <li>Garantía oficial Holux de resistencia al desgaste extremo</li>
-                    </ul>
-                  </div>
-                </div>
-
-                {/* PDP Action Box (Quantity and Add to Cart) */}
-                <div className="pt-6 border-t border-gray-100 flex flex-col sm:flex-row items-center gap-4">
-                  
-                  {/* Quantity selector */}
-                  <div className="flex items-center justify-between border border-gray-300 rounded overflow-hidden h-12 w-32 bg-white flex-shrink-0">
-                    <button
-                      onClick={() => setDetailQuantity(prev => Math.max(1, prev - 1))}
-                      className="w-10 h-full bg-gray-50 hover:bg-gray-100 text-gray-700 transition-colors font-bold cursor-pointer flex items-center justify-center border-r border-gray-200"
-                    >
-                      -
-                    </button>
-                    <span className="text-sm font-bold text-gray-900 font-sans">{detailQuantity}</span>
-                    <button
-                      onClick={() => setDetailQuantity(prev => Math.min(selectedDetailProduct.stock, prev + 1))}
-                      className="w-10 h-full bg-gray-50 hover:bg-gray-100 text-gray-700 transition-colors font-bold cursor-pointer flex items-center justify-center border-l border-gray-200"
-                    >
-                      +
-                    </button>
-                  </div>
-
-                  {/* Add to cart */}
-                  <button
-                    onClick={() => {
-                      if (selectedDetailProduct.stock === 0) return;
-                      const requiresSize = selectedDetailProduct.categories && 
-                        (selectedDetailProduct.categories.slug === 'calzado' || selectedDetailProduct.categories.slug === 'trekking');
-                      if (requiresSize && !selectedSize) {
-                        setSizeError(true);
-                        return;
-                      }
-                      setSizeError(false);
-                      setCart(prev => {
-                        const targetSize = requiresSize ? selectedSize : 'Talla Única';
-                        const existing = prev.find(item => item.id === selectedDetailProduct.id && item.sizeLabel === targetSize);
-                        const productWithSize = {
-                          ...selectedDetailProduct,
-                          sizeLabel: targetSize
-                        };
-                        if (existing) {
-                          const newQty = Math.min(selectedDetailProduct.stock, existing.quantity + detailQuantity);
-                          return prev.map(item => 
-                            (item.id === selectedDetailProduct.id && item.sizeLabel === targetSize)
-                              ? { ...item, quantity: newQty } 
-                              : item
-                          );
+                  {/* Size selection with dynamic variants & strict stock checking */}
+                  {(() => {
+                    const rawVariants = selectedDetailProduct.variants;
+                    const hasExplicitVariants = Array.isArray(rawVariants) && rawVariants.length > 0;
+                    
+                    let variantsList = [];
+                    if (hasExplicitVariants) {
+                      variantsList = rawVariants.map((v, i) => {
+                        if (typeof v === 'string') {
+                          return { id: i, label: v, name: v, stock: typeof selectedDetailProduct.stock === 'number' ? selectedDetailProduct.stock : 10, isAvailable: (selectedDetailProduct.stock ?? 10) > 0 };
                         }
-                        return [...prev, { ...productWithSize, quantity: detailQuantity }];
+                        const label = v.name || v.label || v.size || `Opción ${i + 1}`;
+                        const stock = typeof v.stock === 'number' ? v.stock : (typeof selectedDetailProduct.stock === 'number' ? selectedDetailProduct.stock : 10);
+                        return {
+                          id: v.id || i,
+                          label,
+                          name: label,
+                          stock,
+                          isAvailable: stock > 0
+                        };
                       });
-                    }}
-                    disabled={selectedDetailProduct.stock === 0}
-                    className={`w-full sm:flex-grow h-12 rounded font-sans text-xs font-bold tracking-wider transition-all flex items-center justify-center gap-2.5 cursor-pointer ${
-                      selectedDetailProduct.stock > 0
-                        ? 'bg-[#1C2321] text-white hover:bg-black hover:shadow-md'
-                        : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                    }`}
-                  >
-                    <ShoppingBag className="w-4 h-4" />
-                    <span>{selectedDetailProduct.stock > 0 ? 'AGREGAR AL CARRITO' : 'AGOTADO'}</span>
-                  </button>
+                    }
+
+                    const selectedVariantObj = variantsList.find(v => v.label === selectedSize);
+                    const effectiveStock = selectedVariantObj ? selectedVariantObj.stock : (selectedDetailProduct.stock || 0);
+
+                    return (
+                      <div className="space-y-3 pt-2">
+                        {variantsList.length > 0 ? (
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-bold text-gray-900 uppercase tracking-wider font-display">
+                                  Seleccionar Talle / Variante:
+                                </span>
+                                {selectedVariantObj && (
+                                  <span className={`text-[11px] font-bold ${selectedVariantObj.stock > 0 ? 'text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded' : 'text-red-600 bg-red-50 px-2 py-0.5 rounded'}`}>
+                                    {selectedVariantObj.stock > 0 ? `✓ ${selectedVariantObj.stock} disponibles` : '✕ Agotado'}
+                                  </span>
+                                )}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const cat = selectedDetailProduct.categories?.slug || '';
+                                  const name = (selectedDetailProduct.name || '').toLowerCase();
+                                  if (cat === 'calzado' || name.includes('bota') || name.includes('calzado') || name.includes('zapatilla')) {
+                                    setSizeGuideCategory('footwear');
+                                  } else if (name.includes('pantalón') || name.includes('pantalon') || name.includes('calza') || name.includes('short')) {
+                                    setSizeGuideCategory('bottoms');
+                                  } else {
+                                    setSizeGuideCategory('tops');
+                                  }
+                                  setIsSizeGuideOpen(true);
+                                }}
+                                className="text-xs font-semibold text-[#3C6E71] hover:text-[#2b5052] flex items-center gap-1.5 underline cursor-pointer font-sans transition-colors"
+                              >
+                                <Ruler className="w-3.5 h-3.5" />
+                                <span>Guía de talles</span>
+                              </button>
+                            </div>
+
+                            <div className="flex flex-wrap gap-2">
+                              {variantsList.map(v => {
+                                const isSelected = selectedSize === v.label;
+                                const isAvail = v.isAvailable;
+                                return (
+                                  <button
+                                    key={v.id}
+                                    type="button"
+                                    disabled={!isAvail}
+                                    onClick={() => {
+                                      if (!isAvail) return;
+                                      setSelectedSize(v.label);
+                                      setSizeError(false);
+                                    }}
+                                    className={`px-3.5 py-2.5 text-xs font-bold tracking-wider rounded-xl border text-center transition-all flex items-center gap-1.5 ${
+                                      !isAvail
+                                        ? 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed line-through opacity-60'
+                                        : isSelected
+                                          ? 'border-black bg-black text-white font-extrabold shadow-sm'
+                                          : 'border-gray-200 hover:border-black text-gray-800 bg-white cursor-pointer'
+                                    }`}
+                                  >
+                                    <span>{v.label}</span>
+                                    {isAvail && v.stock > 0 && v.stock <= 5 && (
+                                      <span className={`text-[9px] font-mono-custom ${isSelected ? 'text-amber-300' : 'text-amber-600'}`}>
+                                        (Últimas {v.stock})
+                                      </span>
+                                    )}
+                                    {!isAvail && (
+                                      <span className="text-[9px] text-gray-400 font-normal">
+                                        (Agotado)
+                                      </span>
+                                    )}
+                                  </button>
+                                );
+                              })}
+                            </div>
+
+                            {sizeError && (
+                              <p className="text-red-500 font-sans text-xs font-bold pt-1 flex items-center gap-1 animate-pulse">
+                                ⚠️ Por favor, selecciona un talle disponible antes de agregar al carrito.
+                              </p>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="pt-2 flex items-center gap-2">
+                            {selectedDetailProduct.stock > 0 ? (
+                              <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg">
+                                ✓ En stock disponible
+                              </span>
+                            ) : (
+                              <span className="text-[11px] font-bold text-red-600 bg-red-50 border border-red-200 px-2.5 py-1 rounded-lg">
+                                ✕ Sin stock disponible (Agotado)
+                              </span>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Description headings */}
+                        <div className="space-y-2 pt-4 border-t border-gray-100">
+                          <h4 className="text-xs font-bold uppercase tracking-wider text-gray-900 font-display">
+                            Descripción del producto
+                          </h4>
+                          <p className="text-xs text-gray-600 leading-relaxed font-sans font-medium">
+                            {selectedDetailProduct.description || "Este equipamiento técnico de alta performance Holux está especialmente desarrollado para soportar condiciones climáticas exigentes. Cuenta con diseño ergonómico, costuras reforzadas y materiales impermeables de alta durabilidad."}
+                          </p>
+                        </div>
+
+                        {/* Specs listing */}
+                        <div className="space-y-1.5 pt-2">
+                          <h4 className="text-xs font-bold uppercase tracking-wider text-gray-900 font-display">
+                            Detalles y especificaciones
+                          </h4>
+                          <ul className="text-xs text-gray-500 space-y-1 list-disc list-inside font-sans font-medium">
+                            <li>Material impermeable y cortavientos de alta densidad</li>
+                            <li>Costuras termoselladas para máxima protección contra el agua</li>
+                            <li>Diseño ligero y comprimible para fácil almacenamiento en mochila</li>
+                            <li>Garantía oficial Holux de resistencia al desgaste extremo</li>
+                          </ul>
+                        </div>
+
+                        {/* PDP Action Box (Quantity and Add to Cart) */}
+                        <div className="pt-6 border-t border-gray-100 flex flex-col sm:flex-row items-center gap-4">
+                          {/* Quantity selector */}
+                          <div className="flex items-center justify-between border border-gray-300 rounded-xl overflow-hidden h-12 w-32 bg-white flex-shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => setDetailQuantity(prev => Math.max(1, prev - 1))}
+                              className="w-10 h-full bg-gray-50 hover:bg-gray-100 text-gray-700 transition-colors font-bold cursor-pointer flex items-center justify-center border-r border-gray-200"
+                            >
+                              -
+                            </button>
+                            <span className="text-sm font-bold text-gray-900 font-sans">{detailQuantity}</span>
+                            <button
+                              type="button"
+                              onClick={() => setDetailQuantity(prev => Math.min(effectiveStock || 1, prev + 1))}
+                              className="w-10 h-full bg-gray-50 hover:bg-gray-100 text-gray-700 transition-colors font-bold cursor-pointer flex items-center justify-center border-l border-gray-200"
+                            >
+                              +
+                            </button>
+                          </div>
+
+                          {/* Add to cart button */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (effectiveStock <= 0) return;
+                              if (variantsList.length > 0 && !selectedSize) {
+                                setSizeError(true);
+                                return;
+                              }
+                              if (selectedVariantObj && selectedVariantObj.stock <= 0) {
+                                setSizeError(true);
+                                return;
+                              }
+                              setSizeError(false);
+                              setCart(prev => {
+                                const targetSize = variantsList.length > 0 ? selectedSize : 'Talla Única';
+                                const existing = prev.find(item => item.id === selectedDetailProduct.id && item.sizeLabel === targetSize);
+                                const productWithSize = {
+                                  ...selectedDetailProduct,
+                                  sizeLabel: targetSize
+                                };
+                                const maxStock = selectedVariantObj ? selectedVariantObj.stock : selectedDetailProduct.stock;
+                                if (existing) {
+                                  const newQty = Math.min(maxStock, existing.quantity + detailQuantity);
+                                  return prev.map(item => 
+                                    (item.id === selectedDetailProduct.id && item.sizeLabel === targetSize)
+                                      ? { ...item, quantity: newQty } 
+                                      : item
+                                  );
+                                }
+                                return [...prev, { ...productWithSize, quantity: detailQuantity }];
+                              });
+                            }}
+                            disabled={effectiveStock <= 0 || (variantsList.length > 0 && selectedVariantObj && selectedVariantObj.stock <= 0)}
+                            className={`w-full sm:flex-grow h-12 rounded-xl font-sans text-xs font-bold tracking-wider transition-all flex items-center justify-center gap-2.5 cursor-pointer ${
+                              effectiveStock > 0
+                                ? 'bg-[#1C2321] text-white hover:bg-black hover:shadow-md'
+                                : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                            }`}
+                          >
+                            <ShoppingBag className="w-4 h-4" />
+                            <span>{effectiveStock > 0 ? 'AGREGAR AL CARRITO' : 'AGOTADO'}</span>
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
                 </div>
 
               </div>
@@ -5354,8 +7297,12 @@ export default function App() {
                             </span>
                           )}
                           <img 
-                            src={getProductImage(product.name)} 
+                            src={product.image_url || (product.images && product.images[0]) || getProductImage(product.name)} 
                             alt={product.name} 
+                            onError={(e) => {
+                              e.target.onerror = null;
+                              e.target.src = getProductImage(product.name);
+                            }}
                             className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-all duration-500"
                           />
                         </div>
@@ -5391,7 +7338,7 @@ export default function App() {
       )}
 
       {/* --- PROMO BANNER (CUOTAS / FINANCIACIÓN) --- */}
-      {promoBanner && promoBanner.isVisible && (
+      {promoBanner && promoBanner.isVisible && (currentView === 'home' || currentView === 'category') && (
         <section className="bg-black text-white py-8 sm:py-10 border-t border-b border-white/10">
           <div className="w-full px-4 sm:px-8 lg:px-12 text-center space-y-4">
             <div>
@@ -5457,6 +7404,9 @@ export default function App() {
           setCustomerPanelSection={setCustomerPanelSection}
           addresses={addresses}
           setAddresses={setAddresses}
+          appliedCoupon={appliedCoupon}
+          setAppliedCoupon={setAppliedCoupon}
+          customerCoupons={customerCoupons}
         />
       )}
 
@@ -5581,7 +7531,7 @@ export default function App() {
               <div>
                 <button
                   type="button"
-                  onClick={() => alert('Solicitud de arrepentimiento iniciada. Te enviaremos las instrucciones por email.')}
+                  onClick={() => setIsRefundModalOpen(true)}
                   className="px-4 py-2 bg-white/10 border border-[#3C6E71]/40 hover:bg-[#3C6E71] rounded-xl text-xs font-bold text-white shadow-md transition-all cursor-pointer"
                 >
                   Botón de arrepentimiento
@@ -5688,8 +7638,12 @@ export default function App() {
                             {/* Icon block */}
                             <div className="w-16 h-16 bg-gray-50 border border-gray-100 rounded overflow-hidden flex items-center justify-center">
                               <img 
-                                src={getProductImage(item.name)} 
+                                src={item.image_url || (item.images && item.images[0]) || getProductImage(item.name)} 
                                 alt={item.name} 
+                                onError={(e) => {
+                                  e.target.onerror = null;
+                                  e.target.src = getProductImage(item.name);
+                                }}
                                 className="w-full h-full object-cover"
                               />
                             </div>
@@ -5744,13 +7698,70 @@ export default function App() {
 
                   {/* Footer Checkout info */}
                   {cart.length > 0 && (
-                    <div className="p-6 border-t border-gray-100 bg-gray-50 space-y-6">
-                      <div className="flex items-center justify-between text-gray-900">
-                        <span className="font-display text-sm font-bold tracking-wider">TOTAL ESTIMADO</span>
-                        <span className="font-sans text-xl font-bold">
-                          ${Math.round(getCartTotal()).toLocaleString('es-AR')}
-                        </span>
-                      </div>
+                    <div className="p-6 border-t border-gray-100 bg-gray-50 space-y-4">
+                      {/* Applied Coupon Banner if active */}
+                      {appliedCoupon && (
+                        <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between text-xs text-emerald-900">
+                          <div className="flex items-center gap-2">
+                            <Tag className="w-4 h-4 text-emerald-600" />
+                            <div>
+                              <span className="font-bold block font-mono-custom">Cupón: {appliedCoupon.code}</span>
+                              <span className="text-[10px] text-emerald-700 font-mono-custom">
+                                Descuento: {appliedCoupon.type === 'percentage' ? `${appliedCoupon.value}% OFF` : `${appliedCoupon.value.toLocaleString('es-AR')} OFF`}
+                              </span>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => setAppliedCoupon(null)}
+                            className="p-1 hover:bg-emerald-200/60 rounded text-emerald-800 transition-colors cursor-pointer"
+                            title="Quitar cupón"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      )}
+
+                      {(() => {
+                        const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+                        let discount = 0;
+                        if (appliedCoupon) {
+                          discount = appliedCoupon.type === 'percentage'
+                            ? Math.round((subtotal * appliedCoupon.value) / 100)
+                            : Math.min(subtotal, appliedCoupon.value);
+                        }
+                        const finalTotal = Math.max(0, subtotal - discount);
+                        const netAmount = Math.round(finalTotal / 1.21);
+                        const vatAmount = finalTotal - netAmount;
+
+                        return (
+                          <div className="space-y-2 text-xs font-sans">
+                            <div className="flex items-center justify-between text-gray-500">
+                              <span>Total sin impuestos nacionales</span>
+                              <span className="font-mono-custom font-semibold text-gray-700">${netAmount.toLocaleString('es-AR')}</span>
+                            </div>
+                            <div className="flex items-center justify-between text-gray-500">
+                              <span>Impuestos Nacionales (IVA 21%)</span>
+                              <span className="font-mono-custom font-semibold text-gray-700">${vatAmount.toLocaleString('es-AR')}</span>
+                            </div>
+                            {discount > 0 && (
+                              <div className="flex items-center justify-between text-emerald-700 font-semibold">
+                                <span>Descuento ({appliedCoupon.code})</span>
+                                <span className="font-mono-custom font-bold">-${discount.toLocaleString('es-AR')}</span>
+                              </div>
+                            )}
+                            <div className="flex items-center justify-between text-gray-500">
+                              <span>Envío</span>
+                              <span className="font-mono-custom font-bold text-emerald-600">Gratis</span>
+                            </div>
+                            <div className="flex items-center justify-between text-gray-900 pt-2 border-t border-gray-200">
+                              <span className="font-display text-sm font-black tracking-wider uppercase">Total</span>
+                              <span className="font-mono-custom text-xl font-bold text-[#3C6E71]">
+                                ${finalTotal.toLocaleString('es-AR')}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })()}
 
                       {/* Prominent Checkout Action Button */}
                       <button
@@ -5766,6 +7777,304 @@ export default function App() {
                   )}
                 </>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- MODAL GUÍA DE TALLES & MEDIDAS HOLUX --- */}
+      {isSizeGuideOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsSizeGuideOpen(false)} />
+
+          <div className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-100 max-h-[90vh] flex flex-col z-10 text-gray-900">
+            {/* Header */}
+            <div className="p-5 sm:p-6 border-b border-gray-100 flex items-center justify-between bg-[#1C2321] text-white">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-[#3C6E71]/30 text-[#3C6E71] rounded-xl border border-[#3C6E71]/40">
+                  <Ruler className="w-5 h-5 text-[#3C6E71]" />
+                </div>
+                <div>
+                  <h3 className="font-display text-sm sm:text-base font-bold tracking-wider uppercase">
+                    {sizeGuideCategory === 'footwear' && 'GUÍA DE TALLES: CALZADO & BOTAS'}
+                    {sizeGuideCategory === 'bottoms' && 'GUÍA DE TALLES: PANTALONES & CALZAS'}
+                    {sizeGuideCategory === 'tops' && 'GUÍA DE TALLES: CAMPERAS & PRENDAS SUPERIORES'}
+                  </h3>
+                  <p className="text-xs text-gray-400 font-sans mt-0.5">
+                    {selectedDetailProduct?.name ? `Medidas recomendadas para ${selectedDetailProduct.name}` : 'Tabla de equivalencias y medidas corporales en centímetros'}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsSizeGuideOpen(false)}
+                className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Scrollable Content */}
+            <div className="p-5 sm:p-6 overflow-y-auto space-y-6 flex-1 text-xs">
+              {/* TOPS TABLE */}
+              {sizeGuideCategory === 'tops' && (
+                <div className="space-y-4">
+                  <div className="overflow-x-auto rounded-xl border border-gray-200">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-gray-100 text-gray-700 font-bold uppercase tracking-wider font-display border-b border-gray-200">
+                        <tr>
+                          <th className="p-3">Talle</th>
+                          <th className="p-3">Pecho (cm)</th>
+                          <th className="p-3">Cintura (cm)</th>
+                          <th className="p-3">Cadera (cm)</th>
+                          <th className="p-3">Manga (cm)</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100 font-mono-custom">
+                        <tr className="hover:bg-gray-50">
+                          <td className="p-3 font-bold font-display text-gray-900 bg-gray-50/50">XS</td>
+                          <td className="p-3 text-gray-700">88 - 92 cm</td>
+                          <td className="p-3 text-gray-700">76 - 80 cm</td>
+                          <td className="p-3 text-gray-700">88 - 92 cm</td>
+                          <td className="p-3 text-gray-700">62 cm</td>
+                        </tr>
+                        <tr className="hover:bg-gray-50">
+                          <td className="p-3 font-bold font-display text-gray-900 bg-gray-50/50">S</td>
+                          <td className="p-3 text-gray-700">93 - 96 cm</td>
+                          <td className="p-3 text-gray-700">81 - 84 cm</td>
+                          <td className="p-3 text-gray-700">93 - 96 cm</td>
+                          <td className="p-3 text-gray-700">64 cm</td>
+                        </tr>
+                        <tr className="hover:bg-gray-50 bg-[#3C6E71]/5">
+                          <td className="p-3 font-bold font-display text-[#3C6E71] bg-[#3C6E71]/10">M</td>
+                          <td className="p-3 text-gray-900 font-semibold">97 - 102 cm</td>
+                          <td className="p-3 text-gray-900 font-semibold">85 - 90 cm</td>
+                          <td className="p-3 text-gray-900 font-semibold">97 - 102 cm</td>
+                          <td className="p-3 text-gray-900 font-semibold">66 cm</td>
+                        </tr>
+                        <tr className="hover:bg-gray-50">
+                          <td className="p-3 font-bold font-display text-gray-900 bg-gray-50/50">L</td>
+                          <td className="p-3 text-gray-700">103 - 108 cm</td>
+                          <td className="p-3 text-gray-700">91 - 96 cm</td>
+                          <td className="p-3 text-gray-700">103 - 108 cm</td>
+                          <td className="p-3 text-gray-700">68 cm</td>
+                        </tr>
+                        <tr className="hover:bg-gray-50">
+                          <td className="p-3 font-bold font-display text-gray-900 bg-gray-50/50">XL</td>
+                          <td className="p-3 text-gray-700">109 - 114 cm</td>
+                          <td className="p-3 text-gray-700">97 - 102 cm</td>
+                          <td className="p-3 text-gray-700">109 - 114 cm</td>
+                          <td className="p-3 text-gray-700">70 cm</td>
+                        </tr>
+                        <tr className="hover:bg-gray-50">
+                          <td className="p-3 font-bold font-display text-gray-900 bg-gray-50/50">XXL</td>
+                          <td className="p-3 text-gray-700">115 - 122 cm</td>
+                          <td className="p-3 text-gray-700">103 - 110 cm</td>
+                          <td className="p-3 text-gray-700">115 - 122 cm</td>
+                          <td className="p-3 text-gray-700">72 cm</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="p-4 bg-gray-50 rounded-xl border border-gray-200 space-y-2">
+                    <h4 className="font-display font-bold text-gray-900 uppercase text-[11px] tracking-wider">
+                      ¿Cómo medir prendas superiores?
+                    </h4>
+                    <ul className="space-y-1.5 text-gray-600 text-[11px] leading-relaxed">
+                      <li>• <strong>Pecho:</strong> Pasa la cinta métrica horizontalmente por la parte de mayor volumen del busto/pecho.</li>
+                      <li>• <strong>Cintura:</strong> Mide el contorno en la parte más angosta del torso, sin ajustar la cinta.</li>
+                      <li>• <strong>Largo de Manga:</strong> Desde el hombro hasta la muñeca con el brazo ligeramente flexionado.</li>
+                    </ul>
+                  </div>
+                </div>
+              )}
+
+              {/* BOTTOMS TABLE */}
+              {sizeGuideCategory === 'bottoms' && (
+                <div className="space-y-4">
+                  <div className="overflow-x-auto rounded-xl border border-gray-200">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-gray-100 text-gray-700 font-bold uppercase tracking-wider font-display border-b border-gray-200">
+                        <tr>
+                          <th className="p-3">Talle</th>
+                          <th className="p-3">Equivalencia</th>
+                          <th className="p-3">Cintura (cm)</th>
+                          <th className="p-3">Cadera (cm)</th>
+                          <th className="p-3">Largo Pierna (cm)</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100 font-mono-custom">
+                        <tr className="hover:bg-gray-50">
+                          <td className="p-3 font-bold font-display text-gray-900 bg-gray-50/50">S</td>
+                          <td className="p-3 text-gray-500">38 - 40</td>
+                          <td className="p-3 text-gray-700">76 - 82 cm</td>
+                          <td className="p-3 text-gray-700">90 - 96 cm</td>
+                          <td className="p-3 text-gray-700">102 cm</td>
+                        </tr>
+                        <tr className="hover:bg-gray-50 bg-[#3C6E71]/5">
+                          <td className="p-3 font-bold font-display text-[#3C6E71] bg-[#3C6E71]/10">M</td>
+                          <td className="p-3 text-[#3C6E71] font-semibold">42 - 44</td>
+                          <td className="p-3 text-gray-900 font-semibold">83 - 89 cm</td>
+                          <td className="p-3 text-gray-900 font-semibold">97 - 103 cm</td>
+                          <td className="p-3 text-gray-900 font-semibold">104 cm</td>
+                        </tr>
+                        <tr className="hover:bg-gray-50">
+                          <td className="p-3 font-bold font-display text-gray-900 bg-gray-50/50">L</td>
+                          <td className="p-3 text-gray-500">46 - 48</td>
+                          <td className="p-3 text-gray-700">90 - 96 cm</td>
+                          <td className="p-3 text-gray-700">104 - 110 cm</td>
+                          <td className="p-3 text-gray-700">106 cm</td>
+                        </tr>
+                        <tr className="hover:bg-gray-50">
+                          <td className="p-3 font-bold font-display text-gray-900 bg-gray-50/50">XL</td>
+                          <td className="p-3 text-gray-500">50 - 52</td>
+                          <td className="p-3 text-gray-700">97 - 104 cm</td>
+                          <td className="p-3 text-gray-700">111 - 118 cm</td>
+                          <td className="p-3 text-gray-700">108 cm</td>
+                        </tr>
+                        <tr className="hover:bg-gray-50">
+                          <td className="p-3 font-bold font-display text-gray-900 bg-gray-50/50">XXL</td>
+                          <td className="p-3 text-gray-500">54 - 56</td>
+                          <td className="p-3 text-gray-700">105 - 112 cm</td>
+                          <td className="p-3 text-gray-700">119 - 126 cm</td>
+                          <td className="p-3 text-gray-700">110 cm</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="p-4 bg-gray-50 rounded-xl border border-gray-200 space-y-2">
+                    <h4 className="font-display font-bold text-gray-900 uppercase text-[11px] tracking-wider">
+                      ¿Cómo medir pantalones y calzas?
+                    </h4>
+                    <ul className="space-y-1.5 text-gray-600 text-[11px] leading-relaxed">
+                      <li>• <strong>Cintura:</strong> Medir el contorno a la altura donde habitualmente usas el pantalón.</li>
+                      <li>• <strong>Cadera:</strong> Con los pies juntos, mide el contorno pasando por la zona más ancha de los glúteos.</li>
+                      <li>• <strong>Largo de pierna:</strong> Desde la parte superior de la entrepierna hasta el tobillo.</li>
+                    </ul>
+                  </div>
+                </div>
+              )}
+
+              {/* FOOTWEAR TABLE */}
+              {sizeGuideCategory === 'footwear' && (
+                <div className="space-y-4">
+                  <div className="overflow-x-auto rounded-xl border border-gray-200">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-gray-100 text-gray-700 font-bold uppercase tracking-wider font-display border-b border-gray-200">
+                        <tr>
+                          <th className="p-3">Talle (AR)</th>
+                          <th className="p-3">Largo de Pie (cm)</th>
+                          <th className="p-3">US Hombre</th>
+                          <th className="p-3">US Mujer</th>
+                          <th className="p-3">EUR</th>
+                          <th className="p-3">UK</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100 font-mono-custom">
+                        <tr className="hover:bg-gray-50">
+                          <td className="p-3 font-bold font-display text-gray-900 bg-gray-50/50">38</td>
+                          <td className="p-3 text-gray-700">24.5 cm</td>
+                          <td className="p-3 text-gray-700">6.5</td>
+                          <td className="p-3 text-gray-700">7.5</td>
+                          <td className="p-3 text-gray-700">39</td>
+                          <td className="p-3 text-gray-700">5.5</td>
+                        </tr>
+                        <tr className="hover:bg-gray-50">
+                          <td className="p-3 font-bold font-display text-gray-900 bg-gray-50/50">39</td>
+                          <td className="p-3 text-gray-700">25.2 cm</td>
+                          <td className="p-3 text-gray-700">7.0</td>
+                          <td className="p-3 text-gray-700">8.0</td>
+                          <td className="p-3 text-gray-700">40</td>
+                          <td className="p-3 text-gray-700">6.0</td>
+                        </tr>
+                        <tr className="hover:bg-gray-50 bg-[#3C6E71]/5">
+                          <td className="p-3 font-bold font-display text-[#3C6E71] bg-[#3C6E71]/10">40</td>
+                          <td className="p-3 text-gray-900 font-semibold">26.0 cm</td>
+                          <td className="p-3 text-gray-900 font-semibold">8.0</td>
+                          <td className="p-3 text-gray-900 font-semibold">9.0</td>
+                          <td className="p-3 text-gray-900 font-semibold">41</td>
+                          <td className="p-3 text-gray-900 font-semibold">7.0</td>
+                        </tr>
+                        <tr className="hover:bg-gray-50">
+                          <td className="p-3 font-bold font-display text-gray-900 bg-gray-50/50">41</td>
+                          <td className="p-3 text-gray-700">26.7 cm</td>
+                          <td className="p-3 text-gray-700">8.5</td>
+                          <td className="p-3 text-gray-700">9.5</td>
+                          <td className="p-3 text-gray-700">42</td>
+                          <td className="p-3 text-gray-700">7.5</td>
+                        </tr>
+                        <tr className="hover:bg-gray-50">
+                          <td className="p-3 font-bold font-display text-gray-900 bg-gray-50/50">42</td>
+                          <td className="p-3 text-gray-700">27.5 cm</td>
+                          <td className="p-3 text-gray-700">9.5</td>
+                          <td className="p-3 text-gray-700">10.5</td>
+                          <td className="p-3 text-gray-700">43</td>
+                          <td className="p-3 text-gray-700">8.5</td>
+                        </tr>
+                        <tr className="hover:bg-gray-50">
+                          <td className="p-3 font-bold font-display text-gray-900 bg-gray-50/50">43</td>
+                          <td className="p-3 text-gray-700">28.2 cm</td>
+                          <td className="p-3 text-gray-700">10.5</td>
+                          <td className="p-3 text-gray-700">11.5</td>
+                          <td className="p-3 text-gray-700">44</td>
+                          <td className="p-3 text-gray-700">9.5</td>
+                        </tr>
+                        <tr className="hover:bg-gray-50">
+                          <td className="p-3 font-bold font-display text-gray-900 bg-gray-50/50">44</td>
+                          <td className="p-3 text-gray-700">29.0 cm</td>
+                          <td className="p-3 text-gray-700">11.5</td>
+                          <td className="p-3 text-gray-700">12.5</td>
+                          <td className="p-3 text-gray-700">45</td>
+                          <td className="p-3 text-gray-700">10.5</td>
+                        </tr>
+                        <tr className="hover:bg-gray-50">
+                          <td className="p-3 font-bold font-display text-gray-900 bg-gray-50/50">45</td>
+                          <td className="p-3 text-gray-700">29.8 cm</td>
+                          <td className="p-3 text-gray-700">12.0</td>
+                          <td className="p-3 text-gray-700">13.0</td>
+                          <td className="p-3 text-gray-700">46</td>
+                          <td className="p-3 text-gray-700">11.0</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="p-4 bg-gray-50 rounded-xl border border-gray-200 space-y-2">
+                    <h4 className="font-display font-bold text-gray-900 uppercase text-[11px] tracking-wider">
+                      ¿Cómo medir la longitud de tu pie?
+                    </h4>
+                    <ul className="space-y-1.5 text-gray-600 text-[11px] leading-relaxed">
+                      <li>1. Coloca una hoja de papel en el suelo pegada a una pared.</li>
+                      <li>2. Apoya el talón descalzo o con la media de trekking contra la pared.</li>
+                      <li>3. Marca con un lápiz el punto más largo de tus dedos.</li>
+                      <li>4. Mide con una regla la distancia en centímetros desde el borde de la hoja hasta la marca.</li>
+                    </ul>
+                  </div>
+                </div>
+              )}
+
+              {/* Recommendation Note */}
+              <div className="p-3.5 bg-amber-50 border border-amber-200/80 rounded-xl flex items-start gap-2.5 text-amber-900">
+                <span className="text-sm">💡</span>
+                <p className="text-[11px] leading-relaxed">
+                  <strong>Recomendación técnica Holux: </strong>
+                  {sizeGuideCategory === 'tops' && 'Si estás entre dos talles para camperas o prendas técnicas, te recomendamos elegir el talle superior para poder usar capas intermedias (polar, microfleece o térmicas) con total comodidad.'}
+                  {sizeGuideCategory === 'bottoms' && 'Si estás entre dos talles de pantalón de trekking o calzas, el talle superior te brindará mayor libertad de movimiento en ascensos y caminatas exigentes.'}
+                  {sizeGuideCategory === 'footwear' && 'Para calzado de montaña y botas de trekking, recomendamos medir con las medias técnicas puestas y optar por medio punto o un punto más si estás entre dos medidas.'}
+                </p>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 sm:px-6 border-t border-gray-200 bg-gray-50 flex items-center justify-end">
+              <button
+                type="button"
+                onClick={() => setIsSizeGuideOpen(false)}
+                className="px-6 py-2.5 bg-[#3C6E71] hover:bg-[#3C6E71]/90 text-white font-display text-xs font-bold uppercase tracking-wider rounded-xl transition-all shadow-sm cursor-pointer"
+              >
+                ENTENDIDO, VOLVER AL PRODUCTO
+              </button>
             </div>
           </div>
         </div>
@@ -6342,643 +8651,7 @@ export default function App() {
         </div>
       )}
 
-      {/* --- ADMIN MODAL PANEL --- */}
-      {currentView === 'admin' && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 lg:p-8">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setCurrentView('main')} />
-          
-          <div className="relative w-full max-w-5xl bg-white rounded-lg shadow-2xl overflow-hidden border border-gray-200 flex flex-col h-[90vh]">
-            
-            {/* Header */}
-            <div className="bg-[#1C2321] text-white p-5 flex items-center justify-between border-b border-[#3C6E71]/20">
-              <div className="flex items-center gap-2">
-                <span className="bg-[#B85C38] text-white px-2 py-0.5 rounded font-black font-mono-custom text-xs">A</span>
-                <h2 className="font-display text-lg font-bold tracking-wider">PANEL DE CONTROL DE ADMINISTRACIÓN</h2>
-              </div>
-              <button onClick={() => setCurrentView('main')} className="p-1 hover:bg-white/10 rounded transition-colors cursor-pointer text-white">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
 
-            <div className="flex-grow flex overflow-hidden">
-              {/* Admin Sidebar */}
-              <aside className="w-48 bg-gray-50 border-r border-gray-200 p-4 space-y-2 overflow-y-auto hidden sm:block">
-                {[
-                  { id: 'dashboard', label: 'DASHBOARD', icon: TrendingUp },
-                  { id: 'orders', label: 'PEDIDOS', icon: ShoppingBag },
-                  { id: 'products', label: 'PRODUCTOS', icon: Box },
-                  { id: 'banners', label: 'EDITAR BANNERS', icon: Edit2 },
-                  { id: 'coupons', label: 'CUPONES', icon: Edit2 },
-                  { id: 'categories', label: 'CATEGORÍAS', icon: Grid },
-                  { id: 'customers', label: 'CLIENTES', icon: Users },
-                  { id: 'reviews', label: 'RESEÑAS', icon: MessageSquare },
-                  { id: 'settings', label: 'CONFIGURACIÓN', icon: Lock }
-                ].map(item => {
-                  const Icon = item.icon;
-                  return (
-                    <button
-                      key={item.id}
-                      onClick={() => setAdminTab(item.id)}
-                      className={`w-full flex items-center gap-3 px-3 py-2 rounded text-left font-display text-xs font-bold tracking-wider transition-all cursor-pointer ${adminTab === item.id ? 'bg-[#3C6E71] text-white' : 'text-gray-600 hover:bg-gray-100'}`}
-                    >
-                      <Icon className="w-4 h-4 flex-shrink-0" />
-                      {item.label}
-                    </button>
-                  );
-                })}
-              </aside>
-
-              {/* Admin Main content */}
-              <main className="flex-grow p-6 overflow-y-auto bg-white">
-                
-                {/* 1. ADMIN DASHBOARD CHARTS */}
-                {adminTab === 'dashboard' && (
-                  <DashboardCharts adminStats={adminStats} productsList={adminProductsList} ordersList={adminOrdersList} />
-                )}
-
-                {/* 2. BANNERS EDITOR */}
-                {adminTab === 'banners' && (
-                  <BannerEditor heroSlides={heroSlides} setHeroSlides={setHeroSlides} categoriesList={adminCategoriesList} productsList={adminProductsList} />
-                )}
-
-                {/* 3. COUPONS MANAGER */}
-                {adminTab === 'coupons' && (
-                  <CouponManager />
-                )}
-
-                {/* 4. STORE SETTINGS & TAXES */}
-                {adminTab === 'settings' && (
-                  <StoreSettings API_BASE_URL={API_BASE_URL} token={token} />
-                )}
-
-                {/* 5. ADMIN ORDERS LIST */}
-                {adminTab === 'orders' && (
-                  <div className="space-y-4">
-                    <h3 className="font-display text-sm font-bold text-gray-800 tracking-wider uppercase border-b border-gray-100 pb-2">
-                      GESTIÓN GLOBAL DE PEDIDOS
-                    </h3>
-                    
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left text-xs border border-gray-200 rounded">
-                        <thead>
-                          <tr className="bg-gray-50 border-b border-gray-200 text-gray-500 uppercase tracking-widest font-display text-[9px]">
-                            <th className="p-3">ID / Fecha</th>
-                            <th className="p-3">Cliente</th>
-                            <th className="p-3">Artículos</th>
-                            <th className="p-3">Forma de Pago</th>
-                            <th className="p-3">Total</th>
-                            <th className="p-3">Estado</th>
-                            <th className="p-3 text-right">Acciones</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-200 text-gray-700">
-                          {adminOrdersList.map(order => (
-                            <tr key={order.id} className="hover:bg-gray-50/50">
-                              <td className="p-3 font-mono-custom">
-                                <span className="font-bold select-all">{order.id.slice(0, 8)}...</span>
-                                <div className="text-[10px] text-gray-400 mt-0.5">
-                                  {new Date(order.created_at).toLocaleDateString()}
-                                </div>
-                              </td>
-                              <td className="p-3">
-                                <div className="font-bold text-gray-800">{order.customer_name}</div>
-                                <div className="text-[10px] text-gray-400 font-mono-custom">{order.customer_email}</div>
-                              </td>
-                              <td className="p-3">
-                                <div className="text-[10px] text-gray-700 max-w-[200px] max-h-16 overflow-y-auto pr-1 space-y-1">
-                                  {Array.isArray(order.items) ? (
-                                    order.items.map((item, idx) => (
-                                      <div key={idx} className="flex justify-between border-b border-gray-100 pb-0.5">
-                                        <span className="truncate mr-2" title={item.name || item.product_name}>{item.name || item.product_name}</span>
-                                        <span className="font-bold text-gray-500 whitespace-nowrap">x{item.quantity}</span>
-                                      </div>
-                                    ))
-                                  ) : (
-                                    typeof order.items === 'string' ? (
-                                      (() => {
-                                        try {
-                                          const parsed = JSON.parse(order.items);
-                                          return parsed.map((item, idx) => (
-                                            <div key={idx} className="flex justify-between border-b border-gray-100 pb-0.5">
-                                              <span className="truncate mr-2" title={item.name || item.product_name}>{item.name || item.product_name}</span>
-                                              <span className="font-bold text-gray-500 whitespace-nowrap">x{item.quantity}</span>
-                                            </div>
-                                          ));
-                                        } catch (e) {
-                                          return <span>Error al leer artículos</span>;
-                                        }
-                                      })()
-                                    ) : <span>Sin artículos</span>
-                                  )}
-                                </div>
-                              </td>
-                              <td className="p-3">
-                                <span className="font-bold uppercase text-gray-800 text-[11px] block">
-                                  {order.payment_method === 'transfer' ? 'Transferencia' : (order.payment_method || 'Tarjeta')}
-                                </span>
-                                {order.payment_id && (
-                                  <span className="block text-[9px] font-mono-custom text-gray-500 mt-0.5">
-                                    Ref: {order.payment_id}
-                                  </span>
-                                )}
-                                {order.receipt_url && (
-                                  <button
-                                    type="button"
-                                    onClick={() => setAdminReceiptLightboxUrl(order.receipt_url)}
-                                    className="mt-1 flex items-center gap-1 text-[10px] font-bold text-[#3C6E71] underline cursor-pointer hover:text-[#3C6E71]/80 bg-[#3C6E71]/10 px-2 py-1 rounded"
-                                  >
-                                    📄 Comprobante
-                                  </button>
-                                )}
-                              </td>
-                              <td className="p-3 font-mono-custom font-bold text-gray-800">
-                                ARS {order.total.toLocaleString()}
-                              </td>
-                              <td className="p-3">
-                                <select
-                                  value={order.status}
-                                  onChange={(e) => handleUpdateOrderStatus(order.id, e.target.value)}
-                                  className="px-2 py-1 bg-white border border-gray-300 rounded text-[10px] font-display font-medium outline-none focus:border-[#3C6E71] cursor-pointer"
-                                >
-                                  <option value="pending">PENDING</option>
-                                  <option value="processing">PROCESSING</option>
-                                  <option value="completed">COMPLETED</option>
-                                  <option value="cancelled">CANCELLED</option>
-                                </select>
-                              </td>
-                              <td className="p-3 text-right flex justify-end gap-1.5">
-                                <button
-                                  type="button"
-                                  onClick={() => setSelectedPrintOrder(order)}
-                                  className="inline-flex items-center gap-1 px-2.5 py-1 bg-[#3C6E71] text-white rounded text-[9px] font-display font-bold tracking-wider hover:bg-[#3C6E71]/90 transition-all cursor-pointer"
-                                >
-                                  COMPROBANTE (HTML)
-                                </button>
-                                <a
-                                  href={`${API_BASE_URL}/api/admin/orders/${order.id}/ticket?token=${token}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-1 px-2 py-1 bg-[#3C6E71]/10 text-[#3C6E71] rounded text-[9px] font-display font-bold tracking-wider hover:bg-[#3C6E71]/20 transition-all"
-                                >
-                                  <Download className="w-3 h-3" />
-                                  PDF
-                                </a>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
-
-                {/* 3. ADMIN PRODUCTS CRUD */}
-                {adminTab === 'products' && (
-                  <div className="space-y-6">
-                    {/* Add Product Form */}
-                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-5">
-                      <h4 className="text-xs font-bold tracking-wider text-gray-700 uppercase font-display mb-4">
-                        {editingProduct ? 'EDITAR PRODUCTO CATALOGO' : 'AÑADIR NUEVO PRODUCTO'}
-                      </h4>
-
-                      <form onSubmit={handleSaveProduct} className="space-y-4 text-xs">
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                          <div className="space-y-1">
-                            <label className="text-[9px] font-bold text-gray-500 tracking-wider">NOMBRE PRODUCTO</label>
-                            <input
-                              type="text"
-                              required
-                              value={prodName}
-                              onChange={(e) => setProdName(e.target.value)}
-                              placeholder="Ej: Campera Fitz Roy"
-                              className="w-full px-2.5 py-1.5 border border-gray-300 rounded focus:border-[#3C6E71] outline-none"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <label className="text-[9px] font-bold text-gray-500 tracking-wider">MARCA</label>
-                            <input
-                              type="text"
-                              required
-                              value={prodBrand}
-                              onChange={(e) => setProdBrand(e.target.value)}
-                              placeholder="Ej: Holux Gear"
-                              className="w-full px-2.5 py-1.5 border border-gray-300 rounded focus:border-[#3C6E71] outline-none"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <label className="text-[9px] font-bold text-gray-500 tracking-wider">CATEGORÍA</label>
-                            <select
-                              required
-                              value={prodCategoryId}
-                              onChange={(e) => setProdCategoryId(e.target.value)}
-                              className="w-full px-2.5 py-1.5 border border-gray-300 rounded bg-white focus:border-[#3C6E71] outline-none"
-                            >
-                              <option value="">Seleccionar...</option>
-                              {adminCategoriesList.map(cat => (
-                                <option key={cat.id} value={cat.id}>{cat.name}</option>
-                              ))}
-                            </select>
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-                          <div className="space-y-1">
-                            <label className="text-[9px] font-bold text-gray-500 tracking-wider">PRECIO (ARS)</label>
-                            <input
-                              type="number"
-                              required
-                              min="0"
-                              step="0.01"
-                              value={prodPrice}
-                              onChange={(e) => setProdPrice(e.target.value)}
-                              className="w-full px-2.5 py-1.5 border border-gray-300 rounded focus:border-[#3C6E71] outline-none"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <label className="text-[9px] font-bold text-gray-500 tracking-wider">CUOTAS SIN INTERÉS</label>
-                            <input
-                              type="number"
-                              required
-                              min="0"
-                              value={prodInstallments}
-                              onChange={(e) => setProdInstallments(e.target.value)}
-                              className="w-full px-2.5 py-1.5 border border-gray-300 rounded focus:border-[#3C6E71] outline-none"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <label className="text-[9px] font-bold text-gray-500 tracking-wider">ICONO VECTORIAL</label>
-                            <input
-                              type="text"
-                              required
-                              value={prodIcon}
-                              onChange={(e) => setProdIcon(e.target.value)}
-                              className="w-full px-2.5 py-1.5 border border-gray-300 rounded focus:border-[#3C6E71] outline-none"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <label className="text-[9px] font-bold text-gray-500 tracking-wider">STOCK DISPONIBLE</label>
-                            <input
-                              type="number"
-                              required
-                              min="0"
-                              value={prodStock}
-                              onChange={(e) => setProdStock(e.target.value)}
-                              className="w-full px-2.5 py-1.5 border border-gray-300 rounded focus:border-[#3C6E71] outline-none"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="flex gap-2">
-                          {editingProduct && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setEditingProduct(null);
-                                setProdName('');
-                                setProdBrand('');
-                                setProdCategoryId('');
-                                setProdPrice(0);
-                                setProdInstallments(6);
-                                setProdIcon('Box');
-                                setProdStock(10);
-                              }}
-                              className="flex-1 py-2 border border-gray-300 text-gray-600 rounded text-xs font-display font-medium hover:bg-gray-50 transition-colors"
-                            >
-                              CANCELAR
-                            </button>
-                          )}
-                          <button
-                            type="submit"
-                            className="flex-1 py-2 bg-[#3C6E71] text-white rounded text-xs font-display font-bold tracking-wider hover:bg-[#3C6E71]/95 transition-all shadow-md shadow-[#3C6E71]/10 cursor-pointer"
-                          >
-                            {editingProduct ? 'EDITAR PRODUCTO' : 'CREAR PRODUCTO'}
-                          </button>
-                        </div>
-                      </form>
-                    </div>
-
-                    {/* Products list table */}
-                    <div className="space-y-2">
-                      <h4 className="text-[10px] font-bold text-gray-500 tracking-wider uppercase font-display border-b border-gray-100 pb-2">
-                        LISTADO DE PRODUCTOS ACTIVO
-                      </h4>
-                      
-                      <div className="overflow-x-auto text-xs">
-                        <table className="w-full text-left border border-gray-200">
-                          <thead>
-                            <tr className="bg-gray-50 border-b border-gray-200 text-gray-500 uppercase tracking-widest font-display text-[9px]">
-                              <th className="p-3">Producto / Marca</th>
-                              <th className="p-3">Categoría</th>
-                              <th className="p-3">Precio</th>
-                              <th className="p-3">Stock</th>
-                              <th className="p-3 text-right">Acciones</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-gray-200 text-gray-700">
-                            {adminProductsList.map(prod => (
-                              <tr key={prod.id} className="hover:bg-gray-50/50">
-                                <td className="p-3">
-                                  <span className="font-bold text-gray-800">{prod.name}</span>
-                                  <div className="text-[10px] text-gray-400">{prod.brand}</div>
-                                </td>
-                                <td className="p-3">{prod.categories?.name || 'Unknown'}</td>
-                                <td className="p-3 font-mono-custom font-bold">ARS {prod.price.toLocaleString()}</td>
-                                <td className="p-3 font-mono-custom">{prod.stock} uds.</td>
-                                <td className="p-3 text-right space-x-2">
-                                  <button
-                                    onClick={() => {
-                                      setEditingProduct(prod);
-                                      setProdName(prod.name);
-                                      setProdBrand(prod.brand);
-                                      setProdCategoryId(prod.category_id);
-                                      setProdPrice(prod.price);
-                                      setProdInstallments(prod.installments);
-                                      setProdIcon(prod.icon);
-                                      setProdStock(prod.stock);
-                                    }}
-                                    className="p-1 text-gray-500 hover:text-black hover:bg-gray-50 rounded transition-colors cursor-pointer inline-block"
-                                  >
-                                    <Edit2 className="w-3.5 h-3.5" />
-                                  </button>
-                                  <button
-                                    onClick={() => handleDeleteProduct(prod.id)}
-                                    className="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors cursor-pointer inline-block"
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                  </button>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* 4. ADMIN CATEGORIES CRUD */}
-                {adminTab === 'categories' && (
-                  <div className="space-y-6">
-                    {/* Add Category Form */}
-                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-5">
-                      <h4 className="text-xs font-bold tracking-wider text-gray-700 uppercase font-display mb-4">
-                        {editingCategory ? 'EDITAR CATEGORÍA' : 'CREAR NUEVA CATEGORÍA'}
-                      </h4>
-
-                      <form onSubmit={handleSaveCategory} className="space-y-4 text-xs">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <div className="space-y-1">
-                            <label className="text-[9px] font-bold text-gray-500 tracking-wider">NOMBRE CATEGORÍA</label>
-                            <input
-                              type="text"
-                              required
-                              value={catName}
-                              onChange={(e) => setCatName(e.target.value)}
-                              placeholder="Ej: Camping"
-                              className="w-full px-2.5 py-1.5 border border-gray-300 rounded focus:border-[#3C6E71] outline-none"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <label className="text-[9px] font-bold text-gray-500 tracking-wider">SLUG (URL)</label>
-                            <input
-                              type="text"
-                              required
-                              value={catSlug}
-                              onChange={(e) => setCatSlug(e.target.value)}
-                              placeholder="Ej: camping"
-                              className="w-full px-2.5 py-1.5 border border-gray-300 rounded focus:border-[#3C6E71] outline-none"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="flex gap-2">
-                          {editingCategory && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setEditingCategory(null);
-                                setCatName('');
-                                setCatSlug('');
-                              }}
-                              className="flex-1 py-2 border border-gray-300 text-gray-600 rounded text-xs font-display font-medium hover:bg-gray-50 transition-colors"
-                            >
-                              CANCELAR
-                            </button>
-                          )}
-                          <button
-                            type="submit"
-                            className="flex-1 py-2 bg-[#3C6E71] text-white rounded text-xs font-display font-bold tracking-wider hover:bg-[#3C6E71]/95 transition-all shadow-md shadow-[#3C6E71]/10 cursor-pointer"
-                          >
-                            {editingCategory ? 'EDITAR CATEGORÍA' : 'CREAR CATEGORÍA'}
-                          </button>
-                        </div>
-                      </form>
-                    </div>
-
-                    {/* Categories Table */}
-                    <div className="space-y-2">
-                      <h4 className="text-[10px] font-bold text-gray-500 tracking-wider uppercase font-display border-b border-gray-100 pb-2">
-                        LISTADO DE CATEGORÍAS
-                      </h4>
-
-                      <div className="overflow-x-auto text-xs border border-gray-200">
-                        <table className="w-full text-left">
-                          <thead>
-                            <tr className="bg-gray-50 border-b border-gray-200 text-gray-500 uppercase tracking-widest font-display text-[9px]">
-                              <th className="p-3">Nombre</th>
-                              <th className="p-3">Slug / URL</th>
-                              <th className="p-3 text-right">Acciones</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-gray-200 text-gray-700">
-                            {adminCategoriesList.map(cat => (
-                              <tr key={cat.id} className="hover:bg-gray-50/50">
-                                <td className="p-3 font-bold text-gray-800">{cat.name}</td>
-                                <td className="p-3 font-mono-custom">{cat.slug}</td>
-                                <td className="p-3 text-right space-x-2">
-                                  <button
-                                    onClick={() => {
-                                      setEditingCategory(cat);
-                                      setCatName(cat.name);
-                                      setCatSlug(cat.slug);
-                                    }}
-                                    className="p-1 text-gray-500 hover:text-black hover:bg-gray-50 rounded transition-colors cursor-pointer inline-block"
-                                  >
-                                    <Edit2 className="w-3.5 h-3.5" />
-                                  </button>
-                                  <button
-                                    onClick={() => handleDeleteCategory(cat.id)}
-                                    className="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors cursor-pointer inline-block"
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                  </button>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* 5. ADMIN CUSTOMERS MANAGEMENT */}
-                {adminTab === 'customers' && (
-                  <div className="space-y-6">
-                    {/* Promote Admin Form */}
-                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-5">
-                      <h4 className="text-xs font-bold tracking-wider text-gray-700 uppercase font-display mb-3">
-                        PROMOVER NUEVO ADMINISTRADOR
-                      </h4>
-
-                      <form onSubmit={handlePromoteAdmin} className="flex gap-3 text-xs items-end">
-                        <div className="space-y-1 flex-grow">
-                          <label className="text-[9px] font-bold text-gray-500 tracking-wider">UUID DE USUARIO DE SUPABASE</label>
-                          <input
-                            type="text"
-                            required
-                            value={promoteUserId}
-                            onChange={(e) => setPromoteUserId(e.target.value)}
-                            placeholder="Ej: f4d156e7-1234-5678-..."
-                            className="w-full px-2.5 py-1.5 border border-gray-300 rounded focus:border-[#3C6E71] outline-none"
-                          />
-                        </div>
-                        <button
-                          type="submit"
-                          className="px-4 py-2 bg-[#B85C38] text-white rounded font-display font-bold tracking-wider hover:bg-[#B85C38]/95 transition-all shadow-md shadow-[#B85C38]/10 cursor-pointer"
-                        >
-                          PROMOVER
-                        </button>
-                      </form>
-                    </div>
-
-                    {/* Customers Table */}
-                    <div className="space-y-2 text-xs">
-                      <h4 className="text-[10px] font-bold text-gray-500 tracking-wider uppercase font-display border-b border-gray-100 pb-2">
-                        LISTADO DE CLIENTES REGISTRADOS
-                      </h4>
-
-                      <div className="overflow-x-auto border border-gray-200">
-                        <table className="w-full text-left">
-                          <thead>
-                            <tr className="bg-gray-50 border-b border-gray-200 text-gray-500 uppercase tracking-widest font-display text-[9px]">
-                              <th className="p-3">Cliente / ID</th>
-                              <th className="p-3">Contacto</th>
-                              <th className="p-3">Rol</th>
-                              <th className="p-3">Estado Cuenta</th>
-                              <th className="p-3 text-right">Acción</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-gray-200 text-gray-700">
-                            {adminCustomersList.map(cust => (
-                              <tr key={cust.id} className="hover:bg-gray-50/50">
-                                <td className="p-3">
-                                  <div className="font-bold text-gray-800">{cust.full_name}</div>
-                                  <div className="text-[9px] text-gray-400 font-mono-custom select-all">{cust.id}</div>
-                                </td>
-                                <td className="p-3">
-                                  <div className="font-mono-custom">{cust.phone || 'Sin teléfono'}</div>
-                                </td>
-                                <td className="p-3 font-display font-bold tracking-wider text-[10px] text-gray-600">
-                                  {cust.role.toUpperCase()}
-                                </td>
-                                <td className="p-3">
-                                  <span className={`px-2 py-0.5 rounded font-display font-bold text-[9px] ${cust.active ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-red-50 text-red-600 border border-red-100'}`}>
-                                    {cust.active ? 'ACTIVO' : 'BLOQUEADO'}
-                                  </span>
-                                </td>
-                                <td className="p-3 text-right">
-                                  <button
-                                    onClick={() => handleToggleCustomerActive(cust.id, cust.active)}
-                                    className={`px-3 py-1 border rounded text-[9px] font-display font-bold tracking-wider transition-all cursor-pointer ${
-                                      cust.active
-                                        ? 'border-red-200 text-red-600 hover:bg-red-50'
-                                        : 'border-emerald-200 text-emerald-600 hover:bg-emerald-50'
-                                    }`}
-                                  >
-                                    {cust.active ? 'BLOQUEAR' : 'ACTIVAR'}
-                                  </button>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* 6. ADMIN REVIEWS MODERATION */}
-                {adminTab === 'reviews' && (
-                  <div className="space-y-4">
-                    <h3 className="font-display text-sm font-bold text-gray-800 tracking-wider uppercase border-b border-gray-100 pb-2">
-                      MODERACIÓN DE COMENTARIOS Y RESEÑAS
-                    </h3>
-
-                    <div className="overflow-x-auto text-xs border border-gray-200">
-                      <table className="w-full text-left">
-                        <thead>
-                          <tr className="bg-gray-50 border-b border-gray-200 text-gray-500 uppercase tracking-widest font-display text-[9px]">
-                            <th className="p-3">Producto</th>
-                            <th className="p-3">Cliente</th>
-                            <th className="p-3">Rating / Comentario</th>
-                            <th className="p-3">Moderado</th>
-                            <th className="p-3 text-right">Acciones</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-200 text-gray-700">
-                          {adminReviewsList.map(rev => (
-                            <tr key={rev.id} className="hover:bg-gray-50/50">
-                              <td className="p-3 font-bold text-gray-800">{rev.products?.name}</td>
-                              <td className="p-3">{rev.profiles?.full_name}</td>
-                              <td className="p-3 space-y-1">
-                                <div className="flex items-center text-yellow-400">
-                                  {Array.from({ length: rev.rating }).map((_, i) => (
-                                    <Star key={i} className="w-3.5 h-3.5 fill-current" />
-                                  ))}
-                                </div>
-                                <p className="italic text-gray-600 font-serif">"{rev.comment}"</p>
-                              </td>
-                              <td className="p-3">
-                                <span className={`px-2 py-0.5 rounded font-display font-bold text-[9px] ${rev.approved ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-amber-50 text-amber-600 border border-amber-100'}`}>
-                                  {rev.approved ? 'APROBADO' : 'PENDIENTE'}
-                                </span>
-                              </td>
-                              <td className="p-3 text-right space-x-2">
-                                {!rev.approved ? (
-                                  <button
-                                    onClick={() => handleModerateReview(rev.id, true)}
-                                    className="p-1.5 bg-emerald-50 text-emerald-600 border border-emerald-200 hover:bg-emerald-100 rounded text-[9px] font-display font-bold tracking-wider transition-all cursor-pointer inline-block"
-                                  >
-                                    APROBAR
-                                  </button>
-                                ) : (
-                                  <button
-                                    onClick={() => handleModerateReview(rev.id, false)}
-                                    className="p-1.5 bg-amber-50 text-amber-600 border border-amber-200 hover:bg-amber-100 rounded text-[9px] font-display font-bold tracking-wider transition-all cursor-pointer inline-block"
-                                  >
-                                    RECHAZAR
-                                  </button>
-                                )}
-                                <button
-                                  onClick={() => handleDeleteReview(rev.id)}
-                                  className="p-1.5 text-red-500 hover:bg-red-50 rounded transition-all cursor-pointer inline-block"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
-              </main>
-            </div>
-          </div>
-        </div>
-      )}
 
 
 
@@ -7080,121 +8753,7 @@ export default function App() {
           )}
         </button>
 
-      {/* --- 1. MODAL: AGREGAR TARJETA DE PAGO --- */}
-      {isAddCardModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setIsAddCardModalOpen(false)} />
-          <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl p-6 border border-gray-100 space-y-5 text-gray-900 z-10">
-            <div className="flex items-center justify-between border-b border-gray-200 pb-3">
-              <div className="flex items-center gap-2">
-                <Shield className="w-5 h-5 text-[#3C6E71]" />
-                <h3 className="font-display text-base font-bold text-gray-900 uppercase tracking-wider">NUEVA TARJETA DE PAGO</h3>
-              </div>
-              <button onClick={() => setIsAddCardModalOpen(false)} className="text-gray-400 hover:text-gray-600 cursor-pointer">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
 
-            <form onSubmit={handleAddCardSubmit} className="space-y-4 text-xs">
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">MARCA / FRANQUICIA</label>
-                <select
-                  value={cardBrandInput}
-                  onChange={(e) => setCardBrandInput(e.target.value)}
-                  className="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-xl text-xs text-gray-900 outline-none focus:border-[#3C6E71]"
-                >
-                  <option value="VISA">Visa Crédito / Débito</option>
-                  <option value="Mastercard">Mastercard</option>
-                  <option value="American Express">American Express</option>
-                  <option value="Naranja X">Tarjeta Naranja X</option>
-                  <option value="Cabal">Cabal</option>
-                </select>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">NOMBRE Y APELLIDO (COMO FIGURA EN TARJETA)</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Ej: LUCÍA FERNÁNDEZ"
-                  value={cardHolderInput}
-                  onChange={(e) => setCardHolderInput(e.target.value.toUpperCase())}
-                  className="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-xl text-xs text-gray-900 outline-none focus:border-[#3C6E71]"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">NÚMERO DE TARJETA (16 DÍGITOS)</label>
-                <input
-                  type="text"
-                  required
-                  maxLength={19}
-                  placeholder="4509 8812 3456 4921"
-                  value={cardNumberInput}
-                  onChange={(e) => setCardNumberInput(e.target.value.replace(/\D/g, '').replace(/(.{4})/g, '$1 ').trim())}
-                  className="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-xl text-xs font-mono-custom text-gray-900 outline-none focus:border-[#3C6E71]"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">VENCIMIENTO (MM/AA)</label>
-                  <input
-                    type="text"
-                    required
-                    maxLength={5}
-                    placeholder="11/28"
-                    value={cardExpiryInput}
-                    onChange={(e) => setCardExpiryInput(e.target.value)}
-                    className="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-xl text-xs font-mono-custom text-gray-900 outline-none focus:border-[#3C6E71]"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">CÓDIGO DE SEGURIDAD (CVC)</label>
-                  <input
-                    type="password"
-                    required
-                    maxLength={4}
-                    placeholder="***"
-                    value={cardCvcInput}
-                    onChange={(e) => setCardCvcInput(e.target.value)}
-                    className="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-xl text-xs font-mono-custom text-gray-900 outline-none focus:border-[#3C6E71]"
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 pt-1">
-                <input
-                  type="checkbox"
-                  id="cardDefaultCheck"
-                  checked={cardIsDefaultInput}
-                  onChange={(e) => setCardIsDefaultInput(e.target.checked)}
-                  className="w-4 h-4 accent-[#3C6E71] cursor-pointer"
-                />
-                <label htmlFor="cardDefaultCheck" className="text-xs text-gray-700 font-medium cursor-pointer">
-                  Establecer como tarjeta predeterminada
-                </label>
-              </div>
-
-              <div className="flex items-center gap-2 pt-3">
-                <button
-                  type="button"
-                  onClick={() => setIsAddCardModalOpen(false)}
-                  className="w-1/2 py-2.5 border border-gray-300 text-gray-700 font-display text-xs font-bold uppercase rounded-xl hover:bg-gray-50 cursor-pointer"
-                >
-                  CANCELAR
-                </button>
-                <button
-                  type="submit"
-                  className="w-1/2 py-2.5 bg-[#3C6E71] hover:bg-[#3C6E71]/90 text-white font-display text-xs font-bold uppercase rounded-xl shadow cursor-pointer"
-                >
-                  GUARDAR TARJETA
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* --- 2. MODAL: DIRECCIÓN DE ENVÍO --- */}
       {isAddressModalOpen && (
@@ -7332,20 +8891,30 @@ export default function App() {
 
             <form onSubmit={handleSubmitRefundModal} className="space-y-4 text-xs">
               <div className="space-y-1">
-                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">SELECCIONAR PEDIDO COMPRADO</label>
-                <select
-                  value={refundOrderSelect}
-                  onChange={(e) => setRefundOrderSelect(e.target.value)}
-                  className="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-xl text-xs text-gray-900 outline-none focus:border-[#3C6E71]"
-                >
-                  {orders && orders.length > 0 ? (
-                    orders.map(o => (
-                      <option key={o.id} value={o.id}>Pedido N° {o.id} - ${o.total ? o.total.toLocaleString('es-AR') : '89.000'}</option>
-                    ))
-                  ) : (
-                    <option value="HLX-849201">Pedido N° HLX-849201 - $184.000</option>
-                  )}
-                </select>
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">SELECCIONÁ TU PEDIDO (LEY 24.240 - 10 DÍAS)</label>
+                {orders && orders.length > 0 ? (
+                  <select
+                    value={typeof refundOrderSelect === 'object' ? refundOrderSelect?.id : refundOrderSelect}
+                    onChange={(e) => {
+                      const found = orders.find(o => String(o.id) === String(e.target.value));
+                      setRefundOrderSelect(found || e.target.value);
+                    }}
+                    className="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-xl text-xs text-gray-900 outline-none focus:border-[#3C6E71]"
+                  >
+                    {orders.map(ord => (
+                      <option key={ord.id} value={ord.id}>
+                        Pedido #{String(ord.id).length > 15 ? String(ord.id).slice(-6).toUpperCase() : ord.id} - Total: ${Math.round(ord.total || 0).toLocaleString('es-AR')}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <div className="p-3 bg-gray-50 rounded-xl border border-gray-200 font-mono-custom text-xs">
+                    <strong>N° #{refundOrderSelect?.id ? (String(refundOrderSelect.id).length > 15 ? String(refundOrderSelect.id).slice(-6).toUpperCase() : refundOrderSelect.id) : 'ULTIMO PEDIDO'}</strong>
+                    <span className="block text-gray-500 text-[11px] mt-0.5">
+                      Monto total: ${refundOrderSelect?.total ? Math.round(refundOrderSelect.total).toLocaleString('es-AR') : '78.000'}
+                    </span>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-1">
@@ -7481,8 +9050,8 @@ export default function App() {
 
       {/* --- ADMIN MODAL: LIGHTBOX PARA COMPROBANTES DE TRANSFERENCIA --- */}
       {adminReceiptLightboxUrl && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={() => setAdminReceiptLightboxUrl(null)} />
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/90 backdrop-blur-md" onClick={() => setAdminReceiptLightboxUrl(null)} />
           <div className="relative w-full max-w-3xl bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-200 z-10 space-y-4 p-5 text-gray-900">
             <div className="flex items-center justify-between border-b border-gray-200 pb-3">
               <h3 className="font-display text-sm font-bold uppercase tracking-wider text-gray-900 flex items-center gap-2">
@@ -7596,6 +9165,56 @@ export default function App() {
 
         {selectedPrintOrder && (
           <InvoicePrinter order={selectedPrintOrder} onClose={() => setSelectedPrintOrder(null)} />
+        )}
+
+        {/* --- CUSTOMER MODAL: REENVIAR COMPROBANTE --- */}
+        {customerResendReceiptModalOrder && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setCustomerResendReceiptModalOrder(null)} />
+            <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl p-6 border border-gray-100 space-y-5 text-gray-900 z-10">
+              <div className="flex items-center justify-between border-b border-gray-200 pb-3">
+                <h3 className="font-display text-base font-bold uppercase tracking-wider text-gray-900">SUBIR COMPROBANTE DE PAGO</h3>
+                <button onClick={() => setCustomerResendReceiptModalOrder(null)} className="text-gray-400 hover:text-gray-600 cursor-pointer">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleCustomerResendReceiptSubmit} className="space-y-4 text-xs">
+                <p className="text-gray-600 leading-relaxed">
+                  Pedido <strong>#{customerResendReceiptModalOrder.id && customerResendReceiptModalOrder.id.length > 15 ? customerResendReceiptModalOrder.id.slice(-6).toUpperCase() : customerResendReceiptModalOrder.id}</strong>.
+                  Por favor adjuntá una foto o PDF claro de tu transferencia bancaria (máximo 5MB).
+                </p>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">COMPROBANTE (JPG, PNG, PDF)</label>
+                  <input
+                    type="file"
+                    accept="image/png, image/jpeg, image/jpg, application/pdf"
+                    required
+                    onChange={(e) => setCustomerResendFile(e.target.files[0])}
+                    className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-xs"
+                  />
+                </div>
+
+                <div className="flex justify-end gap-2 pt-3 border-t border-gray-100">
+                  <button
+                    type="button"
+                    onClick={() => setCustomerResendReceiptModalOrder(null)}
+                    className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-xl text-xs font-bold uppercase"
+                  >
+                    CANCELAR
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isUploadingCustomerReceipt || !customerResendFile}
+                    className="px-4 py-2 bg-[#3C6E71] hover:bg-[#3C6E71]/90 text-white rounded-xl text-xs font-bold uppercase"
+                  >
+                    {isUploadingCustomerReceipt ? 'ENVIANDO...' : 'ENVIAR COMPROBANTE'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
         )}
       </div>
 

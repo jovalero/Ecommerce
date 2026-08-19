@@ -44,6 +44,7 @@ Route::middleware('throttle:api')->group(function () {
     Route::post('/orders', [OrderController::class, 'store']);
     Route::post('/process_order', [OrderController::class, 'processOrder']);
     Route::post('/orders/process-payment', [OrderController::class, 'processOrder']);
+    Route::post('/webhooks/mercadopago', [OrderController::class, 'handleMercadoPagoWebhook']);
 });
 
 // ==========================================
@@ -66,6 +67,7 @@ Route::middleware(['throttle:api', 'auth.supabase'])->group(function () {
     // Client Orders
     Route::get('/me/orders', [ProfileController::class, 'myOrders']);
     Route::get('/me/orders/{id}', [ProfileController::class, 'myOrderDetail']);
+    Route::post('/me/orders/{id}/receipt', [ProfileController::class, 'uploadReceipt']);
     Route::post('/me/orders/{id}/cancel', [ProfileController::class, 'cancelOrder']);
     Route::get('/me/orders/{id}/ticket', [TicketController::class, 'show']); // Generate customer PDF ticket
 
@@ -73,6 +75,11 @@ Route::middleware(['throttle:api', 'auth.supabase'])->group(function () {
     Route::post('/products/{id}/reviews', [ReviewController::class, 'store']);
     Route::patch('/reviews/{id}', [ReviewController::class, 'update']);
     Route::delete('/reviews/{id}', [ReviewController::class, 'destroy']);
+
+    // Coupons & Benefits
+    Route::get('/me/coupons', [App\Http\Controllers\CouponController::class, 'index']);
+    Route::post('/me/coupons/redeem', [App\Http\Controllers\CouponController::class, 'redeem']);
+    Route::post('/me/coupons/apply', [App\Http\Controllers\CouponController::class, 'apply']);
 });
 
 // ==========================================
@@ -85,7 +92,9 @@ Route::prefix('admin')->middleware(['throttle:api', 'auth.supabase', 'auth.admin
     // Order Management
     Route::get('/orders', [AdminOrderController::class, 'index']);
     Route::get('/orders/{id}', [AdminOrderController::class, 'show']);
-    Route::patch('/orders/{id}', [AdminOrderController::class, 'update']); // update status
+    Route::patch('/orders/{id}', [AdminOrderController::class, 'update']); // update status & notes
+    Route::get('/orders/{id}/logs', [AdminOrderController::class, 'getLogs']); // fetch status history
+    Route::post('/orders/{id}/notify', [AdminOrderController::class, 'resendNotification']); // resend notification email
     Route::get('/orders/{id}/ticket', [TicketController::class, 'show']); // Generate admin PDF ticket
 
     // Catalog Products CRUD
@@ -96,6 +105,15 @@ Route::prefix('admin')->middleware(['throttle:api', 'auth.supabase', 'auth.admin
         'update' => 'admin.products.update',
         'destroy' => 'admin.products.destroy',
     ]);
+
+    // Advanced Catalog & Stock Module (Server-side search, filters, sorting, bulk actions, CSV import/export)
+    Route::get('/productos', [\App\Http\Controllers\Admin\ProductCatalogController::class, 'index']);
+    Route::get('/categorias', [\App\Http\Controllers\Admin\ProductCatalogController::class, 'categories']);
+    Route::post('/productos/bulk-price', [\App\Http\Controllers\Admin\ProductCatalogController::class, 'bulkPrice']);
+    Route::post('/productos/bulk-categoria', [\App\Http\Controllers\Admin\ProductCatalogController::class, 'bulkCategory']);
+    Route::delete('/productos/bulk-delete', [\App\Http\Controllers\Admin\ProductCatalogController::class, 'bulkDelete']);
+    Route::get('/productos/export', [\App\Http\Controllers\Admin\ProductCatalogController::class, 'export']);
+    Route::post('/productos/import', [\App\Http\Controllers\Admin\ProductCatalogController::class, 'import']);
 
     // Catalog Categories CRUD
     Route::apiResource('/categories', AdminCategoryController::class)->names([

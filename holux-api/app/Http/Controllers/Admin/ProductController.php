@@ -21,9 +21,10 @@ class ProductController extends Controller
         $products = $supabase->get('products', [
             'select' => '*,categories(name,slug)',
             'order' => 'created_at.desc',
-        ], true);
+        ], true) ?: [];
 
-        return response()->json($products);
+        $enriched = \App\Services\ProductMetadataService::attachMany($products);
+        return response()->json($enriched);
     }
 
     /**
@@ -41,7 +42,7 @@ class ProductController extends Controller
             'category_id' => ['required', 'uuid'],
             'price' => ['required', 'numeric', 'min:0'],
             'installments' => ['required', 'integer', 'min:1'],
-            'icon' => ['required', 'string', 'max:50'],
+            'icon' => ['nullable', 'string', 'max:50'],
             'stock' => ['required', 'integer', 'min:0'],
         ]);
 
@@ -51,13 +52,26 @@ class ProductController extends Controller
             'category_id' => $request->category_id,
             'price' => $request->price,
             'installments' => $request->installments,
-            'icon' => $request->icon,
+            'icon' => $request->icon ?: 'Shield',
             'stock' => $request->stock,
         ];
 
         try {
             $inserted = $supabase->insert('products', $data, true);
-            return response()->json($inserted[0], 201);
+            $newProduct = $inserted[0];
+
+            // Persist extended metadata (variants, images, description, etc.)
+            $metadata = $request->only([
+                'variants', 'images', 'image_url', 'description', 'tags',
+                'offer_price', 'cost_price', 'slug', 'meta_title', 'meta_description',
+                'is_featured', 'is_new', 'video_url'
+            ]);
+            if (!empty($metadata)) {
+                \App\Services\ProductMetadataService::set($newProduct['id'], $metadata);
+                $newProduct = \App\Services\ProductMetadataService::attach($newProduct);
+            }
+
+            return response()->json($newProduct, 201);
         } catch (\Exception $e) {
             Log::error('Admin Product store failed: ' . $e->getMessage());
             return response()->json([
@@ -90,7 +104,7 @@ class ProductController extends Controller
             'category_id' => ['required', 'uuid'],
             'price' => ['required', 'numeric', 'min:0'],
             'installments' => ['required', 'integer', 'min:1'],
-            'icon' => ['required', 'string', 'max:50'],
+            'icon' => ['nullable', 'string', 'max:50'],
             'stock' => ['required', 'integer', 'min:0'],
         ]);
 
@@ -100,13 +114,26 @@ class ProductController extends Controller
             'category_id' => $request->category_id,
             'price' => $request->price,
             'installments' => $request->installments,
-            'icon' => $request->icon,
+            'icon' => $request->icon ?: ($product['icon'] ?? 'Shield'),
             'stock' => $request->stock,
         ];
 
         try {
             $updated = $supabase->update('products', $id, $data, true);
-            return response()->json($updated[0]);
+            $updatedProduct = $updated[0];
+
+            // Persist extended metadata (variants, images, description, etc.)
+            $metadata = $request->only([
+                'variants', 'images', 'image_url', 'description', 'tags',
+                'offer_price', 'cost_price', 'slug', 'meta_title', 'meta_description',
+                'is_featured', 'is_new', 'video_url'
+            ]);
+            if (!empty($metadata)) {
+                \App\Services\ProductMetadataService::set($id, $metadata);
+                $updatedProduct = \App\Services\ProductMetadataService::attach($updatedProduct);
+            }
+
+            return response()->json($updatedProduct);
         } catch (\Exception $e) {
             Log::error("Admin Product update failed for {$id}: " . $e->getMessage());
             return response()->json([

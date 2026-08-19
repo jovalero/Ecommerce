@@ -14,6 +14,29 @@ use Illuminate\Support\Facades\Log;
 class OrderController extends Controller
 {
     /**
+     * Convert DB status to human-readable app status.
+     */
+    private function formatOrder(array $order): array
+    {
+        $order = \App\Services\OrderMetadataService::attach($order);
+        $dbSt = $order['status'] ?? 'pending';
+        if ($dbSt === 'processing') {
+            $order['status'] = 'pending_review';
+        } elseif ($dbSt === 'pending') {
+            $order['status'] = 'pending_payment';
+        } elseif ($dbSt === 'completed') {
+            $order['status'] = 'paid';
+        } elseif ($dbSt === 'cancelled') {
+            if (!empty($order['rejection_reason'])) {
+                $order['status'] = 'rejected';
+            } else {
+                $order['status'] = 'cancelled';
+            }
+        }
+        return $order;
+    }
+
+    /**
      * Store a newly created order.
      *
      * @param StoreOrderRequest $request
@@ -72,16 +95,22 @@ class OrderController extends Controller
             }
 
             // 5. Check if user is logged in (optional check for guest checkout)
-            $customerId = null;
+            $customerId = $request->attributes->get('user_id');
             $token = $request->bearerToken();
             if (!empty($token)) {
                 try {
-                    $jwtSecret = config('services.supabase.jwt_secret');
-                    if ($jwtSecret) {
-                        $decoded = JWT::decode($token, new Key($jwtSecret, 'HS256'));
-                        $customerId = $decoded->sub;
+                    $parts = explode('.', $token);
+                    if (count($parts) >= 2) {
+                        $b64 = strtr($parts[1], '-_', '+/');
+                        $padded = str_pad($b64, strlen($b64) + (4 - strlen($b64) % 4) % 4, '=', STR_PAD_RIGHT);
+                        $payload = json_decode(base64_decode($padded), true);
+                        if (is_array($payload)) {
+                            if (!empty($payload['sub'])) {
+                                $customerId = $payload['sub'];
+                            }
+                        }
                     }
-                } catch (\Exception $e) {
+                } catch (\Throwable $e) {
                     Log::warning('Guest order token decode failed: ' . $e->getMessage());
                 }
             }
@@ -98,10 +127,14 @@ class OrderController extends Controller
 
             // Map custom application status to valid Supabase check constraint value ('pending', 'processing', 'completed', 'cancelled')
             $dbStatus = 'pending';
+            if ($initialStatus === 'pending_review') $dbStatus = 'processing';
             if ($initialStatus === 'paid') $dbStatus = 'completed';
             if ($initialStatus === 'cancelled' || $initialStatus === 'rejected') $dbStatus = 'cancelled';
 
-            $orderData = [
+            $shippingAddress = $request->input('shipping_address') ?: 'Retiro en Sucursal Bariloche (Av. Bustillo Km 4.5)';
+            $shippingMethod = $request->input('shipping_method') ?: ($request->input('shipping_address') ? 'Entrega a Domicilio' : 'Retiro en Sucursal');
+
+            $coreData = [
                 'customer_id' => $customerId,
                 'customer_name' => $request->customer_name,
                 'customer_email' => $request->customer_email,
@@ -109,19 +142,42 @@ class OrderController extends Controller
                 'status' => $dbStatus,
             ];
 
-            $insertedOrders = $supabase->insert('orders', $orderData, true);
+            $insertedOrders = [];
+            try {
+                $insertedOrders = $supabase->insert('orders', $coreData, true);
+            } catch (\Throwable $e1) {
+                Log::warning("Order insert attempt 1 failed: " . $e1->getMessage());
+                $insertedOrders = $supabase->insert('orders', [
+                    'customer_name' => $request->customer_name,
+                    'customer_email' => $request->customer_email,
+                    'total' => $total,
+                    'status' => $dbStatus,
+                ], true);
+            }
 
             if (empty($insertedOrders)) {
                 throw new \Exception("No se recibió respuesta al insertar el pedido en Supabase.");
             }
 
             $order = $insertedOrders[0];
+            $order['total'] = (float) ($order['total'] ?? $total);
+            $order['total_amount'] = (float) ($order['total'] ?? $total);
             $order['status'] = $initialStatus;
             $order['payment_method'] = $paymentMethod;
-            $order['shipping_address'] = $request->input('shipping_address', 'Entrega a Domicilio');
+            $order['shipping_address'] = $shippingAddress;
+            $order['shipping_method'] = $shippingMethod;
             $order['receipt_url'] = $receiptUrl;
             $order['rejection_reason'] = $rejectionReason;
             $orderId = $order['id'];
+
+            // Persist extended metadata
+            \App\Services\OrderMetadataService::set($orderId, [
+                'payment_method' => $paymentMethod,
+                'shipping_address' => $shippingAddress,
+                'shipping_method' => $shippingMethod,
+                'receipt_url' => $receiptUrl,
+                'rejection_reason' => $rejectionReason,
+            ]);
 
             // 6. Map order_id and insert order items in bulk
             $itemsToInsert = array_map(function ($item) use ($orderId) {
@@ -180,7 +236,7 @@ class OrderController extends Controller
             ], 404);
         }
 
-        return response()->json($orders[0]);
+        return response()->json($this->formatOrder($orders[0]));
     }
 
     /**
@@ -200,7 +256,7 @@ class OrderController extends Controller
 
         $totalAmount = number_format((float) ($request->input('total_amount', 100)), 2, '.', '');
         $externalRef = $request->input('external_reference', 'HLX-REF-' . time());
-        $payerEmail = $request->input('payer.email', 'test@testuser.com');
+        $payerEmail = $request->input('payer.email') ?: ($request->attributes->get('user_email') ?: '');
 
         $transactions = $request->input('transactions', [
             'payments' => [
@@ -310,5 +366,108 @@ class OrderController extends Controller
             ],
             'message' => '¡Orden procesada con éxito vía Mercado Pago V1 Orders API!'
         ], 200);
+    }
+
+    /**
+     * Handle IPN / Webhook notifications from Mercado Pago.
+     * Endpoint: POST /api/webhooks/mercadopago
+     *
+     * @param Request $request
+     * @param SupabaseService $supabase
+     * @return JsonResponse
+     */
+    public function handleMercadoPagoWebhook(Request $request, SupabaseService $supabase): JsonResponse
+    {
+        Log::info('Mercado Pago Webhook Received:', $request->all());
+
+        $type = $request->input('type') ?: $request->input('topic');
+        $dataId = $request->input('data.id') ?: $request->input('id');
+
+        if (empty($dataId)) {
+            return response()->json(['message' => 'Ignored notification without ID.'], 200);
+        }
+
+        $accessToken = env('MERCADOPAGO_ACCESS_TOKEN', '');
+        if (empty($accessToken)) {
+            Log::warning('Mercado Pago Webhook: ACCESS_TOKEN not configured.');
+            return response()->json(['message' => 'Webhook received but MP ACCESS_TOKEN unconfigured.'], 200);
+        }
+
+        try {
+            // Query Mercado Pago API for payment details
+            $client = new \GuzzleHttp\Client();
+            $url = "https://api.mercadopago.com/v1/payments/{$dataId}";
+            
+            $mpRes = $client->get($url, [
+                'headers' => [
+                    'Authorization' => 'Bearer ' . $accessToken,
+                ]
+            ]);
+
+            $paymentData = json_decode($mpRes->getBody()->getContents(), true);
+            Log::info('Mercado Pago Webhook Payment Detail:', $paymentData);
+
+            $externalRef = $paymentData['external_reference'] ?? null;
+            $mpStatus = $paymentData['status'] ?? 'pending';
+            $paidAmount = (float) ($paymentData['transaction_amount'] ?? 0);
+
+            if (!$externalRef) {
+                return response()->json(['message' => 'Notification missing external_reference.'], 200);
+            }
+
+            // Find matching order in Supabase
+            $orders = $supabase->get('orders', [
+                'id' => 'eq.' . $externalRef,
+            ], true);
+
+            if (empty($orders)) {
+                return response()->json(['message' => 'Order not found for reference ' . $externalRef], 200);
+            }
+
+            $order = $orders[0];
+            $oldStatus = $order['status'] ?? 'pending_payment';
+            $newStatus = ($mpStatus === 'approved') ? 'paid' : (($mpStatus === 'rejected' || $mpStatus === 'cancelled') ? 'rejected' : 'pending_payment');
+
+            // Save transaction ID and status to order
+            $updateData = [
+                'status' => $newStatus,
+                'payment_id' => (string) $dataId,
+                'payment_status' => $mpStatus
+            ];
+
+            $updated = $supabase->update('orders', $order['id'], $updateData, true);
+            $resOrder = array_merge($order, $updated[0] ?? []);
+
+            // Log status change
+            if ($oldStatus !== $newStatus) {
+                try {
+                    $supabase->insert('order_status_logs', [
+                        'order_id' => $order['id'],
+                        'old_status' => $oldStatus,
+                        'new_status' => $newStatus,
+                        'changed_by' => 'mercadopago_webhook',
+                        'comment' => "Mercado Pago Webhook: status {$mpStatus}, amount ${paidAmount}"
+                    ], true);
+                } catch (\Throwable $e) {
+                    Log::warning("Order log error: " . $e->getMessage());
+                }
+
+                // Send email to customer
+                if (!empty($resOrder['customer_email'])) {
+                    try {
+                        \Illuminate\Support\Facades\Mail::to($resOrder['customer_email'])
+                            ->send(new \App\Mail\OrderStatusUpdatedMail($resOrder, $newStatus));
+                    } catch (\Throwable $mErr) {
+                        Log::warning("Webhook email send error: " . $mErr->getMessage());
+                    }
+                }
+            }
+
+            return response()->json(['message' => 'Webhook processed successfully.']);
+
+        } catch (\Throwable $e) {
+            Log::error("Mercado Pago Webhook Exception: " . $e->getMessage());
+            return response()->json(['message' => 'Webhook error processed.'], 200);
+        }
     }
 }

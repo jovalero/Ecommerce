@@ -9,6 +9,9 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class SupabaseService
 {
+    protected ?Client $clientAnon = null;
+    protected ?Client $clientService = null;
+
     /**
      * Get a configured Guzzle client instance.
      *
@@ -17,6 +20,13 @@ class SupabaseService
      */
     protected function getClient(bool $useServiceKey = false): Client
     {
+        if ($useServiceKey && $this->clientService) {
+            return $this->clientService;
+        }
+        if (!$useServiceKey && $this->clientAnon) {
+            return $this->clientAnon;
+        }
+
         $url = config('services.supabase.url');
         $key = $useServiceKey 
             ? config('services.supabase.service_key') 
@@ -30,7 +40,7 @@ class SupabaseService
             throw new HttpException(500, 'Supabase credentials are not configured.');
         }
 
-        return new Client([
+        $client = new Client([
             'base_uri' => rtrim($url, '/') . '/rest/v1/',
             'headers' => [
                 'apikey' => $key,
@@ -40,6 +50,14 @@ class SupabaseService
             ],
             'timeout' => 15.0,
         ]);
+
+        if ($useServiceKey) {
+            $this->clientService = $client;
+        } else {
+            $this->clientAnon = $client;
+        }
+
+        return $client;
     }
 
     /**

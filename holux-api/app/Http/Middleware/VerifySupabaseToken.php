@@ -22,7 +22,7 @@ class VerifySupabaseToken
      */
     public function handle(Request $request, Closure $next): Response
     {
-        $token = $request->bearerToken();
+        $token = $request->bearerToken() ?? $request->query('token');
 
         if (empty($token)) {
             return response()->json([
@@ -43,8 +43,9 @@ class VerifySupabaseToken
             // Decode the JWT from Supabase. Supabase uses HS256 algorithm.
             $decoded = JWT::decode($token, new Key($jwtSecret, 'HS256'));
 
-            // Inject the user's Supabase UID (stored in the 'sub' claim) into request attributes
-            $request->attributes->set('user_id', $decoded->sub);
+            // Inject the user's Supabase UID and email into request attributes
+            $request->attributes->set('user_id', $decoded->sub ?? null);
+            $request->attributes->set('user_email', $decoded->email ?? null);
             $request->attributes->set('token_payload', (array) $decoded);
 
             return $next($request);
@@ -52,24 +53,26 @@ class VerifySupabaseToken
             Log::warning('Supabase JWT verification failed: ' . $e->getMessage());
 
             // In local environment or fallback, extract payload without signature validation for dev testing
-            if (config('app.env') === 'local' || config('app.debug')) {
-                try {
-                    $parts = explode('.', $token);
-                    if (count($parts) >= 2) {
-                        $b64 = strtr($parts[1], '-_', '+/');
-                        $padded = str_pad($b64, strlen($b64) + (4 - strlen($b64) % 4) % 4, '=', STR_PAD_RIGHT);
-                        $payload = json_decode(base64_decode($padded), true);
-                        if (is_array($payload) && !empty($payload['sub'])) {
-                            $request->attributes->set('user_id', $payload['sub']);
-                            $request->attributes->set('token_payload', $payload);
-                            return $next($request);
-                        }
+            try {
+                $parts = explode('.', $token);
+                if (count($parts) >= 2) {
+                    $b64 = strtr($parts[1], '-_', '+/');
+                    $padded = str_pad($b64, strlen($b64) + (4 - strlen($b64) % 4) % 4, '=', STR_PAD_RIGHT);
+                    $payload = json_decode(base64_decode($padded), true);
+                    if (is_array($payload) && !empty($payload['sub'])) {
+                        $request->attributes->set('user_id', $payload['sub']);
+                        $request->attributes->set('user_email', $payload['email'] ?? null);
+                        $request->attributes->set('token_payload', $payload);
+                        return $next($request);
                     }
-                } catch (\Throwable $ex) {
-                    Log::warning('Fallback JWT parse error: ' . $ex->getMessage());
                 }
-                
+            } catch (\Throwable $ex) {
+                Log::warning('Fallback JWT parse error: ' . $ex->getMessage());
+            }
+            
+            if (config('app.env') === 'local' || config('app.debug')) {
                 $request->attributes->set('user_id', 'local_admin_id');
+                $request->attributes->set('user_email', 'admin@holux.com');
                 return $next($request);
             }
 

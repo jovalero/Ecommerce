@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Trash2, Image as ImageIcon, Video, Copy, Tag, DollarSign, Layers, Search, Sparkles } from 'lucide-react';
+import { X, Plus, Trash2, Image as ImageIcon, Video, Copy, Tag, DollarSign, Layers, Search, Sparkles, GripVertical, ArrowUp, ArrowDown } from 'lucide-react';
+import ConfirmationModal from './ConfirmationModal';
 
 export default function ProductEditModal({ product, categories = [], onClose, onSave, onDuplicate }) {
   // Basic info
@@ -16,38 +17,66 @@ export default function ProductEditModal({ product, categories = [], onClose, on
   const [stock, setStock] = useState(product?.stock ?? 10);
   const [installments, setInstallments] = useState(product?.installments || 6);
 
-  const getProductImageFallback = (productName) => {
-    if (!productName) return 'https://images.unsplash.com/photo-1551028719-00167b16eac5?w=600&auto=format&fit=crop&q=80';
-    const clean = productName.toLowerCase();
-    if (clean.includes('campera') || clean.includes('cortavientos')) return 'https://images.unsplash.com/photo-1551028719-00167b16eac5?w=600&auto=format&fit=crop&q=80';
-    if (clean.includes('pantalón') || clean.includes('pantalon')) return 'https://images.unsplash.com/photo-1608256246200-53e635b5b65f?w=600&auto=format&fit=crop&q=80';
-    if (clean.includes('carpa') || clean.includes('domo')) return 'https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?w=600&auto=format&fit=crop&q=80';
-    if (clean.includes('bolsa de dormir') || clean.includes('sleeping')) return 'https://images.unsplash.com/photo-1628155930542-3c7a64e2c833?w=600&auto=format&fit=crop&q=80';
-    if (clean.includes('bota') || clean.includes('calzado') || clean.includes('zapatilla')) return 'https://images.unsplash.com/photo-1520639888713-7851133b1ed0?w=600&auto=format&fit=crop&q=80';
-    if (clean.includes('mochila')) return 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=600&auto=format&fit=crop&q=80';
-    if (clean.includes('bastón') || clean.includes('bastones')) return 'https://images.unsplash.com/photo-1517646287270-a5a9ca602e5c?w=600&auto=format&fit=crop&q=80';
-    return 'https://images.unsplash.com/photo-1501555088652-021faa106b9b?w=600&auto=format&fit=crop&q=80';
-  };
-
   // Media (Images & Video)
   const [images, setImages] = useState(
-    product?.images && product.images.length > 0
+    Array.isArray(product?.images) && product.images.length > 0
       ? product.images
-      : [product?.image_url || getProductImageFallback(product?.name)]
+      : (product?.image_url ? [product.image_url] : ['https://images.unsplash.com/photo-1551028719-00167b16eac5?w=800&auto=format&fit=crop&q=80'])
   );
   const [newImageUrl, setNewImageUrl] = useState('');
   const [videoUrl, setVideoUrl] = useState(product?.video_url || '');
 
-  // Variants State
+  // Variants State & Drag & Drop Reordering
   const [variants, setVariants] = useState(
-    product?.variants || [
-      { id: 1, name: 'Talle M - Negro Mamba', stock: 12, price: product?.price || 100 },
-      { id: 2, name: 'Talle L - Rojo Volcán', stock: 8, price: product?.price || 100 }
-    ]
+    Array.isArray(product?.variants) ? product.variants : []
   );
+  const [draggedVarIndex, setDraggedVarIndex] = useState(null);
+  const [dragOverVarIndex, setDragOverVarIndex] = useState(null);
   const [newVarName, setNewVarName] = useState('');
   const [newVarStock, setNewVarStock] = useState(10);
   const [newVarPrice, setNewVarPrice] = useState(0);
+
+  const handleDragStartVar = (e, index) => {
+    setDraggedVarIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', index);
+  };
+
+  const handleDragOverVar = (e, index) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (dragOverVarIndex !== index) {
+      setDragOverVarIndex(index);
+    }
+  };
+
+  const handleDropVar = (e, targetIndex) => {
+    e.preventDefault();
+    if (draggedVarIndex === null || draggedVarIndex === targetIndex) {
+      setDraggedVarIndex(null);
+      setDragOverVarIndex(null);
+      return;
+    }
+    setVariants(prev => {
+      const updated = [...prev];
+      const [removed] = updated.splice(draggedVarIndex, 1);
+      updated.splice(targetIndex, 0, removed);
+      return updated;
+    });
+    setDraggedVarIndex(null);
+    setDragOverVarIndex(null);
+  };
+
+  const handleMoveVariant = (index, direction) => {
+    const targetIndex = index + direction;
+    if (targetIndex < 0 || targetIndex >= variants.length) return;
+    setVariants(prev => {
+      const updated = [...prev];
+      const [item] = updated.splice(index, 1);
+      updated.splice(targetIndex, 0, item);
+      return updated;
+    });
+  };
 
   const handleAddVariant = () => {
     if (!newVarName || !newVarName.trim()) return;
@@ -101,6 +130,7 @@ export default function ProductEditModal({ product, categories = [], onClose, on
   // Curation Flags
   const [isFeatured, setIsFeatured] = useState(product?.is_featured || false);
   const [isNew, setIsNew] = useState(product?.is_new || false);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
   // Submit Handler with Confirmation
   const handleSubmit = (e) => {
@@ -559,29 +589,85 @@ export default function ProductEditModal({ product, categories = [], onClose, on
 
           {/* 4. VARIANTES (TALLE, COLOR, MATERIAL, STOCK Y PRECIO PROPIO) */}
           <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-4">
-            <h4 className="font-display text-xs font-bold text-gray-800 uppercase tracking-wider flex items-center gap-2 border-b border-gray-100 pb-2">
-              <Layers className="w-4 h-4 text-purple-600" />
-              VARIANTES DE PRODUCTO (TALLES, COLORES & PRECIOS ESPECÍFICOS)
-            </h4>
+            <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+              <h4 className="font-display text-xs font-bold text-gray-800 uppercase tracking-wider flex items-center gap-2">
+                <Layers className="w-4 h-4 text-purple-600" />
+                VARIANTES DE PRODUCTO (TALLES, COLORES & PRECIOS ESPECÍFICOS)
+              </h4>
+              {variants.length > 1 && (
+                <span className="text-[10px] text-gray-400 font-medium">
+                  💡 Arrastrá con el mouse para reordenar
+                </span>
+              )}
+            </div>
 
             <div className="space-y-2">
-              {variants.map((v) => (
-                <div key={v.id} className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-lg px-4 py-2 text-xs">
+              {variants.map((v, idx) => (
+                <div
+                  key={v.id || idx}
+                  draggable
+                  onDragStart={(e) => handleDragStartVar(e, idx)}
+                  onDragOver={(e) => handleDragOverVar(e, idx)}
+                  onDrop={(e) => handleDropVar(e, idx)}
+                  onDragEnd={() => {
+                    setDraggedVarIndex(null);
+                    setDragOverVarIndex(null);
+                  }}
+                  className={`flex items-center justify-between bg-white border rounded-xl px-3.5 py-2.5 text-xs transition-all select-none ${
+                    draggedVarIndex === idx
+                      ? 'border-[#3C6E71] bg-[#3C6E71]/10 opacity-40 shadow-inner'
+                      : dragOverVarIndex === idx
+                        ? 'border-[#3C6E71] ring-2 ring-[#3C6E71]/30 bg-emerald-50/50 scale-[1.01]'
+                        : 'border-gray-200 hover:border-gray-400 bg-gray-50/50 hover:bg-white hover:shadow-sm'
+                  }`}
+                >
                   <div className="flex items-center gap-3">
-                    <span className="font-bold text-gray-800">{v.name}</span>
-                    <span className="bg-gray-200 text-gray-700 px-2 py-0.5 rounded font-mono-custom text-[10px]">
+                    {/* Tirador de agarre para mouse */}
+                    <div
+                      className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-800 p-1 -ml-1 rounded hover:bg-gray-200 flex items-center justify-center transition-colors"
+                      title="Hacé clic y arrastrá para cambiar de posición"
+                    >
+                      <GripVertical className="w-4 h-4" />
+                    </div>
+
+                    <span className="font-bold text-gray-900 text-xs">{v.name}</span>
+                    <span className="bg-gray-200/80 text-gray-700 px-2 py-0.5 rounded font-mono-custom text-[10px] font-semibold">
                       Stock: {v.stock} uds.
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-3">
                     <span className="font-mono-custom font-bold text-gray-800">
                       ARS ${Number(v.price).toLocaleString()}
                     </span>
+
+                    {/* Botones de movimiento rápido */}
+                    <div className="flex items-center gap-0.5 border-l border-gray-200 pl-2">
+                      <button
+                        type="button"
+                        disabled={idx === 0}
+                        onClick={() => handleMoveVariant(idx, -1)}
+                        className={`p-1 rounded text-gray-400 hover:text-gray-900 hover:bg-gray-100 transition-colors ${idx === 0 ? 'opacity-20 cursor-not-allowed' : 'cursor-pointer'}`}
+                        title="Subir un lugar"
+                      >
+                        <ArrowUp className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        disabled={idx === variants.length - 1}
+                        onClick={() => handleMoveVariant(idx, 1)}
+                        className={`p-1 rounded text-gray-400 hover:text-gray-900 hover:bg-gray-100 transition-colors ${idx === variants.length - 1 ? 'opacity-20 cursor-not-allowed' : 'cursor-pointer'}`}
+                        title="Bajar un lugar"
+                      >
+                        <ArrowDown className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+
                     <button
                       type="button"
                       onClick={() => handleRemoveVariant(v.id)}
-                      className="text-red-500 hover:text-red-700 p-1 cursor-pointer"
+                      className="text-red-500 hover:text-red-700 p-1.5 rounded hover:bg-red-50 cursor-pointer transition-colors"
+                      title="Eliminar variante"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>

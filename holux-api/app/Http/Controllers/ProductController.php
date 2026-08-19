@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\ProductMetadataService;
 use App\Services\SupabaseService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -32,8 +33,9 @@ class ProductController extends Controller
             ];
         }
 
-        $products = $supabase->get('products', $query);
-        return response()->json($products);
+        $products = $supabase->get('products', $query) ?: [];
+        $enriched = ProductMetadataService::attachMany($products);
+        return response()->json($enriched);
     }
 
     /**
@@ -56,6 +58,7 @@ class ProductController extends Controller
             ], 404);
         }
 
-        return response()->json($products[0]);
+        $enriched = ProductMetadataService::attach($products[0]);
+        return response()->json($enriched);
     }
 }

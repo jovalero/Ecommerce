@@ -23,7 +23,36 @@ class CustomerController extends Controller
             'order' => 'created_at.desc',
         ], true);
 
-        return response()->json($customers);
+        // Fetch all orders to compute total spent, orders count, and emails
+        $orders = $supabase->get('orders', [], true);
+        $ordersByCustomer = collect($orders)->groupBy('customer_id');
+
+        $enriched = array_map(function ($c) use ($ordersByCustomer) {
+            $cOrders = $ordersByCustomer->get($c['id'], collect([]));
+            $totalSpent = $cOrders->sum(function ($o) {
+                return (float) ($o['total'] ?? $o['total_amount'] ?? 0);
+            });
+            $lastOrder = $cOrders->first();
+            $email = $c['email'] ?? ($lastOrder['customer_email'] ?? 'usuario@tienda.com');
+            
+            return [
+                'id' => $c['id'],
+                'name' => $c['full_name'] ?? 'Cliente Holux',
+                'full_name' => $c['full_name'] ?? 'Cliente Holux',
+                'email' => $email,
+                'phone' => $c['phone'] ?? 'Sin teléfono',
+                'orders_count' => $cOrders->count(),
+                'orders' => $cOrders->count(),
+                'total_spent' => $totalSpent,
+                'spent' => $totalSpent,
+                'active' => $c['active'] !== false,
+                'status' => ($c['active'] !== false) ? 'active' : 'suspended',
+                'is_vip' => ($totalSpent > 100000 || $cOrders->count() >= 3),
+                'created_at' => $c['created_at'] ?? now()->toISOString(),
+            ];
+        }, $customers ?: []);
+
+        return response()->json($enriched);
     }
 
     /**

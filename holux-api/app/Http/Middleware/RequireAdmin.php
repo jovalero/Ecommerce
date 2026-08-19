@@ -34,9 +34,10 @@ class RequireAdmin
             }
         }
 
-        // Fetch the user's profile. We use the service key (true) here to read 
-        // administrative roles since profiles RLS restricts users to reading only their own rows.
-        $profile = $supabase->getOne('profiles', $userId, true);
+        // Fetch the user's profile with 5-minute caching to optimize performance
+        $profile = \Illuminate\Support\Facades\Cache::remember("user_profile_{$userId}", 300, function () use ($supabase, $userId) {
+            return $supabase->getOne('profiles', $userId, true);
+        });
 
         if (empty($profile)) {
             if (config('app.env') === 'local' || config('app.debug')) {

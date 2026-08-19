@@ -8,7 +8,9 @@ import {
   CreditCard,
   Shield,
   ShoppingBag,
-  Download
+  Download,
+  Tag,
+  X
 } from 'lucide-react';
 
 const getProductImage = (name) => {
@@ -216,7 +218,10 @@ const CheckoutView = memo(({
   createdOrderData,
   setCheckoutOrderStatus,
   addresses,
-  setAddresses
+  setAddresses,
+  appliedCoupon,
+  setAppliedCoupon,
+  customerCoupons
 }) => {
   const [isAddressModalOpen, setIsAddressModalOpen] = React.useState(false);
   const [newModalAddrLabel, setNewModalAddrLabel] = React.useState('');
@@ -224,9 +229,100 @@ const CheckoutView = memo(({
   const [newModalAddrCity, setNewModalAddrCity] = React.useState('');
   const [newModalAddrCp, setNewModalAddrCp] = React.useState('');
 
+  const [checkoutCouponInput, setCheckoutCouponInput] = React.useState('');
+  const [checkoutCouponError, setCheckoutCouponError] = React.useState('');
+
   const subtotal = getCartTotal();
   const transferDiscount = paymentMethod === 'transfer' ? Math.round(subtotal * 0.10) : 0;
-  const subtotalAfterDiscount = subtotal - transferDiscount;
+
+  let couponDiscount = 0;
+  if (appliedCoupon) {
+    couponDiscount = appliedCoupon.type === 'percentage'
+      ? Math.round((subtotal * appliedCoupon.value) / 100)
+      : Math.min(subtotal, appliedCoupon.value);
+  }
+
+  const subtotalAfterDiscount = Math.max(0, subtotal - transferDiscount - couponDiscount);
+
+  const handleApplyCouponInCheckout = (e) => {
+    if (e) e.preventDefault();
+    setCheckoutCouponError('');
+    const code = checkoutCouponInput.trim().toUpperCase();
+    if (!code) {
+      setCheckoutCouponError('Ingresá un código de cupón.');
+      return;
+    }
+
+    // 1. Check if already used by this customer
+    const isAlreadyUsed = (customerCoupons || []).some(c => c.code === code && c.status === 'usado');
+    if (isAlreadyUsed) {
+      setCheckoutCouponError('Este cupón ya fue utilizado en una compra anterior.');
+      return;
+    }
+
+    // 2. Check admin limits (maxUses and usedCount)
+    const adminSaved = localStorage.getItem('holux_coupons_database');
+    if (adminSaved) {
+      try {
+        const parsed = JSON.parse(adminSaved);
+        const adminCoupon = parsed.find(ac => ac.code === code);
+        if (adminCoupon) {
+          if (!adminCoupon.active) {
+            setCheckoutCouponError('El código de cupón ingresado se encuentra inactivo.');
+            return;
+          }
+          if (adminCoupon.maxUses && adminCoupon.usedCount >= adminCoupon.maxUses) {
+            setCheckoutCouponError('Este cupón alcanzó su límite máximo de usos promocionales.');
+            return;
+          }
+        }
+      } catch (err) { console.error(err); }
+    }
+
+    // 3. Lookup in customer available coupons
+    const found = (customerCoupons || []).find(c => c.code === code && c.status === 'disponible');
+    if (!found) {
+      let adminFound = null;
+      if (adminSaved) {
+        try {
+          const parsed = JSON.parse(adminSaved);
+          const raw = parsed.find(c => c.code === code && c.active);
+          if (raw && (!raw.maxUses || raw.usedCount < raw.maxUses)) {
+            adminFound = {
+              id: raw.id,
+              code: raw.code,
+              type: raw.type === 'percent' ? 'percentage' : 'fixed',
+              value: raw.value,
+              min_spend: raw.minPurchase || 0,
+              origin: raw.origin || 'Promo Admin',
+              description: raw.description || 'Descuento oficial'
+            };
+          }
+        } catch (err) { console.error(err); }
+      }
+
+      if (adminFound) {
+        if (subtotal < adminFound.min_spend) {
+          setCheckoutCouponError(`Requiere compra mínima de $${adminFound.min_spend.toLocaleString('es-AR')}.`);
+          return;
+        }
+        if (setAppliedCoupon) setAppliedCoupon(adminFound);
+        setCheckoutCouponInput('');
+        return;
+      }
+
+      setCheckoutCouponError('Código de cupón no existe, ha sido eliminado o ha expirado.');
+      return;
+    }
+
+    if (subtotal < found.min_spend) {
+      setCheckoutCouponError(`Este cupón requiere una compra mínima de $${found.min_spend.toLocaleString('es-AR')}.`);
+      return;
+    }
+
+    if (setAppliedCoupon) setAppliedCoupon(found);
+    setCheckoutCouponInput('');
+  };
 
   const handleAddAddressFromModal = () => {
     if (!newModalAddrStreet || !newModalAddrCity || !newModalAddrCp) return;
@@ -273,6 +369,39 @@ const CheckoutView = memo(({
   const netAmount = Math.round(finalTotal / 1.21);
   const vatAmount = finalTotal - netAmount;
 
+  // --- PROCESSING / CREATING ORDER IN-PLACE STATE ---
+  if (isProcessingPayment || checkoutOrderStatus === 'creating') {
+    return (
+      <main className="flex-grow bg-[#F5F5F5] min-h-screen py-16 font-sans text-gray-900 flex items-center justify-center px-4">
+        <div className="max-w-md w-full bg-white p-8 sm:p-10 rounded-3xl shadow-xl border border-gray-200 text-center space-y-6">
+          <div className="w-16 h-16 bg-[#3C6E71]/10 text-[#3C6E71] rounded-full flex items-center justify-center mx-auto relative">
+            <Shield className="w-8 h-8 animate-pulse" />
+            <div className="absolute inset-0 rounded-full border-2 border-[#3C6E71] border-t-transparent animate-spin"></div>
+          </div>
+
+          <div className="space-y-2">
+            <span className="px-3 py-1 bg-[#3C6E71]/10 text-[#3C6E71] rounded-full text-[10px] font-mono-custom font-bold uppercase tracking-widest">
+              PROCESANDO TU PEDIDO DE FORMA SEGURA
+            </span>
+            <h2 className="font-display text-xl sm:text-2xl font-black text-gray-900 uppercase tracking-wide">
+              REGISTRANDO COMPRA...
+            </h2>
+            <p className="text-xs text-gray-500 font-medium leading-relaxed">
+              Estamos validando tu pago y generando tu comprobante oficial en Holux. Por favor aguarda unos instantes.
+            </p>
+          </div>
+
+          <div className="pt-4 border-t border-gray-100 flex justify-center">
+            <div className="flex items-center gap-2 text-[11px] font-mono-custom text-gray-400">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+              <span>Conexión cifrada de 256 bits</span>
+            </div>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
   // --- SUCCESS / ORDER CONFIRMED VIEW ---
   if (checkoutOrderStatus === 'paid' || checkoutOrderStatus === 'pending_review') {
     return (
@@ -315,7 +444,9 @@ const CheckoutView = memo(({
             </div>
             <div className="flex justify-between border-t border-gray-200 pt-2 text-sm text-[#3C6E71]">
               <span className="font-bold uppercase">Monto Total Pagado:</span>
-              <strong className="font-mono-custom text-base">${(createdOrderData?.total_amount || finalTotal).toLocaleString('es-AR')}</strong>
+              <strong className="font-mono-custom text-base">
+                ${Number(createdOrderData?.total_amount || createdOrderData?.total || finalTotal || 0).toLocaleString('es-AR')}
+              </strong>
             </div>
           </div>
 
@@ -324,6 +455,7 @@ const CheckoutView = memo(({
               type="button"
               onClick={() => {
                 if (setCheckoutOrderStatus) setCheckoutOrderStatus(null);
+                window.location.hash = '#/';
                 setCurrentView('home');
               }}
               className="flex-1 py-3.5 bg-[#3C6E71] hover:bg-[#3C6E71]/95 text-white font-display text-xs font-bold uppercase tracking-wider rounded-xl shadow-md transition-all cursor-pointer flex items-center justify-center gap-2"
@@ -716,6 +848,56 @@ const CheckoutView = memo(({
                   <span>Subtotal Productos:</span>
                   <span className="font-mono-custom font-bold text-gray-900">${subtotal.toLocaleString('es-AR')}</span>
                 </div>
+
+                {/* Coupon Promo Input Box & Active Card */}
+                {appliedCoupon ? (
+                  <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between text-xs text-emerald-900 font-mono-custom">
+                    <div className="flex items-center gap-2">
+                      <Tag className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <div>
+                        <span className="font-bold block">Cupón: {appliedCoupon.code}</span>
+                        <span className="text-[10px] text-emerald-700 font-sans">
+                          Descuento: {appliedCoupon.type === 'percentage' ? `${appliedCoupon.value}% OFF` : `$${appliedCoupon.value.toLocaleString('es-AR')} OFF`}
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setAppliedCoupon && setAppliedCoupon(null)}
+                      className="p-1 hover:bg-emerald-200/60 rounded text-emerald-800 transition-colors cursor-pointer"
+                      title="Quitar cupón"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="pt-2 border-t border-gray-100 space-y-1.5">
+                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">¿TENÉS UN CUPÓN DE DESCUENTO?</label>
+                    <form onSubmit={handleApplyCouponInCheckout} className="flex gap-2">
+                      <input
+                        type="text"
+                        value={checkoutCouponInput}
+                        onChange={(e) => setCheckoutCouponInput(e.target.value.toUpperCase())}
+                        placeholder="Ingresá tu código..."
+                        className="flex-1 px-3 py-2 bg-gray-50 border border-gray-300 rounded-xl text-xs font-mono-custom font-bold text-gray-900 uppercase outline-none focus:border-[#3C6E71] focus:bg-white"
+                      />
+                      <button
+                        type="submit"
+                        className="px-4 py-2 bg-[#3C6E71] hover:bg-[#3C6E71]/90 text-white font-display text-xs font-bold rounded-xl uppercase transition-all shadow-sm cursor-pointer shrink-0"
+                      >
+                        APLICAR
+                      </button>
+                    </form>
+                    {checkoutCouponError && <p className="text-[10px] text-red-600 font-bold">{checkoutCouponError}</p>}
+                  </div>
+                )}
+
+                {appliedCoupon && couponDiscount > 0 && (
+                  <div className="flex items-center justify-between text-emerald-600 font-bold font-mono-custom">
+                    <span>Descuento por Cupón ({appliedCoupon.code}):</span>
+                    <span className="font-bold">-${couponDiscount.toLocaleString('es-AR')}</span>
+                  </div>
+                )}
 
                 {paymentMethod === 'transfer' && (
                   <div className="flex items-center justify-between text-emerald-600 font-bold">
