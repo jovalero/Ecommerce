@@ -111,6 +111,7 @@ Route::prefix('admin')->middleware(['throttle:api', 'auth.supabase', 'auth.admin
     Route::get('/categorias', [\App\Http\Controllers\Admin\ProductCatalogController::class, 'categories']);
     Route::post('/productos/bulk-price', [\App\Http\Controllers\Admin\ProductCatalogController::class, 'bulkPrice']);
     Route::post('/productos/bulk-categoria', [\App\Http\Controllers\Admin\ProductCatalogController::class, 'bulkCategory']);
+    Route::post('/productos/bulk-cuotas', [\App\Http\Controllers\Admin\ProductCatalogController::class, 'bulkInstallments']);
     Route::delete('/productos/bulk-delete', [\App\Http\Controllers\Admin\ProductCatalogController::class, 'bulkDelete']);
     Route::get('/productos/export', [\App\Http\Controllers\Admin\ProductCatalogController::class, 'export']);
     Route::post('/productos/import', [\App\Http\Controllers\Admin\ProductCatalogController::class, 'import']);

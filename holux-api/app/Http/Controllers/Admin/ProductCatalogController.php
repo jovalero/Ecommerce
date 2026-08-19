@@ -297,6 +297,51 @@ class ProductCatalogController extends Controller
     }
 
     /**
+     * Bulk product installments configuration.
+     */
+    public function bulkInstallments(Request $request, SupabaseService $supabase): JsonResponse
+    {
+        $request->validate([
+            'ids' => ['required', 'array', 'min:1'],
+            'ids.*' => ['required', 'string'],
+            'installments' => ['required', 'integer', 'min:0', 'max:48'],
+        ]);
+
+        $ids = $request->input('ids');
+        $installments = (int) $request->input('installments');
+        $dbInstallments = max(1, $installments);
+        $updatedCount = 0;
+        $user = $request->user();
+
+        foreach ($ids as $id) {
+            try {
+                $supabase->update('products', $id, [
+                    'installments' => $dbInstallments,
+                ], true);
+                $updatedCount++;
+            } catch (\Throwable $e) {
+                Log::error("Bulk installments update failed for product {$id}: " . $e->getMessage());
+            }
+        }
+
+        AdminLog::record($user, 'BULK_INSTALLMENTS_UPDATE', 'products', [
+            'installments' => $installments,
+            'products_count' => $updatedCount,
+            'product_ids' => $ids,
+        ]);
+
+        $label = $installments <= 1 
+            ? "Se desactivaron las cuotas en {$updatedCount} productos (Sin cuotas fijas)."
+            : "Se asignaron {$installments} cuotas fijas a {$updatedCount} productos.";
+
+        return response()->json([
+            'success' => true,
+            'message' => $label,
+            'updated_count' => $updatedCount,
+        ]);
+    }
+
+    /**
      * Bulk product deletion.
      */
     public function bulkDelete(Request $request, SupabaseService $supabase): JsonResponse

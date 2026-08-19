@@ -103,7 +103,7 @@ class ProductController extends Controller
             'brand' => ['required', 'string', 'max:100'],
             'category_id' => ['required', 'uuid'],
             'price' => ['required', 'numeric', 'min:0'],
-            'installments' => ['required', 'integer', 'min:1'],
+            'installments' => ['nullable', 'integer', 'min:0'],
             'icon' => ['nullable', 'string', 'max:50'],
             'stock' => ['required', 'integer', 'min:0'],
         ]);
@@ -113,7 +113,7 @@ class ProductController extends Controller
             'brand' => $request->brand,
             'category_id' => $request->category_id,
             'price' => $request->price,
-            'installments' => $request->installments,
+            'installments' => max(1, (int) ($request->installments ?? 1)),
             'icon' => $request->icon ?: ($product['icon'] ?? 'Shield'),
             'stock' => $request->stock,
         ];

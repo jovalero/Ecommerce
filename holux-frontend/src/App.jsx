@@ -939,7 +939,7 @@ export default function App() {
       name: "Campera Cortavientos Fitz Roy",
       brand: "Holux Extreme",
       price: 100,
-      installments: 3,
+      installments: 1,
       stock: 15,
       categories: { name: "Trekking", slug: "trekking" },
       description: "Campera de alta montaña con membrana impermeable Gore-Tex y costuras selladas térmicamente."
@@ -949,7 +949,7 @@ export default function App() {
       name: "Botas de Montaña Cordillera Pro",
       brand: "Holux Trekking",
       price: 100,
-      installments: 3,
+      installments: 1,
       stock: 12,
       categories: { name: "Calzado", slug: "calzado" },
       description: "Botas técnicas con suela Vibram de alta tracción y protección de cuero hidrofugado."
@@ -959,7 +959,7 @@ export default function App() {
       name: "Mochila Trekking 65L Expedición",
       brand: "Holux Gear",
       price: 100,
-      installments: 3,
+      installments: 1,
       stock: 8,
       categories: { name: "Accesorios", slug: "accesorios" },
       description: "Mochila ergonómica de 65 litros con estructura de aluminio ligero y funda de lluvia."
@@ -969,7 +969,7 @@ export default function App() {
       name: "Carpa Domo Refugio 2P 4 Estaciones",
       brand: "Holux Shelter",
       price: 100,
-      installments: 3,
+      installments: 1,
       stock: 6,
       categories: { name: "Camping", slug: "camping" },
       description: "Carpa ligera de duraluminio probada contra vientos patagónicos de más de 90 km/h."
@@ -979,7 +979,7 @@ export default function App() {
       name: "Bolsa de Dormir Térmica Alpamayo -10°C",
       brand: "Holux Sleep",
       price: 100,
-      installments: 3,
+      installments: 1,
       stock: 20,
       categories: { name: "Camping", slug: "camping" },
       description: "Bolsa de dormir anatómica de pluma sintética ultra compacta."
@@ -989,7 +989,7 @@ export default function App() {
       name: "Bastones de Trekking Aluminio Ultra",
       brand: "Holux Trail",
       price: 100,
-      installments: 3,
+      installments: 1,
       stock: 25,
       categories: { name: "Accesorios", slug: "accesorios" },
       description: "Par de bastones telescópicos antishock con empuñadura de corcho natural."
@@ -999,7 +999,7 @@ export default function App() {
       name: "Termo Técnico Acero Inoxidable 1.2L",
       brand: "Holux Hydro",
       price: 100,
-      installments: 3,
+      installments: 1,
       stock: 30,
       categories: { name: "Accesorios", slug: "accesorios" },
       description: "Termo de doble pared al vacío que mantiene el calor hasta por 36 horas seguidas."
@@ -1009,7 +1009,7 @@ export default function App() {
       name: "Guantes Térmicos Nieve Windstopper",
       brand: "Holux Alpine",
       price: 100,
-      installments: 3,
+      installments: 1,
       stock: 18,
       categories: { name: "Accesorios", slug: "accesorios" },
       description: "Guantes reforzados con palma antideslizante para esquí y senderismo invernal."
@@ -6484,13 +6484,8 @@ export default function App() {
                               {product.name}
                             </h3>
                             <p className="text-xs text-gray-500 line-clamp-2 leading-relaxed font-sans">
-                              Equipo de alta montaña Holux, confeccionado con costuras reforzadas y materiales impermeables.
+                              {product.description || "Equipo de alta montaña Holux, confeccionado con costuras reforzadas y materiales impermeables."}
                             </p>
-                            <div className="pt-2">
-                              <span className="inline-block px-3 py-1 border border-gray-250 rounded-full text-xs font-bold text-gray-600 font-sans uppercase bg-gray-50">
-                                {product.categories ? product.categories.slug === 'calzado' ? 'Talle 41' : 'Talla Única' : 'Estándar'}
-                              </span>
-                            </div>
                           </div>
 
                           <div className="space-y-3 pt-2 text-left">
@@ -6505,7 +6500,7 @@ export default function App() {
                                   </span>
                                 )}
                               </div>
-                              {product.installments > 0 && (
+                              {Number(product.installments) > 1 && (
                                 <div>
                                   <span className="bg-[#EBDCF0] text-[#7E3793] text-xs font-bold px-2.5 py-1 rounded tracking-wide uppercase inline-block font-sans">
                                     {product.installments} cuotas de ${Math.round(effectivePrice / product.installments).toLocaleString('es-AR')}
@@ -6732,13 +6727,8 @@ export default function App() {
                                 {product.name}
                               </h3>
                               <p className="text-xs text-gray-500 line-clamp-2 leading-relaxed font-sans">
-                                Equipo de alta montaña Holux, confeccionado con costuras reforzadas y materiales impermeables.
+                                {product.description || "Equipo de alta montaña Holux, confeccionado con costuras reforzadas y materiales impermeables."}
                               </p>
-                              <div className="pt-2">
-                                <span className="inline-block px-3 py-1 border border-gray-250 rounded-full text-xs font-bold text-gray-600 font-sans uppercase bg-gray-50">
-                                  {product.categories ? product.categories.slug === 'calzado' ? 'Talle 41' : 'Talla Única' : 'Estándar'}
-                                </span>
-                              </div>
                             </div>
 
                             <div className="space-y-3 pt-2 text-left">
@@ -6753,7 +6743,7 @@ export default function App() {
                                     </span>
                                   )}
                                 </div>
-                                {product.installments > 0 && (
+                                {Number(product.installments) > 1 && (
                                   <div>
                                     <span className="bg-[#EBDCF0] text-[#7E3793] text-xs font-bold px-2.5 py-1 rounded tracking-wide uppercase inline-block font-sans">
                                       {product.installments} cuotas de ${Math.round(product.price / product.installments).toLocaleString('es-AR')}
@@ -6973,14 +6963,9 @@ export default function App() {
                                 >
                                   {product.name}
                                 </h3>
-                                <p className="text-[11px] text-gray-400 line-clamp-2 leading-relaxed font-sans">
-                                  Equipo de alta montaña Holux, confeccionado con costuras reforzadas y materiales impermeables.
+                                <p className="text-[11px] text-gray-500 line-clamp-2 leading-relaxed font-sans">
+                                  {product.description || "Equipo de alta montaña Holux, confeccionado con costuras reforzadas y materiales impermeables."}
                                 </p>
-                                <div className="pt-1.5">
-                                  <span className="inline-block px-2.5 py-1 border border-gray-200 rounded-full text-[9px] font-bold text-gray-500 font-sans uppercase">
-                                    {product.categories ? product.categories.slug === 'calzado' ? 'Talle 41' : 'Talla Única' : 'Estándar'}
-                                  </span>
-                                </div>
                               </div>
 
                               <div className="space-y-3 pt-2 text-left">
@@ -6995,7 +6980,7 @@ export default function App() {
                                       </span>
                                     )}
                                   </div>
-                                  {product.installments > 0 && (
+                                  {Number(product.installments) > 1 && (
                                     <div>
                                       <span className="bg-[#EBDCF0] text-[#7E3793] text-[9.5px] font-bold px-2 py-0.5 rounded tracking-wide uppercase inline-block font-sans">
                                         {product.installments} cuotas de ${Math.round(effectivePrice / product.installments).toLocaleString('es-AR')}
@@ -7146,7 +7131,7 @@ export default function App() {
                           )}
                         </div>
 
-                        {selectedDetailProduct.installments > 0 && (
+                        {Number(selectedDetailProduct.installments) > 1 && (
                           <div className="pt-1">
                             <span className="bg-[#EBDCF0] text-[#7E3793] text-[10.5px] font-black px-2.5 py-1 rounded tracking-wide uppercase inline-block font-sans">
                               {selectedDetailProduct.installments} cuotas fijas de ${Math.round(effectivePrice / selectedDetailProduct.installments).toLocaleString('es-AR')}
@@ -7639,11 +7624,13 @@ export default function App() {
                             )}
                           </div>
 
-                          <div>
-                            <span className="bg-[#EBDCF0] text-[#7E3793] text-[9.5px] font-bold px-2 py-0.5 rounded tracking-wide uppercase inline-block font-sans">
-                              3 cuotas fijas de ${Math.round(effectivePrice / 3).toLocaleString('es-AR')}
-                            </span>
-                          </div>
+                          {Number(product.installments) > 1 && (
+                            <div>
+                              <span className="bg-[#EBDCF0] text-[#7E3793] text-[9.5px] font-bold px-2 py-0.5 rounded tracking-wide uppercase inline-block font-sans">
+                                {product.installments} cuotas fijas de ${Math.round(effectivePrice / product.installments).toLocaleString('es-AR')}
+                              </span>
+                            </div>
+                          )}
 
                           <span className="text-[9px] text-gray-400 font-sans block leading-tight">
                             CFT: 0% | Precio sin impuestos: ${Math.round(effectivePrice * 0.79).toLocaleString('es-AR')} (IVA 21% discriminado - Ley N° 27.743)

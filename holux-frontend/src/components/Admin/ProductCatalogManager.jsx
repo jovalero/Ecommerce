@@ -22,7 +22,8 @@ import {
   Tag, 
   X,
   FileSpreadsheet,
-  AlertTriangle
+  AlertTriangle,
+  CreditCard
 } from 'lucide-react';
 import ConfirmationModal from './ConfirmationModal';
 
@@ -60,6 +61,7 @@ export default function ProductCatalogManager({
     clearFilters,
     executeBulkPrice,
     executeBulkCategory,
+    executeBulkInstallments,
     executeBulkDelete,
     handleExportCSV,
     handleImportCSV,
@@ -74,6 +76,10 @@ export default function ProductCatalogManager({
   const [isBulkCategoryModalOpen, setIsBulkCategoryModalOpen] = useState(false);
   const [bulkCategoryId, setBulkCategoryId] = useState('');
   const [isBulkCategorySubmitting, setIsBulkCategorySubmitting] = useState(false);
+
+  const [isBulkInstallmentsModalOpen, setIsBulkInstallmentsModalOpen] = useState(false);
+  const [bulkInstallmentsVal, setBulkInstallmentsVal] = useState(0);
+  const [isBulkInstallmentsSubmitting, setIsBulkInstallmentsSubmitting] = useState(false);
 
   const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false);
   const [isBulkDeleteSubmitting, setIsBulkDeleteSubmitting] = useState(false);
@@ -156,6 +162,20 @@ export default function ProductCatalogManager({
       alert(err.message || 'Error al cambiar categoría.');
     } finally {
       setIsBulkCategorySubmitting(false);
+    }
+  };
+
+  // Handler for bulk installments submit
+  const handleBulkInstallmentsSubmit = async (e) => {
+    e.preventDefault();
+    setIsBulkInstallmentsSubmitting(true);
+    try {
+      await executeBulkInstallments(bulkInstallmentsVal);
+      setIsBulkInstallmentsModalOpen(false);
+    } catch (err) {
+      alert(err.message || 'Error al configurar cuotas en lote.');
+    } finally {
+      setIsBulkInstallmentsSubmitting(false);
     }
   };
 
@@ -409,8 +429,22 @@ export default function ProductCatalogManager({
               }}
               className="px-3.5 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-xl text-xs font-bold font-display tracking-wider flex items-center gap-1.5 transition-all cursor-pointer border border-gray-200 shadow-sm"
             >
-              <Tag className="w-3.5 h-3.5 text-purple-600" />
+              <Tag className="w-3.5 h-3.5 text-blue-600" />
               <span>CAMBIAR CATEGORÍA</span>
+            </button>
+
+            {/* Configurar Cuotas */}
+            <button
+              type="button"
+              onClick={() => {
+                setBulkInstallmentsVal(0);
+                setIsBulkInstallmentsModalOpen(true);
+              }}
+              className="px-3.5 py-2 bg-purple-50 hover:bg-purple-100 text-purple-900 rounded-xl text-xs font-bold font-display tracking-wider flex items-center gap-1.5 transition-all cursor-pointer border border-purple-200 shadow-sm"
+              title="Asignar o quitar cuotas fijas a los productos seleccionados"
+            >
+              <CreditCard className="w-3.5 h-3.5 text-purple-700" />
+              <span>CONFIGURAR CUOTAS</span>
             </button>
 
             {/* Eliminar en lote */}
@@ -966,6 +1000,102 @@ export default function ProductCatalogManager({
                   className="px-5 py-2 bg-[#3C6E71] hover:bg-[#3C6E71]/90 text-white rounded-xl font-display font-bold uppercase tracking-wider flex items-center gap-1.5 cursor-pointer shadow-md"
                 >
                   {isBulkCategorySubmitting ? 'Guardando...' : 'Reasignar Categoría'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* --- MODAL: BULK INSTALLMENTS ASSIGNMENT --- */}
+      {isBulkInstallmentsModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 border border-gray-100 animate-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center">
+                  <CreditCard className="w-4 h-4" />
+                </div>
+                <h3 className="font-display text-sm font-bold text-gray-900 uppercase tracking-wider">
+                  Configurar Cuotas en Lote ({selectedIds.length})
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsBulkInstallmentsModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleBulkInstallmentsSubmit} className="space-y-4 text-xs text-left">
+              <p className="text-gray-600">
+                Seleccioná cuántas cuotas fijas mostrar en el cartel morado de los <strong>{selectedIds.length} productos seleccionados</strong>:
+              </p>
+
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { label: '🚫 Sin Cuotas (0)', val: 0 },
+                  { label: '3 Cuotas', val: 3 },
+                  { label: '6 Cuotas', val: 6 },
+                  { label: '9 Cuotas', val: 9 },
+                  { label: '12 Cuotas', val: 12 }
+                ].map((opt) => (
+                  <button
+                    key={opt.val}
+                    type="button"
+                    onClick={() => setBulkInstallmentsVal(opt.val)}
+                    className={`px-3 py-2 rounded-xl text-xs font-bold font-mono-custom cursor-pointer transition-all border ${
+                      bulkInstallmentsVal === opt.val
+                        ? 'bg-purple-700 text-white border-purple-800 shadow-sm'
+                        : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-purple-50 hover:text-purple-900'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="space-y-1.5 pt-1">
+                <label className="font-bold text-gray-700 block">O ingresar número de cuotas:</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="48"
+                  value={bulkInstallmentsVal}
+                  onChange={(e) => setBulkInstallmentsVal(Math.max(0, parseInt(e.target.value) || 0))}
+                  className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-300 rounded-xl font-bold font-mono-custom text-gray-900 outline-none focus:border-purple-600 focus:bg-white"
+                  placeholder="0 para desactivar"
+                />
+              </div>
+
+              <div className="p-3 bg-purple-50 border border-purple-200 rounded-xl text-[11px] text-purple-950 font-medium">
+                {bulkInstallmentsVal > 0 ? (
+                  <span>
+                    ✨ Se activará el cartel de <strong>{bulkInstallmentsVal} cuotas fijas</strong> en los {selectedIds.length} productos seleccionados.
+                  </span>
+                ) : (
+                  <span>
+                    🚫 <strong>Sin cuotas fijas:</strong> Se ocultará el cartel de cuotas en los {selectedIds.length} productos seleccionados.
+                  </span>
+                )}
+              </div>
+
+              <div className="pt-3 border-t border-gray-100 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsBulkInstallmentsModalOpen(false)}
+                  className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-display font-bold uppercase cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={isBulkInstallmentsSubmitting}
+                  className="px-5 py-2 bg-purple-700 hover:bg-purple-800 text-white rounded-xl font-display font-bold uppercase tracking-wider flex items-center gap-1.5 cursor-pointer shadow-md"
+                >
+                  {isBulkInstallmentsSubmitting ? 'Aplicando...' : `Guardar Cuotas (${selectedIds.length})`}
                 </button>
               </div>
             </form>

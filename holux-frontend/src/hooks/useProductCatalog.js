@@ -211,6 +211,34 @@ export function useProductCatalog(token) {
     }
   };
 
+  // Bulk Installments Action
+  const executeBulkInstallments = async (installmentsCount) => {
+    if (selectedIds.length === 0) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/productos/bulk-cuotas`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify({
+          ids: selectedIds,
+          installments: Number(installmentsCount) || 0,
+        })
+      });
+
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.message || 'Error al configurar cuotas');
+      clearSelection();
+      fetchProducts();
+      return json;
+    } catch (err) {
+      console.error(err);
+      throw err;
+    }
+  };
+
   // Bulk Delete Action
   const executeBulkDelete = async () => {
     if (selectedIds.length === 0) return;
@@ -316,6 +344,7 @@ export function useProductCatalog(token) {
     clearFilters,
     executeBulkPrice,
     executeBulkCategory,
+    executeBulkInstallments,
     executeBulkDelete,
     handleExportCSV,
     handleImportCSV,
