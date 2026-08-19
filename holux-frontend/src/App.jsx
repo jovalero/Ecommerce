@@ -54,6 +54,7 @@ import ProductCatalogManager from './components/Admin/ProductCatalogManager';
 import Breadcrumbs from './components/Admin/Breadcrumbs';
 import HeaderSearchInput from './components/Shop/HeaderSearchInput';
 import VipSettingsManager from './components/Admin/VipSettingsManager';
+import CatalogView from './components/Shop/CatalogView';
 import { useProductCatalog } from './hooks/useProductCatalog';
 
 // Configuration
@@ -6789,236 +6790,25 @@ export default function App() {
       )}
 
       {currentView === 'category' && (
-        <>
-          {/* --- DEDICATED CATEGORY/COLLECTION PAGE VIEW --- */}
-          <main className="flex-grow bg-[#F2EFE9] py-10">
-            <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
-              
-              {/* Breadcrumbs & Sorting Row */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-200 pb-4 mb-8">
-                
-                {/* Breadcrumbs */}
-                <div className="flex items-center gap-2 text-xs text-gray-500 font-sans">
-                  <button 
-                    onClick={() => { window.location.hash = '#/'; }} 
-                    className="hover:text-[#3C6E71] cursor-pointer transition-colors font-medium"
-                  >
-                    Inicio
-                  </button>
-                  <span className="text-gray-300">/</span>
-                  <span className="text-gray-400">Catálogo</span>
-                  <span className="text-gray-300">/</span>
-                  <span className="text-[#3C6E71] font-bold uppercase">
-                    {activeGender ? `Colección ${activeGender}` : activeCategory ? `Categoría ${activeCategory}` : 'Todo'}
-                  </span>
-                </div>
-
-                {/* Sorting */}
-                <div className="flex items-center gap-2 text-xs font-sans">
-                  <span className="text-gray-500 font-medium">Ordenar por:</span>
-                  <select 
-                    value={sortBy} 
-                    onChange={(e) => setSortBy(e.target.value)}
-                    className="bg-white border border-gray-200 rounded px-3 py-1.5 text-xs outline-none focus:border-[#3C6E71] cursor-pointer font-medium"
-                  >
-                    <option value="relevant">Más relevantes</option>
-                    <option value="price-asc">Menor precio</option>
-                    <option value="price-desc">Mayor precio</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Sidebar + Grid split */}
-              <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-                
-                {/* Left Sidebar */}
-                <aside className="lg:col-span-1 space-y-6">
-                  
-                  {/* CATEGORIES CARD */}
-                  <div className="bg-white border border-gray-200 rounded-lg p-5 space-y-4 shadow-sm text-left">
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-gray-900 border-b border-gray-200/60 pb-2 font-display">
-                      Categorías
-                    </h3>
-                    <div className="flex flex-col space-y-2.5 text-xs font-sans font-medium text-gray-600">
-                      <button
-                        onClick={() => { setActiveCategory(null); }}
-                        className={`text-left hover:text-[#3C6E71] transition-colors cursor-pointer ${!activeCategory ? 'text-[#3C6E71] font-bold' : ''}`}
-                      >
-                        Todo el Catálogo
-                      </button>
-                      {categories.map(cat => (
-                        <button
-                          key={cat.id}
-                          onClick={() => { setActiveCategory(cat.slug); setActiveGender(null); }}
-                          className={`text-left hover:text-[#3C6E71] transition-colors cursor-pointer ${activeCategory === cat.slug ? 'text-[#3C6E71] font-bold' : ''}`}
-                        >
-                          {cat.name}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* GENDERS / SPECIALS CARD */}
-                  <div className="bg-white border border-gray-200 rounded-lg p-5 space-y-4 shadow-sm text-left">
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-gray-900 border-b border-gray-200/60 pb-2 font-display">
-                      Colecciones
-                    </h3>
-                    <div className="flex flex-col space-y-2.5 text-xs font-sans font-medium text-gray-600">
-                      {['mujer', 'hombre', 'niños', 'outlet'].map(gender => (
-                        <button
-                          key={gender}
-                          onClick={() => { setActiveGender(gender); setActiveCategory(null); }}
-                          className={`text-left hover:text-[#3C6E71] transition-colors cursor-pointer uppercase ${activeGender === gender ? 'text-[#3C6E71] font-bold' : ''}`}
-                        >
-                          {gender === 'outlet' ? 'Outlet' : gender}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                </aside>
-
-                {/* Right Product Grid */}
-                <div className="lg:col-span-3 space-y-6">
-                  
-                  {/* Collection Header Title */}
-                  <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm text-left">
-                    <h2 className="font-display text-2xl font-bold text-gray-900 tracking-wide uppercase">
-                      {activeGender ? `Colección ${activeGender}` : activeCategory ? `Categoría ${activeCategory}` : 'Todo el Catálogo'}
-                    </h2>
-                    <p className="text-xs text-gray-500 mt-1 font-sans">
-                      Explorando {sortedProducts.length} productos en stock
-                    </p>
-                  </div>
-
-                  {/* Grid */}
-                  {loadingProducts ? (
-                    <div className="py-20 text-center text-gray-500 font-display text-sm tracking-widest animate-pulse bg-white border border-gray-200 rounded-lg shadow-sm">
-                          CARGANDO PRODUCTOS...
-                    </div>
-                  ) : sortedProducts.length === 0 ? (
-                    <div className="py-20 text-center text-gray-400 bg-white border border-gray-200 rounded-lg shadow-sm">
-                      <p className="font-display text-lg font-bold">No se encontraron productos</p>
-                      <p className="text-xs mt-1 font-sans">Prueba seleccionando otra combinación de filtros en el menú lateral.</p>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                      {sortedProducts.map(product => {
-                        const discount = getProductDiscount(product);
-                        const effectivePrice = getEffectiveProductPrice(product);
-                        const originalPrice = getOriginalProductPrice(product);
-                        return (
-                          <div
-                            key={product.id}
-                            className="group bg-white border border-gray-200 rounded-lg overflow-hidden flex flex-col justify-between hover:shadow-xl hover:border-gray-300 transition-all duration-300"
-                          >
-                            {/* Image Area */}
-                            <div 
-                              onClick={() => handleProductClick(product)}
-                              className="relative bg-gray-50 aspect-square overflow-hidden border-b border-gray-100 group-hover:bg-gray-100/50 transition-colors cursor-pointer"
-                            >
-                              {discount > 0 && (
-                                <span className="absolute top-3 left-3 bg-[#B85C38] text-white text-[9px] font-display font-bold tracking-widest px-2 py-0.5 rounded shadow z-10">
-                                  {discount}% OFF
-                                </span>
-                              )}
-                              {product.stock <= 3 && product.stock > 0 && (
-                                <span className="absolute top-3 right-3 bg-[#B85C38] text-white text-[9px] font-display font-medium tracking-widest px-2 py-0.5 rounded">
-                                  ÚLTIMAS {product.stock} UNIDADES
-                                </span>
-                              )}
-                              {product.stock === 0 && (
-                                <span className="absolute top-3 right-3 bg-red-600 text-white text-[9px] font-display font-medium tracking-widest px-2 py-0.5 rounded">
-                                  SIN STOCK
-                                </span>
-                              )}
-                              <img 
-                                src={product.image_url || (product.images && product.images[0]) || getProductImage(product.name)} 
-                                alt={product.name} 
-                                onError={(e) => {
-                                  e.target.onerror = null;
-                                  e.target.src = getProductImage(product.name);
-                                }}
-                                className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-all duration-500"
-                              />
-                              <button
-                                onClick={(e) => { e.stopPropagation(); handleProductClick(product); }}
-                                className="absolute bottom-3 right-3 bg-white/95 border border-gray-200 hover:border-gray-300 shadow-sm p-1.5 rounded-full flex items-center gap-1.5 text-xs text-gray-600 hover:text-black transition-all cursor-pointer"
-                                title="Ver valoraciones"
-                              >
-                                <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" />
-                                <span className="font-sans text-[10px] font-bold">Reseñas</span>
-                              </button>
-                            </div>
-
-                            {/* Details info */}
-                            <div className="p-5 flex-grow flex flex-col justify-between space-y-4">
-                              <div className="space-y-1 text-left">
-                                <div className="text-[10px] text-[#3C6E71] font-bold uppercase tracking-widest font-sans">
-                                  {product.brand.toUpperCase()} • {product.categories ? product.categories.name.toUpperCase() : 'AVENTURA'}
-                                </div>
-                                <h3 
-                                  onClick={() => handleProductClick(product)}
-                                  className="font-sans font-semibold text-gray-900 text-sm tracking-wide line-clamp-1 hover:text-[#3C6E71] transition-colors cursor-pointer"
-                                >
-                                  {product.name}
-                                </h3>
-                                <p className="text-[11px] text-gray-500 line-clamp-2 leading-relaxed font-sans">
-                                  {product.description || "Equipo de alta montaña Holux, confeccionado con costuras reforzadas y materiales impermeables."}
-                                </p>
-                              </div>
-
-                              <div className="space-y-3 pt-2 text-left">
-                                <div className="flex flex-col space-y-1">
-                                  <div className="flex items-baseline gap-2">
-                                    <span className="text-lg font-bold text-gray-955 font-sans">
-                                      ${Math.round(effectivePrice).toLocaleString('es-AR')}
-                                    </span>
-                                    {discount > 0 && originalPrice > 0 && (
-                                      <span className="text-xs text-gray-400 line-through font-sans">
-                                        ${Math.round(originalPrice).toLocaleString('es-AR')}
-                                      </span>
-                                    )}
-                                  </div>
-                                  {Number(product.installments) > 1 && (
-                                    <div>
-                                      <span className="bg-[#EBDCF0] text-[#7E3793] text-[9.5px] font-bold px-2 py-0.5 rounded tracking-wide uppercase inline-block font-sans">
-                                        {product.installments} cuotas de ${Math.round(effectivePrice / product.installments).toLocaleString('es-AR')}
-                                      </span>
-                                    </div>
-                                  )}
-                                  <span className="text-[9px] text-gray-400 font-sans block">
-                                    CFT: 0% | Precio sin impuestos: ${Math.round(effectivePrice * 0.79).toLocaleString('es-AR')}
-                                  </span>
-                                </div>
-
-                                <button
-                                  onClick={(e) => { e.stopPropagation(); handleProductClick(product); }}
-                                  disabled={product.stock === 0}
-                                  className={`w-full py-2.5 rounded font-sans text-xs font-bold tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer ${
-                                    product.stock > 0 
-                                      ? 'bg-[#1C2321] text-white hover:bg-black hover:shadow-md' 
-                                      : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                  }`}
-                                >
-                                  <span>{product.stock > 0 ? 'AGREGAR' : 'AGOTADO'}</span>
-                                  {product.stock > 0 && <ShoppingBag className="w-4 h-4" />}
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-
-                </div>
-
-              </div>
-
-            </div>
-          </main>
-        </>
+        <CatalogView
+          API_BASE_URL={API_BASE_URL}
+          token={token}
+          initialCategory={activeCategory}
+          initialCollection={activeGender}
+          searchQuery={searchQuery}
+          onProductClick={handleProductClick}
+          onAddToCart={addToCart}
+          onBuyNow={(prod) => {
+            addToCart(prod);
+            setIsCartOpen(true);
+          }}
+          onNavigateHome={() => {
+            window.location.hash = '#/';
+            setCurrentView('home');
+            setActiveCategory(null);
+            setActiveGender(null);
+          }}
+        />
       )}
 
       {/* --- DEDICATED PRODUCT DETAIL PAGE VIEW --- */}

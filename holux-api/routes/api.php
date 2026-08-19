@@ -80,6 +80,11 @@ Route::middleware(['throttle:api', 'auth.supabase'])->group(function () {
     Route::get('/me/coupons', [App\Http\Controllers\CouponController::class, 'index']);
     Route::post('/me/coupons/redeem', [App\Http\Controllers\CouponController::class, 'redeem']);
     Route::post('/me/coupons/apply', [App\Http\Controllers\CouponController::class, 'apply']);
+
+    // Favorites / Wishlist
+    Route::get('/favorites', [App\Http\Controllers\FavoriteController::class, 'index']);
+    Route::post('/favorites/toggle', [App\Http\Controllers\FavoriteController::class, 'toggle']);
+    Route::post('/favorites/sync', [App\Http\Controllers\FavoriteController::class, 'sync']);
 });
 
 // ==========================================
