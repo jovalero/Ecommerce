@@ -51,6 +51,7 @@ import SupportManager from './components/Admin/SupportManager';
 import CheckoutView from './components/Checkout/CheckoutView';
 import ProductCatalogManager from './components/Admin/ProductCatalogManager';
 import Breadcrumbs from './components/Admin/Breadcrumbs';
+import HeaderSearchInput from './components/Shop/HeaderSearchInput';
 import { useProductCatalog } from './hooks/useProductCatalog';
 
 // Configuration
@@ -2710,11 +2711,12 @@ export default function App() {
         }
       }
       if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
-        const nameMatch = p.name.toLowerCase().includes(q);
-        const brandMatch = p.brand.toLowerCase().includes(q);
-        const catMatch = p.categories && p.categories.name.toLowerCase().includes(q);
-        if (!nameMatch && !brandMatch && !catMatch) {
+        const q = searchQuery.toLowerCase().trim();
+        const nameMatch = (p.name || '').toLowerCase().includes(q);
+        const brandMatch = (p.brand || '').toLowerCase().includes(q);
+        const catMatch = p.categories && (p.categories.name || '').toLowerCase().includes(q);
+        const tagMatch = Array.isArray(p.tags) && p.tags.some(t => String(t).toLowerCase().includes(q));
+        if (!nameMatch && !brandMatch && !catMatch && !tagMatch) {
           return false;
         }
       }
@@ -5878,29 +5880,21 @@ export default function App() {
           {/* Right Icons section */}
           <div className="flex items-center gap-4">
             
-            {/* Search (Lupa) */}
-            <div className="flex items-center gap-2">
-              {isSearchOpen && (
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Buscar equipo..."
-                  className="bg-white/10 text-white placeholder-gray-400 border border-[#3C6E71]/50 rounded-full px-3 py-1.5 text-xs outline-none focus:border-[#3C6E71] transition-all w-36 sm:w-48"
-                  autoFocus
-                />
-              )}
-              <button
-                onClick={() => {
-                  setIsSearchOpen(!isSearchOpen);
-                  if (isSearchOpen) setSearchQuery('');
-                }}
-                className="p-2 rounded-full hover:bg-white/10 transition-colors text-white cursor-pointer"
-                title="Buscar productos"
-              >
-                {isSearchOpen ? <X className="w-5 h-5 text-red-400" /> : <Search className="w-5 h-5 text-[#F2EFE9]" />}
-              </button>
-            </div>
+            {/* Search Component with Zero Lag and Auto Catalog Navigation */}
+            <HeaderSearchInput
+              isOpen={isSearchOpen}
+              onToggle={setIsSearchOpen}
+              currentQuery={searchQuery}
+              onSearch={setSearchQuery}
+              onNavigateToCatalog={() => {
+                if (currentView !== 'category') {
+                  window.location.hash = '#/catalogo';
+                  setCurrentView('category');
+                  setActiveCategory(null);
+                  setActiveGender(null);
+                }
+              }}
+            />
 
             {/* Admin trigger (visible for authorized admin users) */}
             {token && userProfile?.role === 'admin' && (
