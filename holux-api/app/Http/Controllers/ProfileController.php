@@ -30,22 +30,24 @@ class ProfileController extends Controller
             if (empty($profile['email']) && !empty($userEmail)) {
                 $profile['email'] = $userEmail;
             }
-            return response()->json($profile);
+            $enriched = \App\Services\CustomerMetadataService::attach($profile);
+            return response()->json($enriched);
         }
 
         $userMeta = (array) ($tokenPayload['user_metadata'] ?? []);
         $fullName = $userMeta['full_name'] ?? ($userEmail ? explode('@', $userEmail)[0] : 'Cliente');
         $role = $tokenPayload['role'] ?? ($tokenPayload['app_metadata']['role'] ?? 'customer');
 
-        return response()->json([
+        $base = [
             'id' => $userId,
             'email' => $userEmail,
             'full_name' => ucwords(str_replace(['.', '_', '-'], ' ', $fullName)),
             'phone' => $userMeta['phone'] ?? '',
             'role' => $role,
-            'is_vip' => false,
             'created_at' => date('Y-m-d H:i:s')
-        ]);
+        ];
+
+        return response()->json(\App\Services\CustomerMetadataService::attach($base));
     }
 
     /**

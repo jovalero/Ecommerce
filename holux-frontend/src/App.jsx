@@ -37,6 +37,7 @@ import {
   Tag,
   Gift,
   Sparkles,
+  Crown,
   Ruler
 } from 'lucide-react';
 
@@ -52,6 +53,7 @@ import CheckoutView from './components/Checkout/CheckoutView';
 import ProductCatalogManager from './components/Admin/ProductCatalogManager';
 import Breadcrumbs from './components/Admin/Breadcrumbs';
 import HeaderSearchInput from './components/Shop/HeaderSearchInput';
+import VipSettingsManager from './components/Admin/VipSettingsManager';
 import { useProductCatalog } from './hooks/useProductCatalog';
 
 // Configuration
@@ -60,14 +62,34 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://fmbhcfsrsfkgl
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_aAzQcAqCATpYDGBVRNJRQQ_1CKarnEb';
 
 // Product Discount Config (customize which items are on sale and their percentage)
-const DISCOUNT_MAP = {
-  'Campera Cortavientos Fitz Roy': 35,
-  'Botas de Trekking Tronador': 15,
-  'Bolsa de Dormir Alpamayo -10°C': 20
+const getProductDiscount = (product) => {
+  if (!product || typeof product !== 'object') return 0;
+  const normal = Number(product.price || 0);
+  const offer = Number(product.offer_price || 0);
+  if (offer > 0 && normal > offer) {
+    return Math.round(((normal - offer) / normal) * 100);
+  }
+  return 0;
 };
 
-const getProductDiscount = (productName) => {
-  return DISCOUNT_MAP[productName] || 0;
+const getEffectiveProductPrice = (product) => {
+  if (!product || typeof product !== 'object') return 0;
+  const normal = Number(product.price || 0);
+  const offer = Number(product.offer_price || 0);
+  if (offer > 0 && normal > offer) {
+    return offer;
+  }
+  return normal;
+};
+
+const getOriginalProductPrice = (product) => {
+  if (!product || typeof product !== 'object') return 0;
+  const normal = Number(product.price || 0);
+  const offer = Number(product.offer_price || 0);
+  if (offer > 0 && normal > offer) {
+    return normal;
+  }
+  return 0;
 };
 
 // Global Order Utilities & Config
@@ -728,6 +750,7 @@ export default function App() {
   const [adminProductsList, setAdminProductsList] = useState([]);
   const [adminCategoriesList, setAdminCategoriesList] = useState([]);
   const [adminCustomersList, setAdminCustomersList] = useState([]);
+  const [customerSubTab, setCustomerSubTab] = useState('list'); // 'list' | 'settings'
   const [adminReviewsList, setAdminReviewsList] = useState([]);
 
   // Ticker Phrases State (Cuotas, Promos, Envíos)
@@ -1682,6 +1705,40 @@ export default function App() {
     }
   };
 
+  const handleUpdateCustomerTier = async (customerId, newTier) => {
+    // Optimistic UI update
+    setAdminCustomersList(prev => prev.map(c => c.id === customerId ? {
+      ...c,
+      tier: newTier,
+      is_vip: newTier === 'vip' || newTier === 'super_vip',
+      is_super_vip: newTier === 'super_vip'
+    } : c));
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/admin/customers/${customerId}/tier`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify({ tier: newTier })
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || 'Error al actualizar membresía');
+      }
+      const data = await res.json();
+      if (data.customer) {
+        setAdminCustomersList(prev => prev.map(c => c.id === customerId ? data.customer : c));
+      }
+    } catch (e) {
+      console.error(e);
+      alert(e.message || 'Error al guardar membresía en el servidor.');
+      fetchAdminCustomers();
+    }
+  };
+
   const fetchAdminReviews = async () => {
     try {
       const res = await fetch(`${API_BASE_URL}/api/admin/reviews`, {
@@ -2235,6 +2292,7 @@ export default function App() {
       return;
     }
     const defaultSize = product.categories && product.categories.slug === 'calzado' ? '39' : 'Talla Única';
+    const effectivePrice = getEffectiveProductPrice(product);
 
     setCart(prev => {
       const existing = prev.find(item => item.id === product.id && item.sizeLabel === defaultSize);
@@ -2247,7 +2305,7 @@ export default function App() {
           (item.id === product.id && item.sizeLabel === defaultSize) ? { ...item, quantity: item.quantity + 1 } : item
         );
       }
-      return [...prev, { ...product, sizeLabel: defaultSize, quantity: 1 }];
+      return [...prev, { ...product, price: effectivePrice, original_price: product.price, sizeLabel: defaultSize, quantity: 1 }];
     });
   };
 
@@ -2532,10 +2590,17 @@ export default function App() {
       ? `${shippingStreet}${shippingApartment ? ' Depto ' + shippingApartment : ''}, ${shippingCity}, ${shippingProvince} (CP: ${shippingPostalCode})`
       : 'Retiro en Sucursal Central Holux';
 
-    let total = getCartTotal();
-    if (paymentMethod === 'transfer') {
-      total = total * 0.90; // 10% discount
+    const subtotal = getCartTotal();
+    const tierPercent = userProfile?.benefits?.auto_discount_percent || (userProfile?.tier === 'super_vip' ? 10 : userProfile?.tier === 'vip' ? 5 : 0);
+    const tierDiscount = tierPercent > 0 ? Math.round((subtotal * tierPercent) / 100) : 0;
+    const transferDiscount = paymentMethod === 'transfer' ? Math.round(subtotal * 0.10) : 0;
+    let couponDiscount = 0;
+    if (appliedCoupon) {
+      couponDiscount = appliedCoupon.type === 'percentage'
+        ? Math.round((subtotal * appliedCoupon.value) / 100)
+        : Math.min(subtotal, appliedCoupon.value);
     }
+    const total = Math.max(0, subtotal - tierDiscount - transferDiscount - couponDiscount);
 
     // --- MERCADO PAGO CHECKOUT PRO (REDIRECCIÓN Y PAGO CON CUENTA MP / DINERO EN CUENTA / MERCADO CRÉDITO) ---
     if (paymentMethod === 'mercadopago_checkout_pro') {
@@ -2601,6 +2666,8 @@ export default function App() {
       payment_method: paymentMethod,
       installments: paymentMethod === 'card' ? paymentInstallments : 1,
       total_amount: Math.round(total),
+      discount_applied: tierDiscount + transferDiscount + couponDiscount,
+      coupon_code: appliedCoupon ? appliedCoupon.code : null,
       receipt_url: transferReceiptPreview || (paymentMethod === 'transfer' ? 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=800&auto=format&fit=crop&q=80' : null),
       items: cart.map(item => ({
         product_id: item.id,
@@ -2830,8 +2897,22 @@ export default function App() {
 
               <div className="flex items-center justify-between pt-2 border-t border-gray-100">
                 <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">ESTADO</span>
-                <span className={`text-[9px] font-black px-2.5 py-0.5 rounded font-mono-custom ${userProfile?.role === 'admin' ? 'bg-[#B85C38] text-white' : userProfile?.is_vip ? 'bg-amber-500 text-black' : 'bg-[#3C6E71] text-white'}`}>
-                  {userProfile?.role === 'admin' ? '🛡️ ADMINISTRADOR' : userProfile?.is_vip ? '⭐ CLIENTE VIP' : 'CLIENTE ACTIVO'}
+                <span className={`text-[9px] font-black px-2.5 py-0.5 rounded font-mono-custom ${
+                  userProfile?.role === 'admin' 
+                    ? 'bg-[#B85C38] text-white' 
+                    : userProfile?.tier === 'super_vip' || userProfile?.is_super_vip
+                    ? 'bg-purple-600 text-white shadow-xs'
+                    : userProfile?.tier === 'vip' || userProfile?.is_vip 
+                    ? 'bg-amber-500 text-black' 
+                    : 'bg-[#3C6E71] text-white'
+                }`}>
+                  {userProfile?.role === 'admin' 
+                    ? '🛡️ ADMINISTRADOR' 
+                    : userProfile?.tier === 'super_vip' || userProfile?.is_super_vip
+                    ? '👑 MIEMBRO SUPER VIP'
+                    : userProfile?.tier === 'vip' || userProfile?.is_vip 
+                    ? '⭐ CLIENTE VIP' 
+                    : 'CLIENTE ACTIVO'}
                 </span>
               </div>
             </div>
@@ -2996,13 +3077,68 @@ export default function App() {
                       </span>
                     </div>
 
-                    <div className="bg-gray-50 border border-gray-200 p-4 rounded-xl space-y-1">
+                    <div className={`p-4 rounded-xl space-y-1 border ${
+                      userProfile?.tier === 'super_vip' || userProfile?.is_super_vip
+                        ? 'bg-purple-50/70 border-purple-200'
+                        : userProfile?.tier === 'vip' || userProfile?.is_vip
+                        ? 'bg-amber-50/70 border-amber-200'
+                        : 'bg-gray-50 border-gray-200'
+                    }`}>
                       <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider block">MEMBRESÍA</span>
-                      <span className="text-sm font-bold text-amber-600 uppercase tracking-wider block pt-1">
-                        {userProfile?.is_vip ? 'CLIENTE VIP' : 'CLIENTE ESTÁNDAR'}
+                      <span className={`text-xs font-black uppercase tracking-wider block pt-1 font-mono-custom ${
+                        userProfile?.tier === 'super_vip' || userProfile?.is_super_vip
+                          ? 'text-purple-900'
+                          : userProfile?.tier === 'vip' || userProfile?.is_vip
+                          ? 'text-amber-800'
+                          : 'text-gray-700'
+                      }`}>
+                        {userProfile?.tier === 'super_vip' || userProfile?.is_super_vip
+                          ? '👑 SUPER VIP'
+                          : userProfile?.tier === 'vip' || userProfile?.is_vip
+                          ? '⭐ CLIENTE VIP'
+                          : '👤 ESTÁNDAR'}
                       </span>
                     </div>
                   </div>
+
+                  {/* Active Perks Banner for VIP / Super VIP */}
+                  {(userProfile?.is_vip || userProfile?.tier === 'super_vip') && (
+                    <div className={`p-5 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
+                      userProfile?.tier === 'super_vip' || userProfile?.is_super_vip
+                        ? 'bg-gradient-to-r from-purple-900 via-purple-800 to-indigo-900 text-white border-purple-500/30 shadow-md'
+                        : 'bg-gradient-to-r from-amber-500 via-amber-600 to-yellow-600 text-gray-950 border-amber-400/40 shadow-sm'
+                    }`}>
+                      <div className="space-y-1">
+                        <span className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-black/20 font-mono-custom inline-block">
+                          {userProfile?.tier === 'super_vip' || userProfile?.is_super_vip ? '👑 BENEFICIOS ACTIVOS SUPER VIP' : '⭐ BENEFICIOS ACTIVOS VIP'}
+                        </span>
+                        <h4 className="font-display font-black text-sm tracking-wide uppercase">
+                          {userProfile?.tier === 'super_vip' || userProfile?.is_super_vip 
+                            ? 'TENÉS ACCESO A TODOS LOS PRIVILEGIOS ÉLITE HOLUX' 
+                            : 'DISFRUTÁS DE PRIVILEGIOS Y PROMOCIONES PREFERENCIALES'}
+                        </h4>
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs opacity-95 pt-1">
+                          {userProfile?.benefits?.auto_discount_percent > 0 && (
+                            <span>🏷️ <strong>{userProfile.benefits.auto_discount_percent}% OFF</strong> automático en catálogo</span>
+                          )}
+                          <span>📦 <strong>{userProfile?.benefits?.shipping_benefit_label || 'Envíos Bonificados'}</strong></span>
+                          <span>⚡ <strong>Despacho Express Almacén</strong></span>
+                        </div>
+                      </div>
+
+                      {userProfile?.benefits?.whatsapp_direct && userProfile?.benefits?.whatsapp_number && (
+                        <a
+                          href={`https://wa.me/${userProfile.benefits.whatsapp_number.replace(/\D/g, '')}?text=Hola!%20Soy%20cliente%20Super%20VIP%20Holux%20y%20necesito%20asistencia.`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-white font-display text-xs font-bold uppercase tracking-wider rounded-xl shadow flex items-center justify-center gap-2 cursor-pointer flex-shrink-0 transition-all hover:scale-105"
+                        >
+                          <MessageSquare className="w-4 h-4" />
+                          <span>WhatsApp VIP Directo</span>
+                        </a>
+                      )}
+                    </div>
+                  )}
 
                   {/* Quick Profile Form */}
                   <form onSubmit={handleUpdateProfile} className="space-y-4 pt-2">
@@ -5101,84 +5237,155 @@ export default function App() {
             )}
 
             {adminTab === 'customers' && (
-              <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm space-y-4">
-                <h4 className="text-xs font-bold tracking-wider text-gray-900 uppercase font-display border-b border-gray-200 pb-3">
-                  CLIENTES REGISTRADOS ({adminCustomersList.length})
-                </h4>
+              <div className="space-y-6">
+                {/* Subtabs Selector */}
+                <div className="flex items-center gap-2 border-b border-gray-200 pb-3">
+                  <button
+                    type="button"
+                    onClick={() => setCustomerSubTab('list')}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold font-display uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 ${
+                      customerSubTab === 'list'
+                        ? 'bg-[#3C6E71] text-white shadow-sm'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    <Users className="w-4 h-4" />
+                    <span>Listado de Clientes ({adminCustomersList.length})</span>
+                  </button>
 
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs">
-                    <thead>
-                      <tr className="bg-gray-100 border-b border-gray-200 text-gray-700 uppercase tracking-widest font-display text-[9px]">
-                        <th className="p-3">Cliente</th>
-                        <th className="p-3">Email</th>
-                        <th className="p-3">Pedidos</th>
-                        <th className="p-3">Total Gastado</th>
-                        <th className="p-3">Estado</th>
-                        <th className="p-3 text-right">Acciones ABM</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200 text-gray-700">
-                      {adminCustomersList.map(cust => (
-                        <tr key={cust.id} className="hover:bg-gray-50/50">
-                          <td className="p-3">
-                            <div className="font-bold text-gray-800 flex items-center gap-1.5">
-                              {cust.full_name}
-                              {cust.is_vip && (
-                                <span className="bg-amber-100 text-amber-800 border border-amber-300 text-[8px] px-1.5 py-0.2 rounded-full font-bold">
-                                  VIP ⭐
-                                </span>
-                              )}
-                            </div>
-                            <div className="text-[10px] text-gray-400 font-mono-custom">{cust.phone || '+54 9 11 4000-0000'}</div>
-                          </td>
-                          <td className="p-3 font-mono-custom text-gray-600">{cust.email}</td>
-                          <td className="p-3 font-mono-custom font-bold text-gray-800">{cust.total_orders || 1} pedidos</td>
-                          <td className="p-3 font-mono-custom font-bold text-emerald-700">
-                            ARS ${(cust.total_spent || 120000).toLocaleString()}
-                          </td>
-                          <td className="p-3">
-                            <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border uppercase ${cust.status === 'SUSPENDIDO' ? 'bg-red-50 text-red-600 border-red-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
-                              {cust.status || 'ACTIVO'}
-                            </span>
-                          </td>
-                          <td className="p-3 text-right space-x-1.5">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setSelectedCustomerModal(cust);
-                                setIsCustomerModalOpen(true);
-                              }}
-                              className="px-2.5 py-1 bg-[#3C6E71] hover:bg-[#3C6E71]/90 text-white rounded text-[10px] font-display font-bold tracking-wider cursor-pointer"
-                              title="Editar perfil de cliente"
-                            >
-                              EDITAR
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setAdminCustomersList(prev => prev.map(c => c.id === cust.id ? { ...c, is_vip: !c.is_vip } : c));
-                              }}
-                              className={`px-2.5 py-1 rounded text-[10px] font-display font-bold tracking-wider cursor-pointer border ${cust.is_vip ? 'bg-amber-100 text-amber-900 border-amber-300' : 'bg-gray-100 text-gray-700 border-gray-300'}`}
-                              title="Conmutar Estado VIP"
-                            >
-                              {cust.is_vip ? 'QUITAR VIP' : 'HACER VIP ⭐'}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setAdminCustomersList(prev => prev.map(c => c.id === cust.id ? { ...c, status: c.status === 'SUSPENDIDO' ? 'ACTIVO' : 'SUSPENDIDO' } : c));
-                              }}
-                              className={`px-2 py-1 rounded text-[10px] font-display font-bold tracking-wider cursor-pointer border ${cust.status === 'SUSPENDIDO' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-red-50 text-red-600 border-red-200'}`}
-                            >
-                              {cust.status === 'SUSPENDIDO' ? 'ACTIVAR' : 'SUSPENDER'}
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                  <button
+                    type="button"
+                    onClick={() => setCustomerSubTab('settings')}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold font-display uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 ${
+                      customerSubTab === 'settings'
+                        ? 'bg-[#3C6E71] text-white shadow-sm'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    <Crown className="w-4 h-4 text-amber-500" />
+                    <span>⚙️ Configuración de Beneficios VIP & Super VIP</span>
+                  </button>
                 </div>
+
+                {customerSubTab === 'settings' ? (
+                  <VipSettingsManager token={token} apiBaseUrl={API_BASE_URL} />
+                ) : (
+                  <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-100 pb-3">
+                      <div>
+                        <h4 className="text-xs font-bold tracking-wider text-gray-900 uppercase font-display">
+                          CLIENTES REGISTRADOS ({adminCustomersList.length})
+                        </h4>
+                        <p className="text-[11px] text-gray-500 font-sans mt-0.5">
+                          Administrá los niveles de membresía, estado y órdenes de cada cliente.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs">
+                        <thead>
+                          <tr className="bg-gray-100 border-b border-gray-200 text-gray-700 uppercase tracking-widest font-display text-[9px]">
+                            <th className="p-3">Cliente</th>
+                            <th className="p-3">Email</th>
+                            <th className="p-3">Pedidos</th>
+                            <th className="p-3">Total Gastado</th>
+                            <th className="p-3">Nivel de Membresía</th>
+                            <th className="p-3">Estado</th>
+                            <th className="p-3 text-right">Acciones ABM</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200 text-gray-700 font-sans">
+                          {adminCustomersList.map(cust => {
+                            const tier = cust.tier || (cust.is_super_vip ? 'super_vip' : cust.is_vip ? 'vip' : 'standard');
+                            return (
+                              <tr key={cust.id} className="hover:bg-gray-50/50">
+                                <td className="p-3">
+                                  <div className="font-bold text-gray-800 flex items-center gap-1.5">
+                                    {cust.full_name || cust.name}
+                                    {tier === 'super_vip' && (
+                                      <span className="bg-purple-100 text-purple-900 border border-purple-300 text-[8px] px-1.5 py-0.2 rounded-full font-bold">
+                                        👑 SUPER VIP
+                                      </span>
+                                    )}
+                                    {tier === 'vip' && (
+                                      <span className="bg-amber-100 text-amber-800 border border-amber-300 text-[8px] px-1.5 py-0.2 rounded-full font-bold">
+                                        ⭐ VIP
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="text-[10px] text-gray-400 font-mono-custom">{cust.phone || 'Sin teléfono'}</div>
+                                </td>
+                                <td className="p-3 font-mono-custom text-gray-600">{cust.email}</td>
+                                <td className="p-3 font-mono-custom font-bold text-gray-800">{cust.orders_count ?? cust.total_orders ?? 0} pedidos</td>
+                                <td className="p-3 font-mono-custom font-bold text-emerald-700">
+                                  ARS ${(cust.total_spent || cust.spent || 0).toLocaleString('es-AR')}
+                                </td>
+                                <td className="p-3">
+                                  <select
+                                    value={tier}
+                                    onChange={(e) => handleUpdateCustomerTier(cust.id, e.target.value)}
+                                    className={`px-2.5 py-1 rounded-lg text-xs font-bold font-mono-custom outline-none border cursor-pointer transition-all ${
+                                      tier === 'super_vip'
+                                        ? 'bg-purple-50 text-purple-900 border-purple-300 font-black'
+                                        : tier === 'vip'
+                                        ? 'bg-amber-50 text-amber-900 border-amber-300 font-black'
+                                        : 'bg-gray-50 text-gray-700 border-gray-300'
+                                    }`}
+                                  >
+                                    <option value="standard">👤 Estándar</option>
+                                    <option value="vip">⭐ VIP</option>
+                                    <option value="super_vip">👑 SUPER VIP</option>
+                                  </select>
+                                </td>
+                                <td className="p-3">
+                                  <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border uppercase ${cust.status === 'suspended' || cust.status === 'SUSPENDIDO' || cust.active === false ? 'bg-red-50 text-red-600 border-red-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
+                                    {cust.status === 'suspended' || cust.active === false ? 'SUSPENDIDO' : 'ACTIVO'}
+                                  </span>
+                                </td>
+                                <td className="p-3 text-right space-x-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedCustomerModal(cust);
+                                      setIsCustomerModalOpen(true);
+                                    }}
+                                    className="px-2.5 py-1 bg-[#3C6E71] hover:bg-[#3C6E71]/90 text-white rounded-lg text-[10px] font-display font-bold tracking-wider cursor-pointer"
+                                    title="Editar perfil de cliente"
+                                  >
+                                    EDITAR
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={async () => {
+                                      const nextActive = cust.active === false ? true : false;
+                                      try {
+                                        await fetch(`${API_BASE_URL}/api/admin/customers/${cust.id}`, {
+                                          method: 'PATCH',
+                                          headers: {
+                                            'Content-Type': 'application/json',
+                                            'Authorization': `Bearer ${token}`
+                                          },
+                                          body: JSON.stringify({ active: nextActive })
+                                        });
+                                        fetchAdminCustomers();
+                                      } catch (err) {
+                                        console.error(err);
+                                      }
+                                    }}
+                                    className={`px-2 py-1 rounded-lg text-[10px] font-display font-bold tracking-wider cursor-pointer border ${cust.active === false ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-red-50 text-red-600 border-red-200'}`}
+                                  >
+                                    {cust.active === false ? 'ACTIVAR' : 'SUSPENDER'}
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -6207,7 +6414,9 @@ export default function App() {
                   className="flex gap-6 overflow-x-auto scroll-smooth snap-x snap-mandatory scrollbar-hide py-4 select-none cursor-default"
                 >
                   {[...products].reverse().slice(0, 8).map(product => {
-                    const discount = getProductDiscount(product.name);
+                    const discount = getProductDiscount(product);
+                    const effectivePrice = getEffectiveProductPrice(product);
+                    const originalPrice = getOriginalProductPrice(product);
                     return (
                       <div
                         key={product.id}
@@ -6288,23 +6497,23 @@ export default function App() {
                             <div className="flex flex-col space-y-1">
                               <div className="flex items-baseline gap-2 flex-wrap">
                                 <span className="text-xl font-black text-gray-950 font-sans">
-                                  ${Math.round(product.price).toLocaleString('es-AR')}
+                                  ${Math.round(effectivePrice).toLocaleString('es-AR')}
                                 </span>
-                                {discount > 0 && (
+                                {discount > 0 && originalPrice > 0 && (
                                   <span className="text-sm text-gray-400 line-through font-sans">
-                                    ${Math.round(product.price * (1 + discount / 100)).toLocaleString('es-AR')}
+                                    ${Math.round(originalPrice).toLocaleString('es-AR')}
                                   </span>
                                 )}
                               </div>
                               {product.installments > 0 && (
                                 <div>
                                   <span className="bg-[#EBDCF0] text-[#7E3793] text-xs font-bold px-2.5 py-1 rounded tracking-wide uppercase inline-block font-sans">
-                                    {product.installments} cuotas de ${Math.round(product.price / product.installments).toLocaleString('es-AR')}
+                                    {product.installments} cuotas de ${Math.round(effectivePrice / product.installments).toLocaleString('es-AR')}
                                   </span>
                                 </div>
                               )}
                               <span className="text-xs text-gray-400 font-sans block">
-                                CFT: 0% | Precio sin impuestos: ${Math.round(product.price * 0.79).toLocaleString('es-AR')}
+                                CFT: 0% | Precio sin impuestos: ${Math.round(effectivePrice * 0.79).toLocaleString('es-AR')}
                               </span>
                             </div>
 
@@ -6463,7 +6672,9 @@ export default function App() {
                     className="flex gap-6 overflow-x-auto scroll-smooth snap-x snap-mandatory scrollbar-hide py-4 select-none cursor-default"
                   >
                     {(products.length > 0 ? products : MOCK_FALLBACK_PRODUCTS).map(product => {
-                      const discount = getProductDiscount(product.name);
+                      const discount = getProductDiscount(product);
+                      const effectivePrice = getEffectiveProductPrice(product);
+                      const originalPrice = getOriginalProductPrice(product);
                       return (
                         <div
                           key={product.id}
@@ -6534,11 +6745,11 @@ export default function App() {
                               <div className="flex flex-col space-y-1">
                                 <div className="flex items-baseline gap-2 flex-wrap">
                                   <span className="text-xl font-black text-gray-955 font-sans">
-                                    ${Math.round(product.price).toLocaleString('es-AR')}
+                                    ${Math.round(effectivePrice).toLocaleString('es-AR')}
                                   </span>
-                                  {discount > 0 && (
+                                  {discount > 0 && originalPrice > 0 && (
                                     <span className="text-sm text-gray-400 line-through font-sans">
-                                      ${Math.round(product.price * (1 + discount / 100)).toLocaleString('es-AR')}
+                                      ${Math.round(originalPrice).toLocaleString('es-AR')}
                                     </span>
                                   )}
                                 </div>
@@ -6703,7 +6914,9 @@ export default function App() {
                   ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                       {sortedProducts.map(product => {
-                        const discount = getProductDiscount(product.name);
+                        const discount = getProductDiscount(product);
+                        const effectivePrice = getEffectiveProductPrice(product);
+                        const originalPrice = getOriginalProductPrice(product);
                         return (
                           <div
                             key={product.id}
@@ -6774,23 +6987,23 @@ export default function App() {
                                 <div className="flex flex-col space-y-1">
                                   <div className="flex items-baseline gap-2">
                                     <span className="text-lg font-bold text-gray-955 font-sans">
-                                      ${Math.round(product.price).toLocaleString('es-AR')}
+                                      ${Math.round(effectivePrice).toLocaleString('es-AR')}
                                     </span>
-                                    {discount > 0 && (
+                                    {discount > 0 && originalPrice > 0 && (
                                       <span className="text-xs text-gray-400 line-through font-sans">
-                                        ${Math.round(product.price * (1 + discount / 100)).toLocaleString('es-AR')}
+                                        ${Math.round(originalPrice).toLocaleString('es-AR')}
                                       </span>
                                     )}
                                   </div>
                                   {product.installments > 0 && (
                                     <div>
                                       <span className="bg-[#EBDCF0] text-[#7E3793] text-[9.5px] font-bold px-2 py-0.5 rounded tracking-wide uppercase inline-block font-sans">
-                                        {product.installments} cuotas de ${Math.round(product.price / product.installments).toLocaleString('es-AR')}
+                                        {product.installments} cuotas de ${Math.round(effectivePrice / product.installments).toLocaleString('es-AR')}
                                       </span>
                                     </div>
                                   )}
                                   <span className="text-[9px] text-gray-400 font-sans block">
-                                    CFT: 0% | Precio sin impuestos: ${Math.round(product.price * 0.79).toLocaleString('es-AR')}
+                                    CFT: 0% | Precio sin impuestos: ${Math.round(effectivePrice * 0.79).toLocaleString('es-AR')}
                                   </span>
                                 </div>
 
@@ -6856,9 +7069,9 @@ export default function App() {
               {/* Left visual column */}
               <div className="lg:col-span-7 flex flex-col items-center">
                 <div className="relative w-full bg-gray-50 aspect-square flex items-center justify-center border border-gray-100 rounded-lg overflow-hidden group">
-                  {getProductDiscount(selectedDetailProduct.name) > 0 && (
+                  {getProductDiscount(selectedDetailProduct) > 0 && (
                     <span className="absolute top-4 left-4 bg-[#B85C38] text-white text-[9px] font-display font-bold tracking-widest px-2.5 py-1 rounded shadow z-10">
-                      {getProductDiscount(selectedDetailProduct.name)}% OFF
+                      {getProductDiscount(selectedDetailProduct)}% OFF
                     </span>
                   )}
                   
@@ -6916,29 +7129,36 @@ export default function App() {
                   </div>
 
                   {/* Price info */}
-                  <div className="pt-2 border-t border-gray-100 flex flex-col space-y-1">
-                    <div className="flex items-baseline gap-3">
-                      <span className="text-3xl font-black text-gray-955 font-sans">
-                        ${Math.round(selectedDetailProduct.price).toLocaleString('es-AR')}
-                      </span>
-                      {getProductDiscount(selectedDetailProduct.name) > 0 && (
-                        <span className="text-sm text-gray-400 line-through font-sans">
-                          ${Math.round(selectedDetailProduct.price * (1 + getProductDiscount(selectedDetailProduct.name) / 100)).toLocaleString('es-AR')}
-                        </span>
-                      )}
-                    </div>
+                  {(() => {
+                    const discount = getProductDiscount(selectedDetailProduct);
+                    const effectivePrice = getEffectiveProductPrice(selectedDetailProduct);
+                    const originalPrice = getOriginalProductPrice(selectedDetailProduct);
+                    return (
+                      <div className="pt-2 border-t border-gray-100 flex flex-col space-y-1">
+                        <div className="flex items-baseline gap-3">
+                          <span className="text-3xl font-black text-gray-955 font-sans">
+                            ${Math.round(effectivePrice).toLocaleString('es-AR')}
+                          </span>
+                          {discount > 0 && originalPrice > 0 && (
+                            <span className="text-sm text-gray-400 line-through font-sans">
+                              ${Math.round(originalPrice).toLocaleString('es-AR')}
+                            </span>
+                          )}
+                        </div>
 
-                    {selectedDetailProduct.installments > 0 && (
-                      <div className="pt-1">
-                        <span className="bg-[#EBDCF0] text-[#7E3793] text-[10.5px] font-black px-2.5 py-1 rounded tracking-wide uppercase inline-block font-sans">
-                          {selectedDetailProduct.installments} cuotas fijas de ${Math.round(selectedDetailProduct.price / selectedDetailProduct.installments).toLocaleString('es-AR')}
+                        {selectedDetailProduct.installments > 0 && (
+                          <div className="pt-1">
+                            <span className="bg-[#EBDCF0] text-[#7E3793] text-[10.5px] font-black px-2.5 py-1 rounded tracking-wide uppercase inline-block font-sans">
+                              {selectedDetailProduct.installments} cuotas fijas de ${Math.round(effectivePrice / selectedDetailProduct.installments).toLocaleString('es-AR')}
+                            </span>
+                          </div>
+                        )}
+                        <span className="text-[9px] text-gray-400 font-sans block">
+                          CFTA: 0% | Precio sugerido al público con IVA incluido. Válido para todo el territorio nacional.
                         </span>
                       </div>
-                    )}
-                    <span className="text-[9px] text-gray-400 font-sans block">
-                      CFTA: 0% | Precio sugerido al público con IVA incluido. Válido para todo el territorio nacional.
-                    </span>
-                  </div>
+                    );
+                  })()}
 
                   {/* Size selection with dynamic variants & strict stock checking */}
                   {(() => {
@@ -7275,7 +7495,9 @@ export default function App() {
                   .filter(p => p.id !== selectedDetailProduct.id && p.category_id === selectedDetailProduct.category_id)
                   .slice(0, 4)
                   .map(product => {
-                    const discount = getProductDiscount(product.name);
+                    const discount = getProductDiscount(product);
+                    const effectivePrice = getEffectiveProductPrice(product);
+                    const originalPrice = getOriginalProductPrice(product);
                     return (
                       <div
                         key={product.id}
@@ -7311,11 +7533,11 @@ export default function App() {
                             </h4>
                             <div className="flex items-baseline gap-2">
                               <span className="text-sm font-bold text-gray-955 font-sans">
-                                ${Math.round(product.price).toLocaleString('es-AR')}
+                                ${Math.round(effectivePrice).toLocaleString('es-AR')}
                               </span>
-                              {discount > 0 && (
+                              {discount > 0 && originalPrice > 0 && (
                                 <span className="text-xs text-gray-400 line-through font-sans">
-                                  ${Math.round(product.price * (1 + discount / 100)).toLocaleString('es-AR')}
+                                  ${Math.round(originalPrice).toLocaleString('es-AR')}
                                 </span>
                               )}
                             </div>
@@ -7401,6 +7623,7 @@ export default function App() {
           appliedCoupon={appliedCoupon}
           setAppliedCoupon={setAppliedCoupon}
           customerCoupons={customerCoupons}
+          userProfile={userProfile}
         />
       )}
 
@@ -7717,13 +7940,22 @@ export default function App() {
 
                       {(() => {
                         const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-                        let discount = 0;
+                        
+                        // 1. Automatic Tier Discount (VIP / Super VIP)
+                        const tierPercent = userProfile?.benefits?.auto_discount_percent || (userProfile?.tier === 'super_vip' ? 10 : userProfile?.tier === 'vip' ? 5 : 0);
+                        const tierDiscount = tierPercent > 0 ? Math.round((subtotal * tierPercent) / 100) : 0;
+                        const tierBadge = userProfile?.benefits?.badge || (userProfile?.tier === 'super_vip' ? '👑 SUPER VIP' : '⭐ VIP');
+
+                        // 2. Applied Promo Coupon Discount
+                        let couponDiscount = 0;
                         if (appliedCoupon) {
-                          discount = appliedCoupon.type === 'percentage'
+                          couponDiscount = appliedCoupon.type === 'percentage'
                             ? Math.round((subtotal * appliedCoupon.value) / 100)
                             : Math.min(subtotal, appliedCoupon.value);
                         }
-                        const finalTotal = Math.max(0, subtotal - discount);
+
+                        const totalDiscount = tierDiscount + couponDiscount;
+                        const finalTotal = Math.max(0, subtotal - totalDiscount);
                         const netAmount = Math.round(finalTotal / 1.21);
                         const vatAmount = finalTotal - netAmount;
 
@@ -7737,15 +7969,30 @@ export default function App() {
                               <span>Impuestos Nacionales (IVA 21%)</span>
                               <span className="font-mono-custom font-semibold text-gray-700">${vatAmount.toLocaleString('es-AR')}</span>
                             </div>
-                            {discount > 0 && (
-                              <div className="flex items-center justify-between text-emerald-700 font-semibold">
-                                <span>Descuento ({appliedCoupon.code})</span>
-                                <span className="font-mono-custom font-bold">-${discount.toLocaleString('es-AR')}</span>
+
+                            {/* Automatic Tier Discount row */}
+                            {tierDiscount > 0 && (
+                              <div className="flex items-center justify-between text-purple-700 font-bold bg-purple-50/80 px-2.5 py-1 rounded-lg border border-purple-200/60">
+                                <span className="flex items-center gap-1">
+                                  <span>{tierBadge} ({tierPercent}% OFF Auto):</span>
+                                </span>
+                                <span className="font-mono-custom font-black">-${tierDiscount.toLocaleString('es-AR')}</span>
                               </div>
                             )}
+
+                            {/* Coupon Discount row */}
+                            {couponDiscount > 0 && (
+                              <div className="flex items-center justify-between text-emerald-700 font-semibold">
+                                <span>Descuento Cupón ({appliedCoupon.code})</span>
+                                <span className="font-mono-custom font-bold">-${couponDiscount.toLocaleString('es-AR')}</span>
+                              </div>
+                            )}
+
                             <div className="flex items-center justify-between text-gray-500">
                               <span>Envío</span>
-                              <span className="font-mono-custom font-bold text-emerald-600">Gratis</span>
+                              <span className="font-mono-custom font-bold text-emerald-600">
+                                {userProfile?.tier === 'super_vip' || userProfile?.is_super_vip ? 'Gratis (100% Bonificado)' : 'Gratis'}
+                              </span>
                             </div>
                             <div className="flex items-center justify-between text-gray-900 pt-2 border-t border-gray-200">
                               <span className="font-display text-sm font-black tracking-wider uppercase">Total</span>

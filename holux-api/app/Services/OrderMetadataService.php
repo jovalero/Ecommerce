@@ -42,15 +42,32 @@ class OrderMetadataService
     public static function attach(array $order): array
     {
         $id = $order['id'] ?? null;
-        if (!$id) return $order;
-        $meta = self::get($id);
-        if ($meta) {
-            foreach ($meta as $k => $v) {
-                if ($v !== null && $v !== '') {
-                    $order[$k] = $v;
+        if ($id) {
+            $meta = self::get($id);
+            if ($meta) {
+                foreach ($meta as $k => $v) {
+                    if ($v !== null && $v !== '') {
+                        $order[$k] = $v;
+                    }
                 }
             }
         }
+
+        // Dynamically resolve customer tier & VIP status
+        $customerId = $order['customer_id'] ?? null;
+        if ($customerId) {
+            $tier = \App\Services\CustomerMetadataService::getTier($customerId);
+            $order['customer_tier'] = $tier;
+            $order['is_vip'] = ($tier === 'vip' || $tier === 'super_vip');
+            $order['is_super_vip'] = ($tier === 'super_vip');
+            $order['priority_dispatch'] = ($tier === 'super_vip' || $tier === 'vip');
+        } else {
+            $order['customer_tier'] = 'standard';
+            $order['is_vip'] = false;
+            $order['is_super_vip'] = false;
+            $order['priority_dispatch'] = false;
+        }
+
         return $order;
     }
 }

@@ -221,7 +221,8 @@ const CheckoutView = memo(({
   setAddresses,
   appliedCoupon,
   setAppliedCoupon,
-  customerCoupons
+  customerCoupons,
+  userProfile
 }) => {
   const [isAddressModalOpen, setIsAddressModalOpen] = React.useState(false);
   const [newModalAddrLabel, setNewModalAddrLabel] = React.useState('');
@@ -233,6 +234,12 @@ const CheckoutView = memo(({
   const [checkoutCouponError, setCheckoutCouponError] = React.useState('');
 
   const subtotal = getCartTotal();
+
+  // 1. Membership Tier Discount (VIP & SUPER VIP)
+  const tierPercent = userProfile?.benefits?.auto_discount_percent || (userProfile?.tier === 'super_vip' ? 10 : userProfile?.tier === 'vip' ? 5 : 0);
+  const tierDiscount = tierPercent > 0 ? Math.round((subtotal * tierPercent) / 100) : 0;
+  const tierBadge = userProfile?.benefits?.badge || (userProfile?.tier === 'super_vip' ? '👑 SUPER VIP' : '⭐ VIP');
+
   const transferDiscount = paymentMethod === 'transfer' ? Math.round(subtotal * 0.10) : 0;
 
   let couponDiscount = 0;
@@ -242,9 +249,9 @@ const CheckoutView = memo(({
       : Math.min(subtotal, appliedCoupon.value);
   }
 
-  const subtotalAfterDiscount = Math.max(0, subtotal - transferDiscount - couponDiscount);
+  const subtotalAfterDiscount = Math.max(0, subtotal - tierDiscount - transferDiscount - couponDiscount);
 
-  const handleApplyCouponInCheckout = (e) => {
+  const handleApplyCouponInCheckout = async (e) => {
     if (e) e.preventDefault();
     setCheckoutCouponError('');
     const code = checkoutCouponInput.trim().toUpperCase();
@@ -253,75 +260,43 @@ const CheckoutView = memo(({
       return;
     }
 
-    // 1. Check if already used by this customer
-    const isAlreadyUsed = (customerCoupons || []).some(c => c.code === code && c.status === 'usado');
-    if (isAlreadyUsed) {
-      setCheckoutCouponError('Este cupón ya fue utilizado en una compra anterior.');
-      return;
-    }
+    try {
+      const token = localStorage.getItem('holux_auth_token') || '';
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}/api/me/coupons/apply`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          code,
+          subtotal
+        })
+      });
 
-    // 2. Check admin limits (maxUses and usedCount)
-    const adminSaved = localStorage.getItem('holux_coupons_database');
-    if (adminSaved) {
-      try {
-        const parsed = JSON.parse(adminSaved);
-        const adminCoupon = parsed.find(ac => ac.code === code);
-        if (adminCoupon) {
-          if (!adminCoupon.active) {
-            setCheckoutCouponError('El código de cupón ingresado se encuentra inactivo.');
-            return;
-          }
-          if (adminCoupon.maxUses && adminCoupon.usedCount >= adminCoupon.maxUses) {
-            setCheckoutCouponError('Este cupón alcanzó su límite máximo de usos promocionales.');
-            return;
-          }
-        }
-      } catch (err) { console.error(err); }
-    }
-
-    // 3. Lookup in customer available coupons
-    const found = (customerCoupons || []).find(c => c.code === code && c.status === 'disponible');
-    if (!found) {
-      let adminFound = null;
-      if (adminSaved) {
-        try {
-          const parsed = JSON.parse(adminSaved);
-          const raw = parsed.find(c => c.code === code && c.active);
-          if (raw && (!raw.maxUses || raw.usedCount < raw.maxUses)) {
-            adminFound = {
-              id: raw.id,
-              code: raw.code,
-              type: raw.type === 'percent' ? 'percentage' : 'fixed',
-              value: raw.value,
-              min_spend: raw.minPurchase || 0,
-              origin: raw.origin || 'Promo Admin',
-              description: raw.description || 'Descuento oficial'
-            };
-          }
-        } catch (err) { console.error(err); }
-      }
-
-      if (adminFound) {
-        if (subtotal < adminFound.min_spend) {
-          setCheckoutCouponError(`Requiere compra mínima de $${adminFound.min_spend.toLocaleString('es-AR')}.`);
-          return;
-        }
-        if (setAppliedCoupon) setAppliedCoupon(adminFound);
-        setCheckoutCouponInput('');
+      const data = await res.json();
+      if (!res.ok || !data.valid) {
+        setCheckoutCouponError(data.message || 'Código de cupón no válido.');
         return;
       }
 
-      setCheckoutCouponError('Código de cupón no existe, ha sido eliminado o ha expirado.');
-      return;
+      if (setAppliedCoupon) {
+        setAppliedCoupon({
+          code: data.code,
+          type: data.type,
+          value: data.value,
+          discount_amount: data.discount_amount,
+          allowed_tier: data.allowed_tier,
+          origin: data.origin || 'Cupón Oficial',
+          description: data.message
+        });
+      }
+      setCheckoutCouponInput('');
+    } catch (err) {
+      console.error(err);
+      setCheckoutCouponError('Error al validar el cupón con el servidor.');
     }
-
-    if (subtotal < found.min_spend) {
-      setCheckoutCouponError(`Este cupón requiere una compra mínima de $${found.min_spend.toLocaleString('es-AR')}.`);
-      return;
-    }
-
-    if (setAppliedCoupon) setAppliedCoupon(found);
-    setCheckoutCouponInput('');
   };
 
   const handleAddAddressFromModal = () => {
@@ -889,6 +864,16 @@ const CheckoutView = memo(({
                       </button>
                     </form>
                     {checkoutCouponError && <p className="text-[10px] text-red-600 font-bold">{checkoutCouponError}</p>}
+                  </div>
+                )}
+
+                {/* Automatic VIP / Super VIP Membership Discount */}
+                {tierDiscount > 0 && (
+                  <div className="flex items-center justify-between text-purple-700 font-bold bg-purple-50/90 px-3 py-2 rounded-xl border border-purple-200/60 font-mono-custom">
+                    <span className="flex items-center gap-1.5">
+                      <span>Descuento {tierBadge} ({tierPercent}% OFF):</span>
+                    </span>
+                    <span className="font-black text-sm">-${tierDiscount.toLocaleString('es-AR')}</span>
                   </div>
                 )}
 

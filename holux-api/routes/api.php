@@ -124,10 +124,20 @@ Route::prefix('admin')->middleware(['throttle:api', 'auth.supabase', 'auth.admin
         'destroy' => 'admin.categories.destroy',
     ]);
 
-    // Customers management
+    // Customers & VIP Membership Management
     Route::get('/customers', [AdminCustomerController::class, 'index']);
     Route::get('/customers/{id}', [AdminCustomerController::class, 'show']);
     Route::patch('/customers/{id}', [AdminCustomerController::class, 'update']); // activate/deactivate account
+    Route::patch('/customers/{id}/tier', [AdminCustomerController::class, 'updateTier']); // set tier: standard, vip, super_vip
+    Route::patch('/customers/{id}/vip', [AdminCustomerController::class, 'toggleVip']); // retrocompatible toggle
+    Route::get('/vip-settings', [AdminCustomerController::class, 'getVipSettings']);
+    Route::put('/vip-settings', [AdminCustomerController::class, 'saveVipSettings']);
+
+    // Admin Coupons CRUD & Management
+    Route::get('/coupons', [\App\Http\Controllers\CouponController::class, 'index']);
+    Route::post('/coupons', [\App\Http\Controllers\CouponController::class, 'store']);
+    Route::patch('/coupons/{id}/toggle', [\App\Http\Controllers\CouponController::class, 'toggle']);
+    Route::delete('/coupons/{id}', [\App\Http\Controllers\CouponController::class, 'destroy']);
 
     // Admins management
     Route::post('/admins', [AdminAdminController::class, 'store']); // promote customer to admin

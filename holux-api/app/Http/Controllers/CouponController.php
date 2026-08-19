@@ -2,100 +2,98 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AdminLog;
+use App\Services\CouponService;
+use App\Services\CustomerMetadataService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 
 class CouponController extends Controller
 {
     /**
-     * Get predefined coupons list for the authenticated user
+     * Get list of all coupons.
      */
-    public function index(Request $request)
+    public function index(Request $request): JsonResponse
     {
-        $now = time();
-        $sevenDaysFromNow = $now + (7 * 24 * 60 * 60);
-
-        // Predefined promo catalog of coupons
-        $allCoupons = [
-            [
-                'id' => 'coup-101',
-                'code' => 'HOLUXBIENVENIDA',
-                'type' => 'percentage',
-                'value' => 20,
-                'min_spend' => 30000,
-                'origin' => 'Bienvenida 🚀',
-                'origin_type' => 'bienvenida',
-                'description' => 'Válido en compras mayores a $30.000. No acumulable.',
-                'expiry_timestamp' => $sevenDaysFromNow + (10 * 86400),
-                'status' => 'disponible',
-                'used_date' => null,
-                'used_order_id' => null,
-            ],
-            [
-                'id' => 'coup-102',
-                'code' => 'CUMPLE2026',
-                'type' => 'fixed',
-                'value' => 5000,
-                'min_spend' => 25000,
-                'origin' => 'Por tu cumpleaños 🎂',
-                'origin_type' => 'cumpleanos',
-                'description' => 'Descuento directo de $5.000 en equipamiento de montaña.',
-                'expiry_timestamp' => $now + (3 * 86400), // 3 days (orange warning)
-                'status' => 'disponible',
-                'used_date' => null,
-                'used_order_id' => null,
-            ],
-            [
-                'id' => 'coup-103',
-                'code' => 'FRECUENTE5K',
-                'type' => 'fixed',
-                'value' => 5000,
-                'min_spend' => 40000,
-                'origin' => 'Cliente Frecuente ⭐',
-                'origin_type' => 'frecuente',
-                'description' => 'Válido en compras mayores a $40.000 en toda la tienda.',
-                'expiry_timestamp' => $sevenDaysFromNow + (15 * 86400),
-                'status' => 'disponible',
-                'used_date' => null,
-                'used_order_id' => null,
-            ],
-            [
-                'id' => 'coup-104',
-                'code' => 'OUTDOOR15',
-                'type' => 'percentage',
-                'value' => 15,
-                'min_spend' => 20000,
-                'origin' => 'Newsletter 📧',
-                'origin_type' => 'newsletter',
-                'description' => '15% de descuento adicional en calzado y ropa técnica.',
-                'expiry_timestamp' => $now - (2 * 86400), // Expired 2 days ago
-                'status' => 'vencido',
-                'used_date' => null,
-                'used_order_id' => null,
-            ],
-            [
-                'id' => 'coup-105',
-                'code' => 'EXPEDICION10',
-                'type' => 'percentage',
-                'value' => 10,
-                'min_spend' => 15000,
-                'origin' => 'Compra Anterior 📦',
-                'origin_type' => 'manual',
-                'description' => 'Aplicado en pedido #DB3B16.',
-                'expiry_timestamp' => $now - (30 * 86400),
-                'status' => 'usado',
-                'used_date' => date('d/m/Y H:i', $now - (15 * 86400)),
-                'used_order_id' => 'DB3B16',
-            ]
-        ];
-
-        return response()->json($allCoupons);
+        $coupons = CouponService::all();
+        return response()->json($coupons);
     }
 
     /**
-     * Redeem a promo coupon by code
+     * Store a newly created coupon (Admin).
      */
-    public function redeem(Request $request)
+    public function store(Request $request): JsonResponse
+    {
+        $request->validate([
+            'code' => ['required', 'string', 'min:2', 'max:50'],
+            'type' => ['required', 'string', 'in:percentage,fixed,percent'],
+            'value' => ['required', 'numeric', 'min:0.01'],
+            'min_spend' => ['nullable', 'numeric', 'min:0'],
+            'minPurchase' => ['nullable', 'numeric', 'min:0'],
+            'allowed_tier' => ['nullable', 'string', 'in:all,vip,super_vip'],
+            'origin' => ['nullable', 'string'],
+            'description' => ['nullable', 'string'],
+            'max_uses' => ['nullable', 'integer', 'min:1'],
+            'maxUses' => ['nullable', 'integer', 'min:1'],
+            'daysValid' => ['nullable', 'integer', 'min:1'],
+            'expiry_timestamp' => ['nullable', 'numeric'],
+        ]);
+
+        $data = $request->all();
+        if (isset($data['daysValid']) && !isset($data['expiry_timestamp'])) {
+            $data['expiry_timestamp'] = time() + ((int)$data['daysValid'] * 86400);
+        }
+
+        try {
+            $newCoupon = CouponService::create($data);
+            $user = $request->user()?->email ?? 'admin@holux.com';
+
+            AdminLog::record($user, 'COUPON_CREATED', 'coupons', [
+                'coupon' => $newCoupon
+            ]);
+
+            return response()->json([
+                'message' => "Cupón {$newCoupon['code']} creado exitosamente.",
+                'coupon' => $newCoupon
+            ], 201);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        } catch (\Throwable $e) {
+            return response()->json(['message' => 'Error al crear cupón.'], 500);
+        }
+    }
+
+    /**
+     * Toggle coupon active state.
+     */
+    public function toggle(string $id, Request $request): JsonResponse
+    {
+        $updated = CouponService::toggleActive($id);
+        if (!$updated) {
+            return response()->json(['message' => 'Cupón no encontrado.'], 404);
+        }
+        return response()->json([
+            'message' => 'Estado del cupón actualizado.',
+            'coupon' => $updated
+        ]);
+    }
+
+    /**
+     * Delete a coupon.
+     */
+    public function destroy(string $id, Request $request): JsonResponse
+    {
+        $deleted = CouponService::delete($id);
+        if (!$deleted) {
+            return response()->json(['message' => 'Error al eliminar cupón.'], 500);
+        }
+        return response()->json(['message' => 'Cupón eliminado correctamente.']);
+    }
+
+    /**
+     * Redeem a promo coupon by code.
+     */
+    public function redeem(Request $request): JsonResponse
     {
         $code = strtoupper(trim($request->input('code', '')));
 
@@ -103,44 +101,21 @@ class CouponController extends Controller
             return response()->json(['message' => 'Por favor ingresá un código de cupón.'], 422);
         }
 
-        $availableCodes = [
-            'HOLUXBIENVENIDA' => ['type' => 'percentage', 'value' => 20, 'min_spend' => 30000, 'origin' => 'Bienvenida 🚀'],
-            'CUMPLE2026' => ['type' => 'fixed', 'value' => 5000, 'min_spend' => 25000, 'origin' => 'Por tu cumpleaños 🎂'],
-            'FRECUENTE5K' => ['type' => 'fixed', 'value' => 5000, 'min_spend' => 40000, 'origin' => 'Cliente Frecuente ⭐'],
-            'SUMMER20' => ['type' => 'percentage', 'value' => 20, 'min_spend' => 35000, 'origin' => 'Promo Especial 🏔️'],
-            'VIP10K' => ['type' => 'fixed', 'value' => 10000, 'min_spend' => 60000, 'origin' => 'Cliente VIP 🥇'],
-        ];
-
-        if (!isset($availableCodes[$code])) {
+        $coupon = CouponService::findByCode($code);
+        if (!$coupon || empty($coupon['active'])) {
             return response()->json(['message' => 'El código de cupón ingresado no es válido o ya expiró.'], 404);
         }
 
-        $couponData = $availableCodes[$code];
-        $newCoupon = [
-            'id' => 'coup-' . time(),
-            'code' => $code,
-            'type' => $couponData['type'],
-            'value' => $couponData['value'],
-            'min_spend' => $couponData['min_spend'],
-            'origin' => $couponData['origin'],
-            'origin_type' => 'manual',
-            'description' => 'Descuento canjeado correctamente.',
-            'expiry_timestamp' => time() + (14 * 86400), // 14 days valid
-            'status' => 'disponible',
-            'used_date' => null,
-            'used_order_id' => null,
-        ];
-
         return response()->json([
-            'message' => "¡Cupón {$code} canjeado con éxito! Se añadió a tus beneficios disponibles.",
-            'coupon' => $newCoupon
+            'message' => "¡Cupón {$code} listo para usar!",
+            'coupon' => $coupon
         ]);
     }
 
     /**
-     * Validate and apply coupon to cart subtotal
+     * Validate and apply coupon to cart subtotal considering user tier.
      */
-    public function apply(Request $request)
+    public function apply(Request $request): JsonResponse
     {
         $code = strtoupper(trim($request->input('code', '')));
         $subtotal = floatval($request->input('subtotal', 0));
@@ -149,40 +124,23 @@ class CouponController extends Controller
             return response()->json(['message' => 'Código de cupón requerido.'], 422);
         }
 
-        $allCoupons = [
-            'HOLUXBIENVENIDA' => ['type' => 'percentage', 'value' => 20, 'min_spend' => 30000],
-            'CUMPLE2026' => ['type' => 'fixed', 'value' => 5000, 'min_spend' => 25000],
-            'FRECUENTE5K' => ['type' => 'fixed', 'value' => 5000, 'min_spend' => 40000],
-            'SUMMER20' => ['type' => 'percentage', 'value' => 20, 'min_spend' => 35000],
-            'VIP10K' => ['type' => 'fixed', 'value' => 10000, 'min_spend' => 60000],
-        ];
-
-        if (!isset($allCoupons[$code])) {
-            return response()->json(['message' => 'El código de cupón no existe o no es válido.'], 404);
+        // Detect user tier from request attribute or metadata
+        $userId = $request->attributes->get('user_id');
+        $userTier = 'standard';
+        if ($userId) {
+            $userTier = CustomerMetadataService::getTier($userId);
         }
 
-        $c = $allCoupons[$code];
+        $result = CouponService::validateAndApply($code, $subtotal, $userTier);
 
-        if ($subtotal < $c['min_spend']) {
+        if (!$result['valid']) {
+            $isTierError = str_contains($result['message'], 'EXCLUSIVO');
             return response()->json([
-                'message' => "Este cupón requiere una compra mínima de $" . number_format($c['min_spend'], 0, ',', '.') . "."
-            ], 400);
+                'valid' => false,
+                'message' => $result['message']
+            ], $isTierError ? 403 : 400);
         }
 
-        $discountAmount = 0;
-        if ($c['type'] === 'percentage') {
-            $discountAmount = round(($subtotal * $c['value']) / 100);
-        } else {
-            $discountAmount = min($subtotal, $c['value']);
-        }
-
-        return response()->json([
-            'valid' => true,
-            'code' => $code,
-            'type' => $c['type'],
-            'value' => $c['value'],
-            'discount_amount' => $discountAmount,
-            'message' => '¡Cupón aplicado correctamente!'
-        ]);
+        return response()->json($result);
     }
 }

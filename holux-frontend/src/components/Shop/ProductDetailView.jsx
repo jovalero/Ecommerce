@@ -30,7 +30,11 @@ export default function ProductDetailView({
 }) {
   if (!product) return null;
 
-  const discount = getProductDiscount(product.name);
+  const discount = product.offer_price > 0 && product.price > product.offer_price
+    ? Math.round(((product.price - product.offer_price) / product.price) * 100)
+    : 0;
+  const effectivePrice = discount > 0 ? product.offer_price : product.price;
+  const originalPrice = discount > 0 ? product.price : null;
   const rawVariants = product.variants;
   const hasExplicitVariants = Array.isArray(rawVariants) && rawVariants.length > 0;
   
@@ -152,11 +156,11 @@ export default function ProductDetailView({
               <div className="space-y-1 pt-2 border-t border-gray-100">
                 <div className="flex items-baseline gap-3">
                   <span className="text-3xl font-black text-gray-900 font-sans">
-                    {formatMoney(product.price)}
+                    {formatMoney(effectivePrice)}
                   </span>
-                  {discount > 0 && (
+                  {discount > 0 && originalPrice > 0 && (
                     <span className="text-base text-gray-400 line-through font-sans">
-                      {formatMoney(product.price * (1 + discount / 100))}
+                      {formatMoney(originalPrice)}
                     </span>
                   )}
                 </div>

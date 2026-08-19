@@ -82,12 +82,35 @@ export default function AdminOrderDetailModal({
           </div>
         )}
 
+        {/* Priority Dispatch Banner for VIP / Super VIP */}
+        {order.priority_dispatch && (
+          <div className="p-3 bg-purple-50 border border-purple-200 text-purple-900 text-xs rounded-xl flex items-center justify-between font-bold">
+            <span className="flex items-center gap-2">
+              <span className="text-base">⚡</span>
+              <span>PEDIDO CON DESPACHO EXPRESS PRIORITARIO ({order.customer_tier === 'super_vip' ? 'CLIENTE SUPER VIP 👑' : 'CLIENTE VIP ⭐'})</span>
+            </span>
+            <span className="text-[10px] bg-purple-200/80 px-2 py-0.5 rounded font-mono-custom">EMPAQUE PREFERENCIAL</span>
+          </div>
+        )}
+
         {/* Customer & Shipping Details */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs bg-gray-50 p-4 rounded-xl border border-gray-150">
           <div className="space-y-1.5">
-            <h4 className="font-bold text-gray-800 uppercase tracking-wider flex items-center gap-1.5">
-              <User className="w-3.5 h-3.5 text-[#3C6E71]" /> Datos del Cliente
-            </h4>
+            <div className="flex items-center justify-between">
+              <h4 className="font-bold text-gray-800 uppercase tracking-wider flex items-center gap-1.5">
+                <User className="w-3.5 h-3.5 text-[#3C6E71]" /> Datos del Cliente
+              </h4>
+              {order.customer_tier === 'super_vip' && (
+                <span className="bg-purple-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full font-mono-custom shadow-xs">
+                  👑 SUPER VIP
+                </span>
+              )}
+              {order.customer_tier === 'vip' && (
+                <span className="bg-amber-500 text-gray-900 text-[9px] font-black px-2 py-0.5 rounded-full font-mono-custom shadow-xs">
+                  ⭐ VIP
+                </span>
+              )}
+            </div>
             <p className="text-gray-900 font-bold">{order.customer_name || 'Cliente Particular'}</p>
             <p className="text-gray-600 flex items-center gap-1"><Mail className="w-3 h-3 text-gray-400" /> {order.customer_email || '-'}</p>
             {order.customer_phone && <p className="text-gray-600 flex items-center gap-1"><Phone className="w-3 h-3 text-gray-400" /> {order.customer_phone}</p>}

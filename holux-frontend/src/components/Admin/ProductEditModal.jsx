@@ -403,18 +403,18 @@ export default function ProductEditModal({ product, categories = [], onClose, on
             </div>
           </div>
 
-          {/* 2. PRECIOS, COSTO INTERNO Y MARGEN AUTOMÁTICO */}
+          {/* 2. PRECIOS, OFERTAS Y DESCUENTOS (% OFF) */}
           <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-4">
             <div className="flex items-center justify-between border-b border-gray-100 pb-2">
               <h4 className="font-display text-xs font-bold text-gray-800 uppercase tracking-wider flex items-center gap-2">
                 <DollarSign className="w-4 h-4 text-emerald-600" />
-                PRECIOS, COSTO INTERNO Y MARGEN AUTOMÁTICO
+                PRECIOS, OFERTAS Y DESCUENTOS (% OFF)
               </h4>
               {cost > 0 && (
                 <div className="flex items-center gap-2">
                   <span className="text-[10px] text-gray-500 font-bold uppercase">Margen Est.:</span>
                   <span className={`px-2.5 py-1 rounded-full font-mono-custom font-bold text-xs ${Number(marginPercentage) >= 40 ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-amber-100 text-amber-800 border border-amber-300'}`}>
-                    +{marginPercentage}% (${netProfit.toLocaleString()} ARS)
+                    +{marginPercentage}% (${(effectiveSellPrice - cost).toLocaleString('es-AR')} ARS)
                   </span>
                 </div>
               )}
@@ -422,27 +422,32 @@ export default function ProductEditModal({ product, categories = [], onClose, on
 
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
               <div>
-                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">Precio Normal (ARS $)</label>
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">Precio Normal / Lista (ARS $) *</label>
                 <input
                   type="number"
                   required
                   min="0"
                   value={price}
                   onChange={(e) => setPrice(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:border-[#3C6E71] outline-none font-mono-custom font-bold text-gray-800"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:border-[#3C6E71] outline-none font-mono-custom font-bold text-gray-800 text-sm"
+                  placeholder="Ej: 120000"
                 />
+                <span className="text-[10px] text-gray-400 mt-1 block">Precio base tachado si hay oferta</span>
               </div>
 
               <div>
-                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">Precio de Oferta (ARS $)</label>
+                <label className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider block mb-1">
+                  Precio de Oferta / Venta (ARS $)
+                </label>
                 <input
                   type="number"
                   min="0"
                   value={offerPrice}
                   onChange={(e) => setOfferPrice(e.target.value)}
-                  placeholder="Dejar en 0 si no aplica"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:border-[#3C6E71] outline-none font-mono-custom font-bold text-emerald-700"
+                  placeholder="0 para desactivar"
+                  className="w-full px-3 py-2 border border-emerald-300 bg-emerald-50/30 rounded-lg focus:border-emerald-600 outline-none font-mono-custom font-bold text-emerald-800 text-sm"
                 />
+                <span className="text-[10px] text-emerald-600 mt-1 block font-medium">Dejar en 0 si no tiene descuento</span>
               </div>
 
               <div>
@@ -452,22 +457,96 @@ export default function ProductEditModal({ product, categories = [], onClose, on
                   min="0"
                   value={costPrice}
                   onChange={(e) => setCostPrice(e.target.value)}
-                  placeholder="Costo de compra/producción"
+                  placeholder="Costo de producción/compra"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:border-[#3C6E71] outline-none font-mono-custom text-gray-600"
                 />
+                <span className="text-[10px] text-gray-400 mt-1 block">Para calcular rentabilidad interna</span>
               </div>
 
               <div>
-                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">Stock Global</label>
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">Stock Global Disponible *</label>
                 <input
                   type="number"
                   required
                   min="0"
                   value={stock}
                   onChange={(e) => setStock(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:border-[#3C6E71] outline-none font-bold"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:border-[#3C6E71] outline-none font-bold font-mono-custom text-gray-900"
                 />
+                <span className="text-[10px] text-gray-400 mt-1 block">Unidades en inventario</span>
               </div>
+            </div>
+
+            {/* Quick Percentage Helper & Live Badge Preview */}
+            <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <span className="text-[11px] font-bold text-gray-700 uppercase tracking-wider">
+                  ⚡ Asistente Rápido de % de Descuento:
+                </span>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {[10, 15, 20, 25, 30, 35, 40, 50].map((pct) => (
+                    <button
+                      key={pct}
+                      type="button"
+                      onClick={() => {
+                        const base = Number(price) || 0;
+                        if (base > 0) {
+                          const newOffer = Math.round(base * (1 - pct / 100));
+                          setOfferPrice(newOffer);
+                        }
+                      }}
+                      className="px-2 py-1 bg-white hover:bg-gray-200 border border-gray-300 rounded text-[10px] font-bold font-mono-custom cursor-pointer transition-all"
+                    >
+                      {pct}% OFF
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setOfferPrice(0)}
+                    className="px-2.5 py-1 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded text-[10px] font-bold cursor-pointer transition-all"
+                  >
+                    ✕ Quitar Oferta
+                  </button>
+                </div>
+              </div>
+
+              {/* Live Badge Preview Box */}
+              {(() => {
+                const baseP = Number(price) || 0;
+                const offP = Number(offerPrice) || 0;
+                const isOfferActive = offP > 0 && offP < baseP;
+                const pct = isOfferActive ? Math.round(((baseP - offP) / baseP) * 100) : 0;
+                const savings = isOfferActive ? baseP - offP : 0;
+
+                if (isOfferActive) {
+                  return (
+                    <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <span className="bg-[#B85C38] text-white text-[10px] font-display font-bold tracking-widest px-2.5 py-1 rounded shadow">
+                          {pct}% OFF
+                        </span>
+                        <div>
+                          <p className="text-xs font-bold text-gray-900">
+                            ¡Oferta Activa! Precio final: <span className="text-emerald-700">${offP.toLocaleString('es-AR')}</span>{' '}
+                            <span className="text-gray-400 line-through text-[11px]">${baseP.toLocaleString('es-AR')}</span>
+                          </p>
+                          <p className="text-[10px] text-emerald-700 font-sans">
+                            El cliente ahorra ${savings.toLocaleString('es-AR')} en esta compra.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="p-2.5 bg-gray-100/70 border border-gray-200 rounded-lg text-gray-600 text-xs flex items-center justify-between">
+                    <span>
+                      ℹ️ <strong>Sin descuento activo:</strong> El producto se mostrará a ${baseP.toLocaleString('es-AR')} sin etiqueta de descuento ni precio tachado.
+                    </span>
+                  </div>
+                );
+              })()}
             </div>
           </div>
 
