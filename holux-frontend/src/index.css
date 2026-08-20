@@ -80,23 +80,6 @@ body {
   scrollbar-width: none;
 }
 
-/* Custom keyframes for topographic line translation */
-@keyframes translateTopo {
-  0% {
-    transform: translate(0, 0) scale(1);
-  }
-  50% {
-    transform: translate(10px, -15px) scale(1.03);
-  }
-  100% {
-    transform: translate(0, 0) scale(1);
-  }
-}
-
-.animate-topo {
-  animation: translateTopo 25s ease-in-out infinite;
-}
-
 /* Infinite Scrolling Marquee */
 @keyframes marquee {
   0% {

@@ -6217,16 +6217,6 @@ export default function App() {
               </div>
             ))}
 
-            {/* Animated Topographic Background Overlay */}
-            <div className="absolute inset-0 opacity-15 pointer-events-none animate-topo">
-              <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
-                <path d="M-100,200 C300,100 200,400 600,250 C900,150 1000,500 1400,400" fill="none" stroke="#3C6E71" strokeWidth="2.5" />
-                <path d="M-50,300 C400,200 300,500 700,350 C1000,250 1100,600 1500,500" fill="none" stroke="#3C6E71" strokeWidth="1.5" />
-                <path d="M-150,100 C200,50 100,300 500,150 C800,50 900,400 1300,300" fill="none" stroke="#3C6E71" strokeWidth="1" />
-                <path d="M0,400 C500,300 400,600 800,450 C1100,350 1200,700 1600,600" fill="none" stroke="#3C6E71" strokeWidth="3" />
-              </svg>
-            </div>
-
             {/* Top and bottom gradient shadows for seamless transition */}
             <div className="absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-black/50 to-transparent pointer-events-none" />
             <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-black/60 to-transparent pointer-events-none" />
