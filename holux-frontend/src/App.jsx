@@ -257,7 +257,6 @@ export default function App() {
   // Navigation & Search Filters
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [isCatDropdownOpen, setIsCatDropdownOpen] = useState(false);
   const [activeGender, setActiveGender] = useState(null); // 'mujer' | 'hombre' | 'niños' | 'outlet' | null
   const [activeBrand, setActiveBrand] = useState(null); // brand filter
   const [currentView, setCurrentView] = useState(() => {
@@ -5810,44 +5809,40 @@ export default function App() {
           {/* Center Navigation Menu (Visible on Tablet md >= 768px & Desktop XL screens) */}
           <nav className="hidden md:flex items-center gap-4 lg:gap-6 xl:gap-8 relative shrink-0">
             
-            {/* CATEGORÍAS DROPDOWN (Desktop XL) */}
-            <div 
-              className="relative hidden xl:block"
-              onMouseEnter={() => setIsCatDropdownOpen(true)}
-              onMouseLeave={() => setIsCatDropdownOpen(false)}
-            >
+            {/* CATEGORÍAS DROPDOWN (Desktop XL - Pure CSS Zero Latency) */}
+            <div className="relative group hidden xl:block">
               <button
-                className={`font-display text-xs font-bold tracking-wider flex items-center gap-1.5 transition-colors cursor-pointer py-1.5 ${activeCategory ? 'text-[#3C6E71]' : 'text-[#F2EFE9] hover:text-[#3C6E71]'}`}
+                onClick={() => { window.location.hash = '#/catalogo'; }}
+                className={`font-display text-xs font-bold tracking-wider flex items-center gap-1.5 transition-colors cursor-pointer py-1.5 ${
+                  activeCategory ? 'text-[#3C6E71]' : 'text-[#F2EFE9] group-hover:text-[#3C6E71]'
+                }`}
               >
                 CATEGORÍAS
-                <ChevronDown className="w-3.5 h-3.5" />
+                <ChevronDown className="w-3.5 h-3.5 transition-transform duration-200 group-hover:rotate-180" />
               </button>
               
-              {isCatDropdownOpen && (
-                <div className="absolute top-full left-0 w-52 bg-[#1C2321] border border-[#3C6E71]/20 shadow-xl rounded py-2 transition-all z-50">
+              {/* Dropdown Menu - 100% GPU accelerated CSS transition */}
+              <div className="invisible opacity-0 group-hover:visible group-hover:opacity-100 transition-all duration-150 transform translate-y-1 group-hover:translate-y-0 absolute top-full left-0 w-52 bg-[#1C2321] border border-[#3C6E71]/20 shadow-xl rounded py-2 z-50">
+                <button
+                  onClick={() => { 
+                    window.location.hash = '#/catalogo';
+                  }}
+                  className="w-full text-left px-4 py-2 hover:bg-[#3C6E71]/20 text-xs font-display font-bold tracking-wider text-gray-200 hover:text-white transition-colors cursor-pointer"
+                >
+                  TODO EL CATÁLOGO
+                </button>
+                {categories.map(cat => (
                   <button
-                    onClick={() => { 
-                      window.location.hash = '#/catalogo';
-                      setIsCatDropdownOpen(false);
+                    key={cat.id}
+                    onClick={() => {
+                      window.location.hash = `#/catalogo?categoria=${cat.slug}`;
                     }}
-                    className="w-full text-left px-4 py-2 hover:bg-[#3C6E71]/20 text-xs font-display font-bold tracking-wider text-gray-200 hover:text-white"
+                    className="w-full text-left px-4 py-2 hover:bg-[#3C6E71]/20 text-xs font-display font-bold tracking-wider text-gray-200 hover:text-white transition-colors cursor-pointer"
                   >
-                    TODO EL CATÁLOGO
+                    {cat.name.toUpperCase()}
                   </button>
-                  {categories.map(cat => (
-                    <button
-                      key={cat.id}
-                      onClick={() => {
-                        window.location.hash = `#/catalogo?categoria=${cat.slug}`;
-                        setIsCatDropdownOpen(false);
-                      }}
-                      className="w-full text-left px-4 py-2 hover:bg-[#3C6E71]/20 text-xs font-display font-bold tracking-wider text-gray-200 hover:text-white"
-                    >
-                      {cat.name.toUpperCase()}
-                    </button>
-                  ))}
-                </div>
-              )}
+                ))}
+              </div>
             </div>
 
             {/* MUJER (Visible on Tablet md >= 768px & Desktop) */}
