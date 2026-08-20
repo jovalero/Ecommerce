@@ -107,12 +107,13 @@ export default function AdminDashboard({
           <div className="flex items-center gap-3">
             <button
               onClick={() => { window.location.hash = '#/'; setCurrentView('home'); }}
-              className="flex items-center gap-2 group cursor-pointer"
+              className="flex items-center gap-2.5 group cursor-pointer"
             >
-              <span className="bg-[#B85C38] text-white px-2.5 py-1 rounded font-black font-mono-custom text-lg tracking-wider">
+              <img src="/holuxlogo.png" alt="HOLUX" className="h-8 w-auto object-contain brightness-0 invert" />
+              <span className="font-display font-black text-lg tracking-widest text-white">
                 HOLUX
               </span>
-              <span className="font-display font-bold text-sm tracking-widest text-gray-300">
+              <span className="font-display font-bold text-xs tracking-widest text-gray-400 pl-2 border-l border-white/20">
                 PANEL ADMINISTRADOR
               </span>
             </button>

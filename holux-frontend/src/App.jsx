@@ -55,6 +55,7 @@ import Breadcrumbs from './components/Admin/Breadcrumbs';
 import HeaderSearchInput from './components/Shop/HeaderSearchInput';
 import VipSettingsManager from './components/Admin/VipSettingsManager';
 import CatalogView from './components/Shop/CatalogView';
+import ProductCard from './components/Shop/ProductCard';
 import { useProductCatalog } from './hooks/useProductCatalog';
 
 // Configuration
@@ -470,7 +471,97 @@ export default function App() {
     };
   }, [userProfile?.id]);
 
-  const [customerPanelSection, setCustomerPanelSection] = useState('general'); // 'general' | 'orders' | 'coupons' | 'reviews' | 'addresses' | 'messages' | 'settings'
+  // Global Favorites State
+  const [favorites, setFavorites] = useState(() => {
+    try {
+      const saved = localStorage.getItem('holux_guest_favorites');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  // Sync favorites with backend
+  useEffect(() => {
+    const syncFavorites = async () => {
+      if (!token) return;
+      try {
+        const guest = localStorage.getItem('holux_guest_favorites');
+        if (guest) {
+          try {
+            const parsed = JSON.parse(guest);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              const syncRes = await fetch(`${API_BASE_URL}/api/favorites/sync`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`,
+                  'Accept': 'application/json'
+                },
+                body: JSON.stringify({ product_ids: parsed })
+              });
+              if (syncRes.ok) {
+                const syncData = await syncRes.json();
+                if (syncData.product_ids) {
+                  setFavorites(syncData.product_ids);
+                  localStorage.removeItem('holux_guest_favorites');
+                  return;
+                }
+              }
+            }
+          } catch (e) {
+            console.error("Error parsing guest favorites:", e);
+          }
+        }
+
+        const res = await fetch(`${API_BASE_URL}/api/favorites`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json'
+          }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.product_ids) {
+            setFavorites(data.product_ids);
+          }
+        }
+      } catch (err) {
+        console.error("Error syncing favorites:", err);
+      }
+    };
+    syncFavorites();
+  }, [token]);
+
+  const handleToggleFavorite = async (productId) => {
+    const strId = String(productId);
+    const numId = Number(productId);
+    const isFav = favorites.some(id => String(id) === strId || id === numId || id === productId);
+    const updated = isFav
+      ? favorites.filter(id => String(id) !== strId && id !== numId && id !== productId)
+      : [...favorites, productId];
+    setFavorites(updated);
+
+    if (token) {
+      try {
+        await fetch(`${API_BASE_URL}/api/favorites/toggle`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({ product_id: strId })
+        });
+      } catch (e) {
+        console.error("Error toggling favorite on server:", e);
+      }
+    } else {
+      localStorage.setItem('holux_guest_favorites', JSON.stringify(updated));
+    }
+  };
+
+  const [customerPanelSection, setCustomerPanelSection] = useState('general'); // 'general' | 'orders' | 'favorites' | 'coupons' | 'reviews' | 'addresses' | 'messages' | 'settings'
   const [orderStatusFilter, setOrderStatusFilter] = useState('all'); // 'all' | 'pending' | 'processing' | 'shipped' | 'completed'
   const [orderSearchQuery, setOrderSearchQuery] = useState('');
 
@@ -653,97 +744,6 @@ export default function App() {
   // Navigation View & Admin State
   const [adminTab, setAdminTab] = useState('dashboard');
   
-  // Sample seed data for Admin testing
-  const SAMPLE_ORDERS = [
-    {
-      id: 'HLX-849201',
-      created_at: new Date(Date.now() - 2 * 3600 * 1000).toISOString(),
-      customer_name: 'Lucía Fernández',
-      customer_email: 'lucia.fernandez@gmail.com',
-      total: 345000,
-      subtotal: 285123.96,
-      tax_amount: 59876.04,
-      status: 'paid',
-      payment_method: 'Tarjeta (Visa)',
-      shipping_address: 'Av. Libertador 2450, 4º B, CABA',
-      receipt_url: null,
-      rejection_reason: null,
-      profiles: { full_name: 'Lucía Fernández', phone: '+54 9 11 4521-8899' },
-      order_items: [
-        { id: 'item-1', product_name: 'Campera Impermeable Fitz Roy Extreme', quantity: 1, unit_price: 245000 },
-        { id: 'item-2', product_name: 'Botas de Montaña Cordillera Pro', quantity: 1, unit_price: 100000 }
-      ]
-    },
-    {
-      id: 'HLX-849202',
-      created_at: new Date(Date.now() - 1 * 3600 * 1000).toISOString(),
-      customer_name: 'Martín Palermo',
-      customer_email: 'martin.palermo@gmail.com',
-      total: 165600,
-      subtotal: 136859.50,
-      tax_amount: 28740.50,
-      status: 'pending_review',
-      payment_method: 'transfer',
-      shipping_address: 'Calle San Martín 120, Bariloche, Río Negro',
-      receipt_url: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=800&auto=format&fit=crop&q=80',
-      rejection_reason: null,
-      profiles: { full_name: 'Martín Palermo', phone: '+54 9 294 412-3456' },
-      order_items: [
-        { id: 'item-3', product_name: 'Mochila Trekking 65L Expedición', quantity: 1, unit_price: 184000 }
-      ]
-    },
-    {
-      id: 'HLX-849203',
-      created_at: new Date(Date.now() - 3 * 24 * 3600 * 1000).toISOString(),
-      customer_name: 'Sofía Rossi',
-      customer_email: 'sofia.rossi@outlook.com',
-      total: 495000,
-      subtotal: 409090.90,
-      tax_amount: 85909.10,
-      status: 'pending_payment',
-      payment_method: 'Tarjeta (Mastercard)',
-      shipping_address: 'Bv. Oroño 450, Rosario, Santa Fe',
-      receipt_url: null,
-      rejection_reason: null,
-      profiles: { full_name: 'Sofía Rossi', phone: '+54 9 341 555-1234' },
-      order_items: [
-        { id: 'item-4', product_name: 'Carpa Domo 4 Personas Alta Montaña', quantity: 1, unit_price: 495000 }
-      ]
-    },
-    {
-      id: 'HLX-849204',
-      created_at: new Date(Date.now() - 5 * 24 * 3600 * 1000).toISOString(),
-      customer_name: 'Gonzalo Higuaín',
-      customer_email: 'gonzalo.higuain@gmail.com',
-      total: 89000,
-      subtotal: 73553.71,
-      tax_amount: 15446.29,
-      status: 'rejected',
-      payment_method: 'transfer',
-      shipping_address: 'Av. Colón 1200, Córdoba',
-      receipt_url: 'https://images.unsplash.com/photo-1554224154-26032ffc0d07?w=800&auto=format&fit=crop&q=80',
-      rejection_reason: 'El comprobante enviado está borroso y no muestra la acreditación del monto.',
-      profiles: { full_name: 'Gonzalo Higuaín', phone: '+54 9 351 987-6543' },
-      order_items: [
-        { id: 'item-5', product_name: 'Campera Cortavientos Fitz Roy', quantity: 1, unit_price: 89000 }
-      ]
-    }
-  ];
-
-  const SAMPLE_CUSTOMERS = [
-    { id: 'cust-101', full_name: 'Lucía Fernández', email: 'lucia.fernandez@gmail.com', phone: '+54 9 11 4521-8899', total_orders: 4, total_spent: 185000, status: 'ACTIVO', is_vip: true },
-    { id: 'cust-102', full_name: 'Martín Palermo', email: 'martin.palermo@gmail.com', phone: '+54 9 294 412-3456', total_orders: 2, total_spent: 98000, status: 'ACTIVO', is_vip: false },
-    { id: 'cust-103', full_name: 'Sofía Rossi', email: 'sofia.rossi@gmail.com', phone: '+54 9 341 678-9012', total_orders: 3, total_spent: 145000, status: 'ACTIVO', is_vip: true },
-    { id: 'cust-104', full_name: 'Gonzalo Montiel', email: 'gonzalo.montiel@gmail.com', phone: '+54 9 261 345-6789', total_orders: 1, total_spent: 62000, status: 'ACTIVO', is_vip: false },
-    { id: 'cust-105', full_name: 'Esteban Quito', email: 'esteban.quito@gmail.com', phone: '+54 9 351 987-6543', total_orders: 5, total_spent: 240000, status: 'SUSPENDIDO', is_vip: true }
-  ];
-
-  const SAMPLE_REVIEWS = [
-    { id: 'rev-1', product_name: 'Campera Cortavientos Fitz Roy', customer_name: 'Lucía Fernández', rating: 5, comment: 'Excelente resistencia al viento y agua en el Chaltén!', approved: true, products: { name: 'Campera Cortavientos Fitz Roy' }, profiles: { full_name: 'Lucía Fernández' } },
-    { id: 'rev-2', product_name: 'Mochila Trekking 65L Expedición', customer_name: 'Martín Palermo', rating: 5, comment: 'Muy cómoda la mochila para caminatas largas.', approved: true, products: { name: 'Mochila Trekking 65L Expedición' }, profiles: { full_name: 'Martín Palermo' } },
-    { id: 'rev-3', product_name: 'Carpa Domo Refugio 2P', customer_name: 'Sofía Rossi', rating: 4, comment: 'Soportó ráfagas de 80 km/h sin ningún problema.', approved: false, products: { name: 'Carpa Domo Refugio 2P' }, profiles: { full_name: 'Sofía Rossi' } }
-  ];
-
   // Admin Data states
   const [adminStats, setAdminStats] = useState(null);
   const [adminOrdersList, setAdminOrdersList] = useState([]);
@@ -934,96 +934,6 @@ export default function App() {
     }
   }, []);
 
-  const MOCK_FALLBACK_PRODUCTS = [
-    {
-      id: 1,
-      name: "Campera Cortavientos Fitz Roy",
-      brand: "Holux Extreme",
-      price: 100,
-      installments: 1,
-      stock: 15,
-      categories: { name: "Trekking", slug: "trekking" },
-      description: "Campera de alta montaña con membrana impermeable Gore-Tex y costuras selladas térmicamente."
-    },
-    {
-      id: 2,
-      name: "Botas de Montaña Cordillera Pro",
-      brand: "Holux Trekking",
-      price: 100,
-      installments: 1,
-      stock: 12,
-      categories: { name: "Calzado", slug: "calzado" },
-      description: "Botas técnicas con suela Vibram de alta tracción y protección de cuero hidrofugado."
-    },
-    {
-      id: 3,
-      name: "Mochila Trekking 65L Expedición",
-      brand: "Holux Gear",
-      price: 100,
-      installments: 1,
-      stock: 8,
-      categories: { name: "Accesorios", slug: "accesorios" },
-      description: "Mochila ergonómica de 65 litros con estructura de aluminio ligero y funda de lluvia."
-    },
-    {
-      id: 4,
-      name: "Carpa Domo Refugio 2P 4 Estaciones",
-      brand: "Holux Shelter",
-      price: 100,
-      installments: 1,
-      stock: 6,
-      categories: { name: "Camping", slug: "camping" },
-      description: "Carpa ligera de duraluminio probada contra vientos patagónicos de más de 90 km/h."
-    },
-    {
-      id: 5,
-      name: "Bolsa de Dormir Térmica Alpamayo -10°C",
-      brand: "Holux Sleep",
-      price: 100,
-      installments: 1,
-      stock: 20,
-      categories: { name: "Camping", slug: "camping" },
-      description: "Bolsa de dormir anatómica de pluma sintética ultra compacta."
-    },
-    {
-      id: 6,
-      name: "Bastones de Trekking Aluminio Ultra",
-      brand: "Holux Trail",
-      price: 100,
-      installments: 1,
-      stock: 25,
-      categories: { name: "Accesorios", slug: "accesorios" },
-      description: "Par de bastones telescópicos antishock con empuñadura de corcho natural."
-    },
-    {
-      id: 7,
-      name: "Termo Técnico Acero Inoxidable 1.2L",
-      brand: "Holux Hydro",
-      price: 100,
-      installments: 1,
-      stock: 30,
-      categories: { name: "Accesorios", slug: "accesorios" },
-      description: "Termo de doble pared al vacío que mantiene el calor hasta por 36 horas seguidas."
-    },
-    {
-      id: 8,
-      name: "Guantes Térmicos Nieve Windstopper",
-      brand: "Holux Alpine",
-      price: 100,
-      installments: 1,
-      stock: 18,
-      categories: { name: "Accesorios", slug: "accesorios" },
-      description: "Guantes reforzados con palma antideslizante para esquí y senderismo invernal."
-    }
-  ];
-
-  const MOCK_FALLBACK_CATEGORIES = [
-    { id: 1, name: "Trekking", slug: "trekking" },
-    { id: 2, name: "Camping", slug: "camping" },
-    { id: 3, name: "Calzado", slug: "calzado" },
-    { id: 4, name: "Accesorios", slug: "accesorios" }
-  ];
-
   const fetchCatalog = async () => {
     setLoadingProducts(true);
     setLoadingCategories(true);
@@ -1031,30 +941,18 @@ export default function App() {
       const resCat = await fetch(`${API_BASE_URL}/api/categories`);
       if (resCat.ok) {
         const data = await resCat.json();
-        if (data && data.length > 0) {
-          setCategories(data);
-        } else {
-          setCategories(MOCK_FALLBACK_CATEGORIES);
-        }
-      } else {
-        setCategories(MOCK_FALLBACK_CATEGORIES);
+        const cats = Array.isArray(data) ? data : (data.data || []);
+        setCategories(cats);
       }
 
-      const resProd = await fetch(`${API_BASE_URL}/api/products`);
+      const resProd = await fetch(`${API_BASE_URL}/api/products?per_page=100`);
       if (resProd.ok) {
-        const data = await resProd.json();
-        if (data && data.length > 0) {
-          setProducts(data);
-        } else {
-          setProducts(MOCK_FALLBACK_PRODUCTS);
-        }
-      } else {
-        setProducts(MOCK_FALLBACK_PRODUCTS);
+        const result = await resProd.json();
+        const prods = Array.isArray(result) ? result : (result.data || []);
+        setProducts(prods);
       }
     } catch (e) {
-      console.error("Error loading catalog, using fallback", e);
-      setProducts(MOCK_FALLBACK_PRODUCTS);
-      setCategories(MOCK_FALLBACK_CATEGORIES);
+      console.error("Error loading catalog from API:", e);
     } finally {
       setLoadingProducts(false);
       setLoadingCategories(false);
@@ -1064,82 +962,19 @@ export default function App() {
   const fetchUserProfile = async () => {
     if (!token) return;
 
-    // Helper to safely parse JWT tokens (including Base64Url padding)
-    const getPayloadFromToken = (tok) => {
-      try {
-        const parts = tok.split('.');
-        if (parts.length < 2) return null;
-        const base64Url = parts[1];
-        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        const padded = base64.padEnd(base64.length + (4 - base64.length % 4) % 4, '=');
-        return JSON.parse(atob(padded));
-      } catch {
-        return null;
-      }
-    };
-
-    const tokenPayload = getPayloadFromToken(token);
-    const isMockToken = tokenPayload && tokenPayload.sub && String(tokenPayload.sub).startsWith('usr-');
-
-    // Only hit API for non-mock tokens
-    if (!isMockToken) {
-      try {
-        const res = await fetch(`${API_BASE_URL}/api/me`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (res.ok) {
-          const data = await res.json();
-          const isAdminUser = data.role === 'admin' || (data.email && data.email.toLowerCase() === 'admin@holux.com') || (tokenPayload?.email && tokenPayload.email.toLowerCase() === 'admin@holux.com');
-          const finalProfile = {
-            ...data,
-            role: isAdminUser ? 'admin' : (data.role || 'customer')
-          };
-          setUserProfile(finalProfile);
-          setCheckoutName(finalProfile.full_name || '');
-          if (finalProfile.email) setCheckoutEmail(finalProfile.email);
-          return;
-        }
-      } catch (e) {
-        // Fallback to local profile parsing
-      }
-    }
-
-    // Client-side profile generation from token payload
-    if (tokenPayload) {
-      const email = tokenPayload.email || '';
-      const meta = tokenPayload.user_metadata || {};
-      const fullName = meta.full_name || (email ? email.split('@')[0] : 'Cliente');
-      const isAdminUser = (email.toLowerCase() === 'admin@holux.com') || meta.role === 'admin' || (tokenPayload.app_metadata && tokenPayload.app_metadata.role === 'admin') || (tokenPayload.role === 'service_role');
-      const role = isAdminUser ? 'admin' : (meta.role || 'customer');
-
-      const fallbackProfile = {
-        id: tokenPayload.sub || 'user_id',
-        role: role,
-        full_name: fullName,
-        email: email,
-        phone: meta.phone || ''
-      };
-      setUserProfile(fallbackProfile);
-      setCheckoutName(fullName);
-      if (email) setCheckoutEmail(email);
-    } else {
-      setUserProfile(null);
-    }
-  };
-
-  // Helper to check if current token is a demo/mock local token
-  const isMockToken = (tok) => {
-    if (!tok) return false;
     try {
-      const parts = tok.split('.');
-      if (parts.length < 2) return false;
-      const base64Url = parts[1];
-      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-      const padded = base64.padEnd(base64.length + (4 - base64.length % 4) % 4, '=');
-      const payload = JSON.parse(atob(padded));
-      return payload && payload.sub && String(payload.sub).startsWith('usr-');
-    } catch {
-      return false;
+      const res = await fetch(`${API_BASE_URL}/api/me`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setUserProfile(data);
+        setCheckoutName(data.full_name || '');
+        if (data.email) setCheckoutEmail(data.email);
+        return;
+      }
+    } catch (e) {
+      console.error("Error loading profile from API:", e);
     }
   };
 
@@ -1156,16 +991,12 @@ export default function App() {
         setAddresses(data);
       }
     } catch (e) {
-      console.error(e);
+      console.error("Error loading addresses from API:", e);
     }
   };
 
   const fetchOrders = async () => {
     if (!token) return;
-    if (isMockToken(token)) {
-      setOrders(SAMPLE_ORDERS.slice(0, 2));
-      return;
-    }
     try {
       const res = await fetch(`${API_BASE_URL}/api/me/orders`, {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -1175,7 +1006,7 @@ export default function App() {
         setOrders(data);
       }
     } catch (e) {
-      console.error(e);
+      console.error("Error loading orders from API:", e);
     }
   };
 
@@ -2834,9 +2665,9 @@ export default function App() {
                 setActiveGender(null); 
                 setSelectedDetailProduct(null);
               }} 
-              className="flex items-center gap-2"
+              className="flex items-center gap-2.5"
             >
-              <span className="bg-[#B85C38] text-white px-2.5 py-0.5 rounded font-black font-mono-custom text-lg">H</span>
+              <img src="/holuxlogo.png" alt="HOLUX" className="h-7 sm:h-8 w-auto object-contain brightness-0 invert" />
               <span className="font-display text-xl font-bold tracking-widest text-[#F2EFE9]">HOLUX</span>
             </a>
             <span className="hidden sm:inline-block text-xs font-mono-custom text-[#3C6E71] border-l border-[#3C6E71]/30 pl-3">
@@ -2928,7 +2759,7 @@ export default function App() {
                     setCurrentView('admin');
                     setAdminTab('dashboard');
                   }}
-                  className="w-full px-4 py-3.5 flex items-center justify-between transition-all cursor-pointer bg-[#B85C38] hover:bg-[#B85C38]/90 text-white font-bold shadow-sm"
+                  className="w-full px-4 py-3.5 flex items-center justify-between transition-all cursor-pointer bg-black hover:bg-neutral-800 text-white font-bold shadow-sm"
                 >
                   <div className="flex items-center gap-3">
                     <Shield className="w-4 h-4 flex-shrink-0" />
@@ -2975,6 +2806,20 @@ export default function App() {
                 </div>
                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full font-mono-custom ${customerPanelSection === 'orders' ? 'bg-white text-[#3C6E71]' : 'bg-[#B85C38] text-white'}`}>
                   {orders ? orders.length : 0}
+                </span>
+              </button>
+
+              {/* Favoritos */}
+              <button
+                onClick={() => setCustomerPanelSection('favorites')}
+                className={`w-full px-4 py-3.5 flex items-center justify-between transition-all cursor-pointer ${customerPanelSection === 'favorites' ? 'bg-[#3C6E71] text-white font-bold shadow-sm' : 'text-gray-600 hover:bg-gray-50'}`}
+              >
+                <div className="flex items-center gap-3">
+                  <Heart className={`w-4 h-4 flex-shrink-0 ${customerPanelSection === 'favorites' ? 'text-white fill-white' : 'text-gray-400'}`} />
+                  <span>Favoritos</span>
+                </div>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded font-mono-custom ${customerPanelSection === 'favorites' ? 'bg-white text-[#3C6E71]' : 'bg-rose-50 text-rose-600 border border-rose-200'}`}>
+                  {favorites ? favorites.length : 0}
                 </span>
               </button>
 
@@ -3063,11 +2908,18 @@ export default function App() {
                   </div>
 
                   {/* Summary Stat Cards */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div className="bg-gray-50 border border-gray-200 p-4 rounded-xl space-y-1">
                       <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider block">TOTAL PEDIDOS</span>
                       <span className="text-2xl font-bold font-mono-custom text-gray-900">
                         {orders ? orders.length : 0}
+                      </span>
+                    </div>
+
+                    <div className="bg-gray-50 border border-gray-200 p-4 rounded-xl space-y-1">
+                      <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider block">FAVORITOS GUARDADOS</span>
+                      <span className="text-2xl font-bold font-mono-custom text-rose-600">
+                        {favorites ? favorites.length : 0}
                       </span>
                     </div>
 
@@ -3559,6 +3411,72 @@ export default function App() {
               </div>
             )}
 
+            {/* FAVORITOS SECTION */}
+            {customerPanelSection === 'favorites' && (
+              <div className="space-y-6">
+                <div className="bg-white border border-gray-200 p-6 rounded-2xl shadow-sm space-y-6 text-gray-900">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-100 pb-4">
+                    <div>
+                      <h2 className="font-display text-lg font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
+                        <Heart className="w-5 h-5 text-rose-500 fill-rose-500" />
+                        MIS PRODUCTOS FAVORITOS
+                      </h2>
+                      <p className="text-xs text-gray-500 font-sans mt-0.5">
+                        Equipamiento y prendas que guardaste para tu próxima aventura.
+                      </p>
+                    </div>
+                    <span className="px-3 py-1 bg-rose-50 text-rose-700 border border-rose-200 rounded-full text-xs font-bold font-sans self-start sm:self-auto">
+                      {products.filter(p => favorites.some(id => String(id) === String(p.id))).length} guardados
+                    </span>
+                  </div>
+
+                  {products.filter(p => favorites.some(id => String(id) === String(p.id))).length === 0 ? (
+                    <div className="py-16 text-center space-y-4">
+                      <div className="w-16 h-16 bg-rose-50 rounded-full flex items-center justify-center mx-auto text-rose-400">
+                        <Heart className="w-8 h-8" />
+                      </div>
+                      <div className="space-y-1">
+                        <h3 className="font-display font-bold text-base text-gray-900 uppercase">
+                          No tenés productos en favoritos todavía
+                        </h3>
+                        <p className="text-xs text-gray-500 max-w-md mx-auto">
+                          Explorá el catálogo de Holux y hacé clic en el corazón de cualquier producto para guardarlo en tu lista personal.
+                        </p>
+                      </div>
+                      <div className="pt-2">
+                        <button
+                          onClick={() => {
+                            window.location.hash = '#/catalogo';
+                            setCurrentView('category');
+                          }}
+                          className="px-6 py-2.5 bg-black hover:bg-neutral-800 text-white rounded-xl font-display text-xs font-bold uppercase tracking-wider transition-all shadow-sm cursor-pointer"
+                        >
+                          EXPLORAR CATÁLOGO
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                      {products.filter(p => favorites.some(id => String(id) === String(p.id))).map(product => (
+                        <ProductCard
+                          key={product.id}
+                          product={product}
+                          isFavorite={true}
+                          onToggleFavorite={handleToggleFavorite}
+                          onProductClick={handleProductClick}
+                          onAddToCart={addToCart}
+                          onBuyNow={(prod) => {
+                            addToCart(prod);
+                            setIsCartOpen(true);
+                          }}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* 3. CUPONES Y BENEFICIOS SECTION (BILLETERA DE DESCUENTOS) */}
             {customerPanelSection === 'coupons' && (
               <div className="space-y-6">
@@ -3832,7 +3750,7 @@ export default function App() {
                     <button
                       type="button"
                       onClick={() => setIsRefundModalOpen(true)}
-                      className="px-4 py-2 bg-[#B85C38] hover:bg-[#B85C38]/90 text-white font-display text-xs font-bold tracking-wider rounded-xl uppercase transition-all shadow-sm cursor-pointer"
+                      className="px-4 py-2 bg-black hover:bg-neutral-800 text-white font-display text-xs font-bold tracking-wider rounded-xl uppercase transition-all shadow-sm cursor-pointer"
                     >
                       + SOLICITAR DEVOLUCIÓN
                     </button>
@@ -4229,7 +4147,7 @@ export default function App() {
                   </button>
                   <button
                     type="submit"
-                    className="w-1/2 py-2.5 bg-[#B85C38] hover:bg-[#B85C38]/90 text-white font-display text-xs font-bold uppercase rounded-xl shadow cursor-pointer"
+                    className="w-1/2 py-2.5 bg-black hover:bg-neutral-800 text-white font-display text-xs font-bold uppercase rounded-xl shadow cursor-pointer"
                   >
                     ENVIAR SOLICITUD
                   </button>
@@ -4601,9 +4519,7 @@ export default function App() {
         {/* TOP FULL-PAGE ADMIN HEADER */}
         <header className="bg-[#1C2321] text-white px-6 py-4 flex items-center justify-between border-b border-[#3C6E71]/30 shadow-md">
           <div className="flex items-center gap-3">
-            <span className="bg-[#B85C38] text-white px-3 py-1 rounded font-black font-mono-custom text-sm">
-              HOLUX
-            </span>
+            <img src="/holuxlogo.png" alt="HOLUX" className="h-8 w-auto object-contain brightness-0 invert" />
             <div>
               <h1 className="font-display text-lg font-bold tracking-wider uppercase">PANEL DE CONTROL DE ADMINISTRACIÓN</h1>
               <p className="text-xs text-gray-400">Gestión integral de tienda, catálogo, pedidos y configuración general</p>
@@ -5972,7 +5888,7 @@ export default function App() {
 
             {/* Logo */}
             <span 
-              className="font-display text-xl sm:text-2xl font-bold tracking-wider text-[#F2EFE9] flex items-center gap-2 cursor-pointer select-none hover:opacity-90 transition-opacity" 
+              className="font-display text-xl sm:text-2xl font-bold tracking-tight text-[#F2EFE9] flex items-center gap-2 cursor-pointer select-none hover:opacity-90 transition-opacity" 
               onClick={() => { 
                 window.location.hash = '#/';
                 setCurrentView('home');
@@ -5982,8 +5898,8 @@ export default function App() {
                 window.scrollTo({ top: 0, behavior: 'instant' });
               }}
             >
-              <span className="bg-[#3C6E71] text-[#1C2321] px-2 py-0.5 rounded font-black font-mono-custom text-lg sm:text-xl">H</span>
-              HOLUX
+              <img src="/holuxlogo.png" alt="HOLUX" className="h-9 sm:h-10 md:h-11 w-auto object-contain brightness-0 invert" />
+              <span>HOLUX</span>
             </span>
           </div>
 
@@ -6112,7 +6028,7 @@ export default function App() {
                   setCurrentView('admin');
                   setAdminTab('dashboard');
                 }}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-[#B85C38] hover:bg-[#a24e2e] text-white rounded-full font-display text-[11px] font-bold tracking-wider transition-all duration-200 cursor-pointer shadow-md shadow-[#B85C38]/25 border border-white/10 hover:scale-[1.02] active:scale-[0.98]"
+                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-black hover:bg-neutral-800 text-white rounded-full font-display text-[11px] font-bold tracking-wider transition-all duration-200 cursor-pointer shadow-md shadow-black/25 border border-white/10 hover:scale-[1.02] active:scale-[0.98]"
                 title="Ir al Panel de Control de Administrador"
               >
                 <Shield className="w-3.5 h-3.5 text-white/90" />
@@ -6150,7 +6066,7 @@ export default function App() {
             >
               <ShoppingBag className="w-4 h-4 text-[#F2EFE9]" />
               {cart.length > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-[#B85C38] text-white text-[9px] font-bold rounded-full flex items-center justify-center font-mono-custom animate-pulse shadow-sm">
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-black text-white text-[9px] font-bold rounded-full flex items-center justify-center font-mono-custom animate-pulse shadow-sm">
                   {cart.reduce((qty, item) => qty + item.quantity, 0)}
                 </span>
               )}
@@ -6175,8 +6091,8 @@ export default function App() {
             {/* Drawer Header */}
             <div className="p-4 border-b border-[#3C6E71]/20 flex items-center justify-between">
               <span className="font-display text-lg font-bold tracking-wider text-[#F2EFE9] flex items-center gap-2">
-                <span className="bg-[#3C6E71] text-[#1C2321] px-2 py-0.5 rounded font-black font-mono-custom text-base">H</span>
-                HOLUX
+                <img src="/holuxlogo.png" alt="HOLUX" className="h-6 w-auto object-contain brightness-0 invert" />
+                <span>HOLUX</span>
               </span>
               <button
                 onClick={() => setIsMobileMenuOpen(false)}
@@ -6248,7 +6164,7 @@ export default function App() {
                 <div className="border-t border-[#3C6E71]/20 pt-3">
                   <button
                     onClick={() => { setCurrentView('admin'); setAdminTab('dashboard'); setIsMobileMenuOpen(false); }}
-                    className="w-full text-left font-display font-bold text-xs tracking-wider py-2.5 px-3 rounded-lg bg-[#B85C38] text-white flex items-center justify-between shadow-md cursor-pointer"
+                    className="w-full text-left font-display font-bold text-xs tracking-wider py-2.5 px-3 rounded-lg bg-black hover:bg-neutral-800 text-white flex items-center justify-between shadow-md cursor-pointer border border-white/10"
                   >
                     <span className="flex items-center gap-2">
                       <Shield className="w-4 h-4" />
@@ -6316,7 +6232,7 @@ export default function App() {
                     <div className="pt-2">
                       <button 
                         onClick={(e) => { e.stopPropagation(); window.location.hash = '#/catalogo'; }}
-                        className="px-6 py-3 sm:px-8 sm:py-3.5 bg-[#B85C38] hover:bg-[#B85C38]/95 text-white font-display text-xs sm:text-sm font-bold tracking-widest rounded-lg shadow-lg hover:shadow-xl transition-all cursor-pointer inline-flex items-center gap-2"
+                        className="px-6 py-3 sm:px-8 sm:py-3.5 bg-black hover:bg-neutral-800 text-white font-display text-xs sm:text-sm font-bold tracking-widest rounded-lg shadow-lg hover:shadow-xl transition-all cursor-pointer inline-flex items-center gap-2 border border-white/10"
                       >
                         {slide.cta}
                         <ChevronRight className="w-4 h-4" />
@@ -6462,6 +6378,15 @@ export default function App() {
                             }}
                             className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-all duration-500"
                           />
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleToggleFavorite(product.id); }}
+                            className={`absolute bottom-3 left-3 bg-white/95 border border-gray-200 hover:border-gray-300 shadow-sm p-1.5 rounded-full flex items-center justify-center transition-all cursor-pointer ${
+                              favorites.some(id => String(id) === String(product.id)) ? 'text-rose-500 bg-rose-50 border-rose-200' : 'text-gray-500 hover:text-rose-500'
+                            }`}
+                            title={favorites.some(id => String(id) === String(product.id)) ? "Quitar de favoritos" : "Guardar en favoritos"}
+                          >
+                            <Heart className={`w-4 h-4 ${favorites.some(id => String(id) === String(product.id)) ? 'fill-rose-500 text-rose-500' : ''}`} />
+                          </button>
                           <button
                             onClick={(e) => { e.stopPropagation(); handleProductClick(product); }}
                             className="absolute bottom-3 right-3 bg-white/95 border border-gray-200 hover:border-gray-300 shadow-sm p-1.5 rounded-full flex items-center gap-1.5 text-xs text-gray-600 hover:text-black transition-all cursor-pointer"
@@ -6667,7 +6592,7 @@ export default function App() {
                     onMouseMove={handleDestacadosMouseMove}
                     className="flex gap-6 overflow-x-auto scroll-smooth snap-x snap-mandatory scrollbar-hide py-4 select-none cursor-default"
                   >
-                    {(products.length > 0 ? products : MOCK_FALLBACK_PRODUCTS).map(product => {
+                    {products.map(product => {
                       const discount = getProductDiscount(product);
                       const effectivePrice = getEffectiveProductPrice(product);
                       const originalPrice = getOriginalProductPrice(product);
@@ -6705,6 +6630,15 @@ export default function App() {
                               }}
                               className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-all duration-500"
                             />
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleToggleFavorite(product.id); }}
+                              className={`absolute bottom-3 left-3 bg-white/95 border border-gray-200 hover:border-gray-300 shadow-sm p-1.5 rounded-full flex items-center justify-center transition-all cursor-pointer ${
+                                favorites.some(id => String(id) === String(product.id)) ? 'text-rose-500 bg-rose-50 border-rose-200' : 'text-gray-500 hover:text-rose-500'
+                              }`}
+                              title={favorites.some(id => String(id) === String(product.id)) ? "Quitar de favoritos" : "Guardar en favoritos"}
+                            >
+                              <Heart className={`w-4 h-4 ${favorites.some(id => String(id) === String(product.id)) ? 'fill-rose-500 text-rose-500' : ''}`} />
+                            </button>
                             <button
                               onClick={(e) => { e.stopPropagation(); handleProductClick(product); }}
                               className="absolute bottom-3 right-3 bg-white/95 border border-gray-200 hover:border-gray-300 shadow-sm p-1.5 rounded-full flex items-center gap-1.5 text-xs text-gray-600 hover:text-black transition-all cursor-pointer"
@@ -6808,6 +6742,8 @@ export default function App() {
             setActiveCategory(null);
             setActiveGender(null);
           }}
+          favorites={favorites}
+          onToggleFavorite={handleToggleFavorite}
         />
       )}
 
@@ -7151,7 +7087,7 @@ export default function App() {
                               disabled={effectiveStock <= 0 || (variantsList.length > 0 && selectedVariantObj && selectedVariantObj.stock <= 0)}
                               className={`w-full sm:flex-grow h-12 rounded-xl font-display text-xs font-black tracking-widest uppercase transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-lg cursor-pointer ${
                                 effectiveStock > 0
-                                  ? 'bg-[#B85C38] hover:bg-[#9E4D2E] text-white'
+                                  ? 'bg-black hover:bg-neutral-800 text-white'
                                   : 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none'
                               }`}
                             >
@@ -7205,12 +7141,28 @@ export default function App() {
                               disabled={effectiveStock <= 0 || (variantsList.length > 0 && selectedVariantObj && selectedVariantObj.stock <= 0)}
                               className={`w-full h-11 rounded-xl font-sans text-xs font-bold tracking-wider transition-all flex items-center justify-center gap-2 border cursor-pointer ${
                                 effectiveStock > 0
-                                  ? 'bg-[#1C2321] hover:bg-black text-white border-black hover:shadow-sm'
+                                  ? 'bg-black hover:bg-neutral-800 text-white border-black hover:shadow-sm'
                                   : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed'
                               }`}
                             >
                               <ShoppingBag className="w-4 h-4" />
                               <span>{effectiveStock > 0 ? 'AGREGAR AL CARRITO' : 'SIN STOCK'}</span>
+                            </button>
+                          </div>
+
+                          {/* Row 3: Wishlist Button - GUARDAR EN FAVORITOS */}
+                          <div>
+                            <button
+                              type="button"
+                              onClick={() => handleToggleFavorite(selectedDetailProduct.id)}
+                              className={`w-full h-11 rounded-xl font-sans text-xs font-bold tracking-wider transition-all flex items-center justify-center gap-2 border cursor-pointer ${
+                                favorites.some(id => String(id) === String(selectedDetailProduct.id))
+                                  ? 'bg-rose-50 border-rose-300 text-rose-600 hover:bg-rose-100'
+                                  : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                              }`}
+                            >
+                              <Heart className={`w-4 h-4 ${favorites.some(id => String(id) === String(selectedDetailProduct.id)) ? 'fill-rose-500 text-rose-500' : 'text-gray-500'}`} />
+                              <span>{favorites.some(id => String(id) === String(selectedDetailProduct.id)) ? 'GUARDADO EN FAVORITOS' : 'GUARDAR EN FAVORITOS'}</span>
                             </button>
                           </div>
                         </div>
@@ -7432,7 +7384,7 @@ export default function App() {
                               e.stopPropagation();
                               handleProductClick(product);
                             }}
-                            className="w-full mt-2 py-2 bg-[#1C2321] hover:bg-black text-white rounded-lg text-xs font-bold font-sans tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+                            className="w-full mt-2 py-2 bg-black hover:bg-neutral-800 text-white rounded-lg text-xs font-bold font-sans tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
                           >
                             <span>VER DETALLES</span>
                           </button>
@@ -7556,7 +7508,7 @@ export default function App() {
                 />
                 <button
                   type="submit"
-                  className="p-2.5 bg-[#B85C38] hover:bg-[#B85C38]/90 text-white rounded-lg transition-colors cursor-pointer shadow-sm flex items-center justify-center"
+                  className="p-2.5 bg-black hover:bg-neutral-800 text-white rounded-lg transition-colors cursor-pointer shadow-sm flex items-center justify-center border border-white/20"
                   title="Suscribirse"
                 >
                   <ChevronRight className="w-5 h-5 stroke-[2.5]" />
@@ -7565,8 +7517,8 @@ export default function App() {
 
               <div className="pt-4 space-y-1">
                 <span className="font-display text-base font-bold tracking-wider text-white flex items-center gap-2 uppercase">
-                  <span className="bg-[#3C6E71] text-[#1C2321] px-1.5 py-0.5 rounded font-black font-mono-custom text-xs">H</span>
-                  Holux Outdoor Equipment
+                  <img src="/holuxlogo.png" alt="HOLUX" className="h-5 w-auto object-contain brightness-0 invert" />
+                  <span>Holux Outdoor Equipment</span>
                 </span>
                 <p className="text-[10px] text-gray-400 font-sans leading-tight">
                   Holux S.A. Av. Pellegrini 1840, Rosario, Santa Fe. CUIT: 30-64270999-9
@@ -8414,7 +8366,7 @@ export default function App() {
                           <button
                             type="button"
                             onClick={() => { setIsProfileOpen(false); setCurrentView('admin'); setAdminTab('orders'); }}
-                            className="px-3.5 py-2.5 bg-[#B85C38] hover:bg-[#B85C38]/90 text-white rounded font-display text-xs font-bold tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md shadow-[#B85C38]/20"
+                            className="px-3.5 py-2.5 bg-black hover:bg-neutral-800 text-white rounded font-display text-xs font-bold tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md shadow-black/20"
                           >
                             <ShoppingBag className="w-4 h-4" />
                             VER PEDIDOS
@@ -8799,10 +8751,10 @@ export default function App() {
           <div className="w-80 bg-white rounded-lg shadow-2xl overflow-hidden border border-gray-200 mb-4 transition-all duration-300 flex flex-col">
             
             {/* Widget Header */}
-            <div className="bg-[#B85C38] text-[#F2EFE9] p-4 flex items-center justify-between">
+            <div className="bg-black text-white p-4 flex items-center justify-between">
               <div>
                 <h4 className="font-display text-sm font-bold tracking-wider">Atención Al Cliente</h4>
-                <p className="text-[9px] text-orange-100 font-medium">Lunes a viernes de 8 a 17 h.</p>
+                <p className="text-[9px] text-gray-300 font-medium">Lunes a viernes de 8 a 17 h.</p>
               </div>
               <button 
                 onClick={() => setIsChatOpen(false)} 
@@ -8848,14 +8800,14 @@ export default function App() {
                       value={chatEmail}
                       onChange={(e) => setChatEmail(e.target.value)}
                       placeholder="Ej: jose@example.com"
-                      className="w-full px-3 py-2 border border-gray-300 rounded text-xs focus:border-[#B85C38] focus:ring-0 outline-none bg-white text-gray-800"
+                      className="w-full px-3 py-2 border border-gray-300 rounded text-xs focus:border-[#1C2321] focus:ring-0 outline-none bg-white text-gray-800"
                     />
                   </div>
                   
                   <button
                     type="submit"
                     disabled={chatLoading}
-                    className="w-full py-2 bg-[#1C2321] text-white font-display text-xs font-bold tracking-wider rounded hover:bg-[#3C6E71] transition-all cursor-pointer disabled:opacity-50"
+                    className="w-full py-2 bg-[#1C2321] text-white font-display text-xs font-bold tracking-wider rounded hover:bg-black transition-all cursor-pointer disabled:opacity-50"
                   >
                     {chatLoading ? 'ENVIANDO...' : 'SIGUIENTE'}
                   </button>
@@ -8877,7 +8829,7 @@ export default function App() {
             setIsChatOpen(!isChatOpen);
             setChatSuccess(false);
           }}
-          className="w-14 h-14 bg-[#B85C38] text-white rounded-full flex items-center justify-center shadow-2xl hover:scale-105 hover:bg-[#B85C38]/95 transition-all cursor-pointer border border-[#B85C38]/10"
+          className="w-14 h-14 bg-black hover:bg-neutral-800 text-white rounded-full flex items-center justify-center shadow-2xl hover:scale-105 transition-all cursor-pointer border border-white/15"
           title="Atención Al Cliente"
         >
           {isChatOpen ? (
@@ -9093,7 +9045,7 @@ export default function App() {
                 </button>
                 <button
                   type="submit"
-                  className="w-1/2 py-2.5 bg-[#B85C38] hover:bg-[#B85C38]/90 text-white font-display text-xs font-bold uppercase rounded-xl shadow cursor-pointer"
+                  className="w-1/2 py-2.5 bg-black hover:bg-neutral-800 text-white font-display text-xs font-bold uppercase rounded-xl shadow cursor-pointer"
                 >
                   ENVIAR SOLICITUD
                 </button>

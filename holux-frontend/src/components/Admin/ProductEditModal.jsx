@@ -180,7 +180,7 @@ export default function ProductEditModal({ product, categories = [], onClose, on
         const res = await fetch(`${API_BASE}/api/admin/upload`, {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('holux_auth_token') || 'mock_token'}`
+            'Authorization': `Bearer ${localStorage.getItem('user_token') || localStorage.getItem('holux_auth_token') || ''}`
           },
           body: formData
         });
@@ -228,7 +228,7 @@ export default function ProductEditModal({ product, categories = [], onClose, on
         const res = await fetch(`${API_BASE}/api/admin/upload`, {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('holux_auth_token') || 'mock_token'}`
+            'Authorization': `Bearer ${localStorage.getItem('user_token') || localStorage.getItem('holux_auth_token') || ''}`
           },
           body: formData
         });

@@ -25,9 +25,11 @@ import {
   CheckCircle2,
   Settings,
   Package,
-  FileText
+  FileText,
+  Heart
 } from 'lucide-react';
 import { getOrderStatusInfo, parseOrderItems, formatMoney, formatDate } from '../../utils/orderConstants';
+import ProductCard from '../Shop/ProductCard';
 
 export default function CustomerDashboard({
   userProfile,
@@ -81,7 +83,13 @@ export default function CustomerDashboard({
   isUpdatingProfile,
   profileUpdateSuccess,
   API_BASE_URL,
-  token
+  token,
+  favorites = [],
+  onToggleFavorite,
+  products = [],
+  onProductClick,
+  onAddToCart,
+  onBuyNow
 }) {
   const [filterTab, setFilterTab] = useState('all'); // 'all' | 'pending' | 'processing' | 'shipped' | 'completed'
 
@@ -157,7 +165,7 @@ export default function CustomerDashboard({
                     setCurrentView('admin');
                     setAdminTab('dashboard');
                   }}
-                  className="w-full flex items-center justify-between p-3.5 bg-[#B85C38] hover:bg-[#a04e2e] text-white rounded-xl font-display font-bold text-xs tracking-wider transition-all duration-200 shadow-sm cursor-pointer"
+                  className="w-full flex items-center justify-between p-3.5 bg-black hover:bg-neutral-800 text-white rounded-xl font-display font-bold text-xs tracking-wider transition-all duration-200 shadow-sm cursor-pointer border border-white/10"
                 >
                   <div className="flex items-center gap-2.5">
                     <Shield className="w-4 h-4 text-white/90" />
@@ -206,6 +214,29 @@ export default function CustomerDashboard({
                       {orders.length}
                     </span>
                     <ChevronRight className={`w-4 h-4 ${customerPanelSection === 'orders' ? 'text-white' : 'text-gray-300'}`} />
+                  </div>
+                </button>
+
+                {/* Favoritos */}
+                <button
+                  onClick={() => setCustomerPanelSection('favorites')}
+                  className={`w-full flex items-center justify-between p-3 rounded-xl transition-colors cursor-pointer ${
+                    customerPanelSection === 'favorites'
+                      ? 'bg-[#3C6E71] text-white shadow-xs'
+                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <Heart className={`w-4 h-4 ${customerPanelSection === 'favorites' ? 'text-white fill-white' : 'text-gray-400'}`} />
+                    <span>Favoritos</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                      customerPanelSection === 'favorites' ? 'bg-white text-[#3C6E71]' : 'bg-rose-50 text-rose-600 border border-rose-200'
+                    }`}>
+                      {favorites.length}
+                    </span>
+                    <ChevronRight className="w-4 h-4 text-gray-300" />
                   </div>
                 </button>
 
@@ -611,10 +642,14 @@ export default function CustomerDashboard({
                   <p className="text-xs text-gray-500">Vista rápida de tu cuenta en Holux Patagonia</p>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div className="bg-gray-50 p-5 rounded-2xl border border-gray-150 space-y-1">
                     <span className="text-xs text-gray-500 font-bold uppercase">Pedidos Realizados</span>
                     <h3 className="text-3xl font-black text-gray-900">{orders.length}</h3>
+                  </div>
+                  <div className="bg-gray-50 p-5 rounded-2xl border border-gray-150 space-y-1">
+                    <span className="text-xs text-gray-500 font-bold uppercase">Favoritos Guardados</span>
+                    <h3 className="text-3xl font-black text-rose-600">{favorites.length}</h3>
                   </div>
                   <div className="bg-gray-50 p-5 rounded-2xl border border-gray-150 space-y-1">
                     <span className="text-xs text-gray-500 font-bold uppercase">Cupones Disponibles</span>
@@ -627,6 +662,67 @@ export default function CustomerDashboard({
                     <h3 className="text-3xl font-black text-gray-900">{addresses.length}</h3>
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* --- FAVORITOS TAB --- */}
+            {customerPanelSection === 'favorites' && (
+              <div className="bg-white border border-gray-200/80 rounded-3xl p-6 sm:p-8 shadow-sm space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-100 pb-4">
+                  <div>
+                    <h2 className="font-display font-black text-xl text-gray-900 uppercase flex items-center gap-2">
+                      <Heart className="w-5 h-5 text-rose-500 fill-rose-500" />
+                      Mis Productos Favoritos
+                    </h2>
+                    <p className="text-xs text-gray-500">
+                      Equipamiento y prendas que guardaste para tu próxima aventura
+                    </p>
+                  </div>
+                  <span className="px-3 py-1 bg-rose-50 text-rose-700 border border-rose-200 rounded-full text-xs font-bold font-sans self-start sm:self-auto">
+                    {products.filter(p => favorites.includes(p.id) || favorites.includes(String(p.id))).length} productos guardados
+                  </span>
+                </div>
+
+                {products.filter(p => favorites.includes(p.id) || favorites.includes(String(p.id))).length === 0 ? (
+                  <div className="py-16 text-center space-y-4">
+                    <div className="w-16 h-16 bg-rose-50 rounded-full flex items-center justify-center mx-auto text-rose-400">
+                      <Heart className="w-8 h-8" />
+                    </div>
+                    <div className="space-y-1">
+                      <h3 className="font-display font-bold text-base text-gray-900 uppercase">
+                        No tienes productos en favoritos todavía
+                      </h3>
+                      <p className="text-xs text-gray-500 max-w-md mx-auto">
+                        Explorá el catálogo de Holux y hacé clic en el corazón de cualquier producto para guardarlo en tu lista personal.
+                      </p>
+                    </div>
+                    <div className="pt-2">
+                      <button
+                        onClick={() => {
+                          window.location.hash = '#/catalogo';
+                          setCurrentView('category');
+                        }}
+                        className="px-6 py-2.5 bg-black hover:bg-neutral-800 text-white rounded-xl font-display text-xs font-bold uppercase tracking-wider transition-all shadow-sm cursor-pointer"
+                      >
+                        EXPLORAR CATÁLOGO
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                    {products.filter(p => favorites.includes(p.id) || favorites.includes(String(p.id))).map(product => (
+                      <ProductCard
+                        key={product.id}
+                        product={product}
+                        isFavorite={true}
+                        onToggleFavorite={onToggleFavorite}
+                        onProductClick={onProductClick}
+                        onAddToCart={onAddToCart}
+                        onBuyNow={onBuyNow}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 

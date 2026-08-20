@@ -299,7 +299,7 @@ export default function ProductDetailView({
                   disabled={product.stock === 0}
                   className={`w-full sm:flex-grow h-12 rounded-xl font-display text-xs sm:text-sm font-black tracking-widest uppercase transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-lg cursor-pointer ${
                     product.stock > 0
-                      ? 'bg-[#B85C38] hover:bg-[#9E4D2E] text-white'
+                      ? 'bg-black hover:bg-neutral-800 text-white'
                       : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                   }`}
                 >
@@ -315,7 +315,7 @@ export default function ProductDetailView({
                   disabled={product.stock === 0}
                   className={`w-full h-11 rounded-xl font-sans text-xs font-bold tracking-wider transition-all flex items-center justify-center gap-2 border cursor-pointer ${
                     product.stock > 0
-                      ? 'bg-[#1C2321] hover:bg-black text-white border-black hover:shadow-sm'
+                      ? 'bg-black hover:bg-neutral-800 text-white border-black hover:shadow-sm'
                       : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed'
                   }`}
                 >

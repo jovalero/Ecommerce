@@ -92,7 +92,7 @@ export default function RefundModal({
             </button>
             <button
               type="submit"
-              className="w-1/2 py-2.5 bg-[#B85C38] hover:bg-[#a24e2e] text-white font-display text-xs font-bold rounded-lg shadow transition-colors cursor-pointer"
+              className="w-1/2 py-2.5 bg-black hover:bg-neutral-800 text-white font-display text-xs font-bold rounded-lg shadow transition-colors cursor-pointer"
             >
               SOLICITAR DEVOLUCIÓN
             </button>
