@@ -5842,8 +5842,11 @@ export default function App() {
       {/* Sticky top wrapper containing both the ticker and the header */}
       <div className="sticky top-0 z-40 flex flex-col">
         {/* Infinite smooth scrolling ticker banner */}
-        <div className="overflow-hidden bg-black text-[#F2EFE9] py-1.5 text-[10px] sm:text-[11px] font-bold uppercase tracking-widest font-sans border-b border-black/10 select-none">
-          <div className="flex whitespace-nowrap animate-marquee">
+        <div className="w-full overflow-hidden bg-black text-[#F2EFE9] py-1.5 text-[10px] sm:text-[11px] font-bold uppercase tracking-widest font-sans border-b border-black/10 select-none">
+          <div 
+            className="flex whitespace-nowrap animate-marquee"
+            style={{ display: 'flex', width: 'max-content', animation: 'marquee 25s linear infinite' }}
+          >
             <div className="flex items-center gap-12 sm:gap-16 px-6 shrink-0">
               {tickerPhrases.map((phrase, idx) => (
                 <span key={idx} className="inline-block">{phrase}</span>
