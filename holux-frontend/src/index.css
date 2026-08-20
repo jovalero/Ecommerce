@@ -97,20 +97,26 @@ body {
   animation: translateTopo 25s ease-in-out infinite;
 }
 
-/* Infinite Scrolling Marquee */
+/* Infinite Scrolling Marquee with GPU Acceleration & Seamless Loop */
 @keyframes marquee {
   0% {
-    transform: translateX(0%);
+    transform: translate3d(0, 0, 0);
   }
   100% {
-    transform: translateX(-50%);
+    transform: translate3d(-50%, 0, 0);
   }
 }
 
 .animate-marquee {
   display: flex;
   width: max-content;
-  animation: marquee 60s linear infinite;
+  will-change: transform;
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  perspective: 1000px;
+  -webkit-perspective: 1000px;
+  animation: marquee 28s linear infinite;
 }
 
 .animate-marquee:hover {

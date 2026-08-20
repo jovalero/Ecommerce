@@ -5841,32 +5841,17 @@ export default function App() {
       
       {/* Sticky top wrapper containing both the ticker and the header */}
       <div className="sticky top-0 z-40 flex flex-col">
-        {/* Infinite scrolling & mouse-draggable ticker banner */}
-        <div 
-          ref={tickerRef}
-          onMouseDown={handleTickerMouseDown}
-          onMouseUp={handleTickerMouseLeaveOrUp}
-          onMouseLeave={handleTickerMouseLeaveOrUp}
-          onMouseMove={handleTickerMouseMove}
-          onTouchStart={handleTickerTouchStart}
-          onTouchEnd={handleTickerMouseLeaveOrUp}
-          onTouchMove={handleTickerTouchMove}
-          className="overflow-x-auto scrollbar-hide bg-black text-[#F2EFE9] py-1 text-[10px] sm:text-[11px] font-bold uppercase tracking-widest font-sans border-b border-black/10 select-none cursor-default"
-        >
-          <div className="flex whitespace-nowrap animate-marquee hover:[animation-play-state:paused]">
-            <div className="flex gap-14 px-6 shrink-0">
+        {/* Infinite smooth scrolling ticker banner */}
+        <div className="overflow-hidden bg-black text-[#F2EFE9] py-1.5 text-[10px] sm:text-[11px] font-bold uppercase tracking-widest font-sans border-b border-black/10 select-none">
+          <div className="flex whitespace-nowrap animate-marquee">
+            <div className="flex items-center gap-12 sm:gap-16 px-6 shrink-0">
               {tickerPhrases.map((phrase, idx) => (
-                <span key={idx}>{phrase}</span>
+                <span key={idx} className="inline-block">{phrase}</span>
               ))}
             </div>
-            <div className="flex gap-14 px-6 shrink-0" aria-hidden="true">
+            <div className="flex items-center gap-12 sm:gap-16 px-6 shrink-0" aria-hidden="true">
               {tickerPhrases.map((phrase, idx) => (
-                <span key={`dup-${idx}`}>{phrase}</span>
-              ))}
-            </div>
-            <div className="flex gap-14 px-6 shrink-0" aria-hidden="true">
-              {tickerPhrases.map((phrase, idx) => (
-                <span key={`tri-${idx}`}>{phrase}</span>
+                <span key={`dup-${idx}`} className="inline-block">{phrase}</span>
               ))}
             </div>
           </div>
