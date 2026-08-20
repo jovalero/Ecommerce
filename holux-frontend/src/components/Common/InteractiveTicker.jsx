@@ -1,12 +1,12 @@
 import React, { useRef, useEffect, useState, memo } from 'react';
 
 /**
- * InteractiveTicker: Ultra-smooth auto-scrolling ticker with seamless loop,
- * GPU hardware acceleration, and full mouse/touch drag-and-swipe interaction.
+ * InteractiveTicker: Ultra-smooth ticker with seamless infinite loop,
+ * GPU hardware acceleration, and lag-free mouse/touch drag-and-swipe interaction.
  */
 export const InteractiveTicker = memo(function InteractiveTicker({
   phrases = [],
-  speed = 0.8, // pixels per frame (~50px/sec at 60fps)
+  speed = 45, // pixels per second
   className = ''
 }) {
   const containerRef = useRef(null);
@@ -14,35 +14,47 @@ export const InteractiveTicker = memo(function InteractiveTicker({
   const singleContentRef = useRef(null);
 
   const posRef = useRef(0);
+  const singleWidthRef = useRef(0);
   const isDraggingRef = useRef(false);
   const isHoveredRef = useRef(false);
   const startXRef = useRef(0);
   const dragStartPosRef = useRef(0);
+  const lastTimeRef = useRef(null);
   const animFrameIdRef = useRef(null);
   const [isCursorGrabbing, setIsCursorGrabbing] = useState(false);
 
   useEffect(() => {
-    let singleWidth = 0;
-
-    const measureWidth = () => {
+    const updateWidth = () => {
       if (singleContentRef.current) {
-        singleWidth = singleContentRef.current.offsetWidth || 1000;
+        singleWidthRef.current = singleContentRef.current.offsetWidth || 1000;
       }
     };
 
-    measureWidth();
-    window.addEventListener('resize', measureWidth);
+    updateWidth();
+    if (document.fonts) {
+      document.fonts.ready.then(updateWidth);
+    }
+    window.addEventListener('resize', updateWidth);
 
-    const loop = () => {
+    const loop = (currentTime) => {
+      if (lastTimeRef.current === null) {
+        lastTimeRef.current = currentTime;
+      }
+      const deltaSeconds = Math.min((currentTime - lastTimeRef.current) / 1000, 0.1);
+      lastTimeRef.current = currentTime;
+
+      const singleWidth = singleWidthRef.current;
+
       if (!isDraggingRef.current && !isHoveredRef.current) {
-        posRef.current -= speed;
+        posRef.current -= speed * deltaSeconds;
       }
 
       if (singleWidth > 0) {
-        // Wrap around seamlessly
-        if (posRef.current <= -singleWidth) {
+        // Continuous wrap-around for infinite loop in both directions
+        while (posRef.current <= -singleWidth) {
           posRef.current += singleWidth;
-        } else if (posRef.current > 0) {
+        }
+        while (posRef.current > 0) {
           posRef.current -= singleWidth;
         }
       }
@@ -60,78 +72,74 @@ export const InteractiveTicker = memo(function InteractiveTicker({
       if (animFrameIdRef.current) {
         cancelAnimationFrame(animFrameIdRef.current);
       }
-      window.removeEventListener('resize', measureWidth);
+      window.removeEventListener('resize', updateWidth);
     };
   }, [speed, phrases]);
 
-  // Mouse Handlers
-  const handleMouseDown = (e) => {
+  // Pointer Events (Unified Mouse + Touch with Pointer Capture)
+  const handlePointerDown = (e) => {
     isDraggingRef.current = true;
-    startXRef.current = e.pageX;
+    startXRef.current = e.clientX;
     dragStartPosRef.current = posRef.current;
     setIsCursorGrabbing(true);
+
+    if (e.currentTarget.setPointerCapture) {
+      try {
+        e.currentTarget.setPointerCapture(e.pointerId);
+      } catch (err) {}
+    }
   };
 
-  const handleMouseMove = (e) => {
+  const handlePointerMove = (e) => {
     if (!isDraggingRef.current) return;
-    e.preventDefault();
-    const currentX = e.pageX;
-    const delta = currentX - startXRef.current;
-    posRef.current = dragStartPosRef.current + delta;
+    const delta = e.clientX - startXRef.current;
+    let newPos = dragStartPosRef.current + delta;
+    const singleWidth = singleWidthRef.current;
+
+    if (singleWidth > 0) {
+      while (newPos <= -singleWidth) {
+        newPos += singleWidth;
+      }
+      while (newPos > 0) {
+        newPos -= singleWidth;
+      }
+    }
+
+    posRef.current = newPos;
 
     if (trackRef.current) {
       trackRef.current.style.transform = `translate3d(${posRef.current}px, 0, 0)`;
     }
   };
 
-  const handleMouseUpOrLeave = () => {
+  const handlePointerUp = (e) => {
     if (isDraggingRef.current) {
       isDraggingRef.current = false;
       setIsCursorGrabbing(false);
+      lastTimeRef.current = performance.now();
+
+      if (e.currentTarget.releasePointerCapture) {
+        try {
+          e.currentTarget.releasePointerCapture(e.pointerId);
+        } catch (err) {}
+      }
     }
-  };
-
-  // Touch Handlers (Mobile & Tablets)
-  const handleTouchStart = (e) => {
-    if (!e.touches || e.touches.length === 0) return;
-    isDraggingRef.current = true;
-    startXRef.current = e.touches[0].pageX;
-    dragStartPosRef.current = posRef.current;
-  };
-
-  const handleTouchMove = (e) => {
-    if (!isDraggingRef.current || !e.touches || e.touches.length === 0) return;
-    const currentX = e.touches[0].pageX;
-    const delta = currentX - startXRef.current;
-    posRef.current = dragStartPosRef.current + delta;
-
-    if (trackRef.current) {
-      trackRef.current.style.transform = `translate3d(${posRef.current}px, 0, 0)`;
-    }
-  };
-
-  const handleTouchEnd = () => {
-    isDraggingRef.current = false;
   };
 
   return (
     <div
       ref={containerRef}
-      onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUpOrLeave}
-      onMouseLeave={() => {
-        handleMouseUpOrLeave();
-        isHoveredRef.current = false;
-      }}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
       onMouseEnter={() => {
         isHoveredRef.current = true;
       }}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
-      onTouchCancel={handleTouchEnd}
-      className={`w-full overflow-hidden bg-black text-[#F2EFE9] py-1.5 text-[10px] sm:text-[11px] font-bold uppercase tracking-widest font-sans border-b border-black/10 select-none ${
+      onMouseLeave={() => {
+        isHoveredRef.current = false;
+      }}
+      className={`w-full overflow-hidden bg-black text-[#F2EFE9] py-1.5 text-[10px] sm:text-[11px] font-bold uppercase tracking-widest font-sans border-b border-black/10 select-none touch-pan-y ${
         isCursorGrabbing ? 'cursor-grabbing' : 'cursor-grab'
       } ${className}`}
       title="Hacé click y arrastrá para deslizar"

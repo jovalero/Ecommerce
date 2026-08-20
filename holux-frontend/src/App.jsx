@@ -5843,7 +5843,7 @@ export default function App() {
       {/* Sticky top wrapper containing both the ticker and the header */}
       <div className="sticky top-0 z-40 flex flex-col">
         {/* Interactive infinite scrolling & drag-and-swipe ticker banner */}
-        <InteractiveTicker phrases={tickerPhrases} speed={0.8} />
+        <InteractiveTicker phrases={tickerPhrases} speed={45} />
 
         {/* --- HEADER (Compact UX Ergonomic Height: 56px - 64px) --- */}
         <header className="bg-[#1C2321] text-white border-b border-[#3C6E71]/20 shadow-md">
