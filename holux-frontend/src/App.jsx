@@ -57,6 +57,7 @@ import VipSettingsManager from './components/Admin/VipSettingsManager';
 import CatalogView from './components/Shop/CatalogView';
 import ProductCard from './components/Shop/ProductCard';
 import { SmoothInput, SmoothTextarea } from './components/Common/SmoothInput';
+import InteractiveTicker from './components/Common/InteractiveTicker';
 import { useProductCatalog } from './hooks/useProductCatalog';
 
 // Configuration
@@ -5841,24 +5842,8 @@ export default function App() {
       
       {/* Sticky top wrapper containing both the ticker and the header */}
       <div className="sticky top-0 z-40 flex flex-col">
-        {/* Infinite smooth scrolling ticker banner */}
-        <div className="w-full overflow-hidden bg-black text-[#F2EFE9] py-1.5 text-[10px] sm:text-[11px] font-bold uppercase tracking-widest font-sans border-b border-black/10 select-none">
-          <div 
-            className="flex whitespace-nowrap animate-marquee"
-            style={{ display: 'flex', width: 'max-content', animation: 'marquee 25s linear infinite' }}
-          >
-            <div className="flex items-center gap-12 sm:gap-16 px-6 shrink-0">
-              {tickerPhrases.map((phrase, idx) => (
-                <span key={idx} className="inline-block">{phrase}</span>
-              ))}
-            </div>
-            <div className="flex items-center gap-12 sm:gap-16 px-6 shrink-0" aria-hidden="true">
-              {tickerPhrases.map((phrase, idx) => (
-                <span key={`dup-${idx}`} className="inline-block">{phrase}</span>
-              ))}
-            </div>
-          </div>
-        </div>
+        {/* Interactive infinite scrolling & drag-and-swipe ticker banner */}
+        <InteractiveTicker phrases={tickerPhrases} speed={0.8} />
 
         {/* --- HEADER (Compact UX Ergonomic Height: 56px - 64px) --- */}
         <header className="bg-[#1C2321] text-white border-b border-[#3C6E71]/20 shadow-md">
