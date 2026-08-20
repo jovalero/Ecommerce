@@ -58,6 +58,7 @@ import CatalogView from './components/Shop/CatalogView';
 import ProductCard from './components/Shop/ProductCard';
 import { SmoothInput, SmoothTextarea } from './components/Common/SmoothInput';
 import InteractiveTicker from './components/Common/InteractiveTicker';
+import HeroSlider from './components/Shop/HeroSlider';
 import { useProductCatalog } from './hooks/useProductCatalog';
 
 // Configuration
@@ -219,8 +220,7 @@ export default function App() {
   const [loadingCategories, setLoadingCategories] = useState(true);
   const [activeCategory, setActiveCategory] = useState(null);
   
-  // Hero Carousel State & Slides data
-  const [currentSlide, setCurrentSlide] = useState(0);
+  // Hero Carousel Slides data
   const slides = [
     {
       span: "EQUIPAMIENTO PROFESIONAL DE MONTAÑA",
@@ -253,68 +253,6 @@ export default function App() {
   const [chatEmail, setChatEmail] = useState('');
   const [chatSuccess, setChatSuccess] = useState(false);
   const [chatLoading, setChatLoading] = useState(false);
-
-  // Swipe/Drag Gestures State
-  const [touchStart, setTouchStart] = useState(null);
-  const [touchEnd, setTouchEnd] = useState(null);
-  const [isMouseDown, setIsMouseDown] = useState(false);
-
-  const onTouchStart = (e) => {
-    setTouchEnd(null);
-    setTouchStart(e.targetTouches[0].clientX);
-  };
-
-  const onTouchMove = (e) => {
-    setTouchEnd(e.targetTouches[0].clientX);
-  };
-
-  const onTouchEnd = () => {
-    const distance = touchStart && touchEnd ? touchStart - touchEnd : 0;
-    if (touchStart && (!touchEnd || Math.abs(distance) < 5)) {
-      window.location.hash = '#/catalogo';
-      return;
-    }
-
-    if (!touchStart || !touchEnd) return;
-    const minSwipeDistance = 50;
-    if (distance > minSwipeDistance) {
-      setCurrentSlide(prev => (prev + 1) % slides.length);
-    }
-    if (distance < -minSwipeDistance) {
-      setCurrentSlide(prev => (prev - 1 + slides.length) % slides.length);
-    }
-  };
-
-  const onMouseDown = (e) => {
-    setTouchEnd(null);
-    setTouchStart(e.clientX);
-    setIsMouseDown(true);
-  };
-
-  const onMouseMove = (e) => {
-    if (!isMouseDown) return;
-    setTouchEnd(e.clientX);
-  };
-
-  const onMouseUp = () => {
-    if (!isMouseDown) return;
-    setIsMouseDown(false);
-    
-    const distance = touchStart && touchEnd ? touchStart - touchEnd : 0;
-    if (touchStart && (!touchEnd || Math.abs(distance) < 5)) {
-      window.location.hash = '#/catalogo';
-      return;
-    }
-
-    if (!touchStart || !touchEnd) return;
-    const minSwipeDistance = 50;
-    if (distance > minSwipeDistance) {
-      setCurrentSlide(prev => (prev + 1) % slides.length);
-    }
-    if (distance < -minSwipeDistance) {
-      setCurrentSlide(prev => (prev - 1 + slides.length) % slides.length);
-    }
-  };
 
   // Navigation & Search Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -901,14 +839,6 @@ export default function App() {
   // Initial catalog load
   useEffect(() => {
     fetchCatalog();
-  }, []);
-
-  // Carousel auto-rotation timer
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentSlide(prev => (prev + 1) % slides.length);
-    }, 6000);
-    return () => clearInterval(timer);
   }, []);
 
   // Fetch client profile if token changes
@@ -6164,106 +6094,8 @@ export default function App() {
       {currentView === 'home' && (
         <>
           {/* --- HERO BANNER (SLIDER CAROUSEL) --- */}
-          <section 
-            onTouchStart={onTouchStart}
-            onTouchMove={onTouchMove}
-            onTouchEnd={onTouchEnd}
-            onMouseDown={onMouseDown}
-            onMouseMove={onMouseMove}
-            onMouseUp={onMouseUp}
-            onMouseLeave={() => setIsMouseDown(false)}
-           className="group relative overflow-hidden bg-[#1C2321] text-[#F2EFE9] h-[550px] sm:h-[650px] md:h-[calc(100vh-140px)] md:min-h-[650px] flex items-center border-b border-[#3C6E71]/15 select-none cursor-default"
-          >
-            
-            {/* Slide images with smooth fade-in transitions */}
-            {slides.map((slide, idx) => (
-              <div
-                key={idx}
-                className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${idx === currentSlide ? 'opacity-100 scale-100' : 'opacity-0 scale-105 pointer-events-none'}`}
-              >
-                {/* Image Container */}
-                <div 
-                  className="absolute inset-0 bg-cover bg-center opacity-85"
-                  style={{ backgroundImage: `url(${slide.image})` }}
-                />
-                
-                {/* Black Overlay to ensure text readability */}
-                <div className="absolute inset-0 bg-black/55 via-black/35 to-black/60" />
-
-                {/* Text Content Area */}
-                <div className="absolute inset-0 flex items-center justify-center p-6 text-center z-10">
-                  <div className={`max-w-3xl space-y-3 sm:space-y-4 transition-all duration-700 delay-200 transform ${idx === currentSlide ? 'translate-y-0 opacity-100' : 'translate-y-6 opacity-0'}`}>
-                    <span className="text-xs sm:text-sm font-semibold text-orange-200 tracking-[0.2em] uppercase font-sans block drop-shadow">
-                      {slide.span}
-                    </span>
-                    <h1 className="text-2xl sm:text-4xl lg:text-5xl font-display font-bold tracking-wide text-white leading-tight uppercase drop-shadow-md">
-                      {slide.title} <br className="hidden sm:inline" />
-                      <span className="text-[#3C6E71] bg-white/10 px-3 py-1 rounded-lg inline-block mt-2 sm:mt-0 font-bold">{slide.highlight}</span>
-                    </h1>
-                    <p className="text-xs sm:text-base text-gray-200 max-w-xl mx-auto leading-relaxed font-sans hidden sm:block font-medium">
-                      {slide.desc}
-                    </p>
-                    <div className="pt-2">
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); window.location.hash = '#/catalogo'; }}
-                        className="px-6 py-3 sm:px-8 sm:py-3.5 bg-black hover:bg-neutral-800 text-white font-display text-xs sm:text-sm font-bold tracking-widest rounded-lg shadow-lg hover:shadow-xl transition-all cursor-pointer inline-flex items-center gap-2 border border-white/10"
-                      >
-                        {slide.cta}
-                        <ChevronRight className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-
-            {/* Top and bottom gradient shadows for seamless transition */}
-            <div className="absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-black/50 to-transparent pointer-events-none" />
-            <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-black/60 to-transparent pointer-events-none" />
-
-            {/* Left Control Arrow (Visible on hover) */}
-            <button
-              onClick={() => setCurrentSlide(prev => (prev - 1 + slides.length) % slides.length)}
-              onMouseDown={(e) => e.stopPropagation()}
-              onMouseUp={(e) => e.stopPropagation()}
-              onTouchStart={(e) => e.stopPropagation()}
-              onTouchEnd={(e) => e.stopPropagation()}
-              className="absolute left-6 top-1/2 transform -translate-y-1/2 p-3.5 bg-black/40 hover:bg-[#3C6E71]/80 text-white rounded-full transition-all duration-300 z-20 cursor-pointer flex items-center justify-center border border-white/10 opacity-0 group-hover:opacity-100"
-              title="Slide anterior"
-            >
-              <ChevronLeft className="w-5 h-5" />
-            </button>
-
-            {/* Right Control Arrow (Visible on hover) */}
-            <button
-              onClick={() => setCurrentSlide(prev => (prev + 1) % slides.length)}
-              onMouseDown={(e) => e.stopPropagation()}
-              onMouseUp={(e) => e.stopPropagation()}
-              onTouchStart={(e) => e.stopPropagation()}
-              onTouchEnd={(e) => e.stopPropagation()}
-              className="absolute right-6 top-1/2 transform -translate-y-1/2 p-3.5 bg-black/40 hover:bg-[#3C6E71]/80 text-white rounded-full transition-all duration-300 z-20 cursor-pointer flex items-center justify-center border border-white/10 opacity-0 group-hover:opacity-100"
-              title="Siguiente slide"
-            >
-              <ChevronRight className="w-5 h-5" />
-            </button>
-
-            {/* Carousel Slide Indicators */}
-            <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-20 flex gap-3">
-              {slides.map((_, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => setCurrentSlide(idx)}
-                  onMouseDown={(e) => e.stopPropagation()}
-                  onMouseUp={(e) => e.stopPropagation()}
-                  onTouchStart={(e) => e.stopPropagation()}
-                  onTouchEnd={(e) => e.stopPropagation()}
-                  className={`w-2.5 h-2.5 rounded-full transition-all cursor-pointer ${idx === currentSlide ? 'bg-[#3C6E71] w-6' : 'bg-white/50 hover:bg-white/80'}`}
-                  title={`Ver slide ${idx + 1}`}
-                />
-              ))}
-            </div>
-
-          </section>
+          {/* --- HERO BANNER (Isolated Performance Optimized Slider) --- */}
+          <HeroSlider slides={slides} />
 
           {/* --- NOVEDADES DE HOLUX (SLIDER CAROUSEL) --- */}
           <section id="catalogo" className="w-full px-4 sm:px-8 lg:px-12 py-12">
