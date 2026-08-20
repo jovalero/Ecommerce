@@ -1,5 +1,6 @@
 import React from 'react';
 import { X, MapPin } from 'lucide-react';
+import { SmoothInput } from '../Common/SmoothInput';
 
 export default function AddressModal({
   isOpen,
@@ -46,7 +47,7 @@ export default function AddressModal({
         <form onSubmit={onSubmit} className="space-y-4 text-xs font-sans">
           <div>
             <label className="block text-gray-700 font-bold mb-1">Nombre / Identificador</label>
-            <input
+            <SmoothInput
               type="text"
               required
               value={addrLabel}
@@ -58,7 +59,7 @@ export default function AddressModal({
 
           <div>
             <label className="block text-gray-700 font-bold mb-1">Calle y Altura (y piso/depto)</label>
-            <input
+            <SmoothInput
               type="text"
               required
               value={addrStreet}
@@ -71,7 +72,7 @@ export default function AddressModal({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-gray-700 font-bold mb-1">Ciudad</label>
-              <input
+              <SmoothInput
                 type="text"
                 required
                 value={addrCity}
@@ -82,7 +83,7 @@ export default function AddressModal({
             </div>
             <div>
               <label className="block text-gray-700 font-bold mb-1">Código Postal</label>
-              <input
+              <SmoothInput
                 type="text"
                 required
                 value={addrPostalCode}

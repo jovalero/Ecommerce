@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Plus, Trash2, Image as ImageIcon, Video, Copy, Tag, DollarSign, Layers, Search, Sparkles, GripVertical, ArrowUp, ArrowDown } from 'lucide-react';
 import ConfirmationModal from './ConfirmationModal';
+import { SmoothInput, SmoothTextarea } from '../Common/SmoothInput';
 
 export default function ProductEditModal({ product, categories = [], onClose, onSave, onDuplicate }) {
   // Basic info
@@ -318,7 +319,7 @@ export default function ProductEditModal({ product, categories = [], onClose, on
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">Nombre del Producto *</label>
-                <input
+                <SmoothInput
                   type="text"
                   required
                   value={name}
@@ -330,7 +331,7 @@ export default function ProductEditModal({ product, categories = [], onClose, on
 
               <div>
                 <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">Marca *</label>
-                <input
+                <SmoothInput
                   type="text"
                   required
                   value={brand}
@@ -359,7 +360,7 @@ export default function ProductEditModal({ product, categories = [], onClose, on
 
               <div>
                 <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">Etiquetas / Tags (separados por coma)</label>
-                <input
+                <SmoothInput
                   type="text"
                   value={tags}
                   onChange={(e) => setTags(e.target.value)}
@@ -371,7 +372,7 @@ export default function ProductEditModal({ product, categories = [], onClose, on
 
             <div>
               <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">Descripción Técnica Completa</label>
-              <textarea
+              <SmoothTextarea
                 rows={3}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}

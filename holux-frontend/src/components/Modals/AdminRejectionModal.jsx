@@ -1,5 +1,6 @@
 import React from 'react';
 import { X, AlertCircle } from 'lucide-react';
+import { SmoothTextarea } from '../Common/SmoothInput';
 
 export default function AdminRejectionModal({
   order,
@@ -39,7 +40,7 @@ export default function AdminRejectionModal({
         <div className="space-y-3 text-xs font-sans">
           <div>
             <label className="block text-gray-700 font-bold mb-1">Motivo del rechazo:</label>
-            <textarea
+            <SmoothTextarea
               required
               rows={3}
               value={reasonInput}

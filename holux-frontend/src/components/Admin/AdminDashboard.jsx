@@ -23,6 +23,7 @@ import {
   Download,
   AlertCircle
 } from 'lucide-react';
+import { SmoothInput } from '../Common/SmoothInput';
 import DashboardCharts from './DashboardCharts';
 import BannerEditor from './BannerEditor';
 import CouponManager from './CouponManager';
@@ -236,7 +237,7 @@ export default function AdminDashboard({
                   <div className="flex items-center gap-3">
                     <div className="relative">
                       <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
-                      <input
+                      <SmoothInput
                         type="text"
                         value={adminOrderSearchQuery}
                         onChange={(e) => setAdminOrderSearchQuery(e.target.value)}
@@ -405,7 +406,7 @@ export default function AdminDashboard({
                     {editingCategory ? 'Editar Categoría' : 'Nueva Categoría'}
                   </h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <input
+                    <SmoothInput
                       type="text"
                       required
                       value={catName}
@@ -416,7 +417,7 @@ export default function AdminDashboard({
                       placeholder="Nombre (ej: Mochilas)"
                       className="p-2.5 bg-white border border-gray-200 rounded-lg text-xs outline-none focus:border-[#3C6E71]"
                     />
-                    <input
+                    <SmoothInput
                       type="text"
                       required
                       value={catSlug}

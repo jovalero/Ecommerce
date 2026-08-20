@@ -56,6 +56,7 @@ import HeaderSearchInput from './components/Shop/HeaderSearchInput';
 import VipSettingsManager from './components/Admin/VipSettingsManager';
 import CatalogView from './components/Shop/CatalogView';
 import ProductCard from './components/Shop/ProductCard';
+import { SmoothInput, SmoothTextarea } from './components/Common/SmoothInput';
 import { useProductCatalog } from './hooks/useProductCatalog';
 
 // Configuration
@@ -3000,7 +3001,7 @@ export default function App() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-1">
                         <label className="text-[10px] font-bold text-gray-500 tracking-wider block uppercase">NOMBRE COMPLETO</label>
-                        <input
+                        <SmoothInput
                           type="text"
                           required
                           value={userProfile?.full_name || ''}
@@ -3050,7 +3051,7 @@ export default function App() {
 
                     {/* Search Input */}
                     <div className="relative w-full sm:w-64">
-                      <input
+                      <SmoothInput
                         type="text"
                         value={orderSearchQuery}
                         onChange={(e) => setOrderSearchQuery(e.target.value)}
@@ -3490,7 +3491,7 @@ export default function App() {
                     </div>
                     <form onSubmit={handleRedeemCouponSubmit} className="flex flex-col sm:flex-row items-center gap-3">
                       <div className="relative w-full flex-1">
-                        <input
+                        <SmoothInput
                           type="text"
                           value={redeemInput}
                           onChange={(e) => setRedeemInput(e.target.value.toUpperCase())}
@@ -3522,7 +3523,7 @@ export default function App() {
 
                     {/* Search Input */}
                     <div className="relative w-full sm:w-60">
-                      <input
+                      <SmoothInput
                         type="text"
                         value={couponSearchQuery}
                         onChange={(e) => setCouponSearchQuery(e.target.value)}
@@ -3987,7 +3988,7 @@ export default function App() {
 
                     {/* Input Send Form */}
                     <form onSubmit={handleSendPanelSupportMessage} className="p-3 bg-white border-t border-gray-200 flex items-center gap-2">
-                      <input
+                      <SmoothInput
                         type="text"
                         value={panelSupportInput}
                         onChange={(e) => setPanelSupportInput(e.target.value)}
@@ -8202,7 +8203,7 @@ export default function App() {
                   <>
                     <div className="space-y-1">
                       <label className="text-[10px] font-bold text-gray-500 tracking-wider">NOMBRE COMPLETO</label>
-                      <input
+                      <SmoothInput
                         type="text"
                         required
                         value={authFullName}
@@ -8213,7 +8214,7 @@ export default function App() {
                     </div>
                     <div className="space-y-1">
                       <label className="text-[10px] font-bold text-gray-500 tracking-wider">TELÉFONO DE CONTACTO</label>
-                      <input
+                      <SmoothInput
                         type="text"
                         required
                         value={authPhone}
@@ -8227,7 +8228,7 @@ export default function App() {
 
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-gray-500 tracking-wider">EMAIL</label>
-                  <input
+                  <SmoothInput
                     type="email"
                     required
                     value={authEmail}
@@ -8239,7 +8240,7 @@ export default function App() {
 
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-gray-500 tracking-wider">CONTRASEÑA</label>
-                  <input
+                  <SmoothInput
                     type="password"
                     required
                     value={authPassword}
@@ -8794,7 +8795,7 @@ export default function App() {
                 >
                   <div className="space-y-1">
                     <label className="text-[9px] font-bold text-gray-500 tracking-wider block">CORREO ELECTRÓNICO</label>
-                    <input
+                    <SmoothInput
                       type="email"
                       required
                       value={chatEmail}
@@ -8863,7 +8864,7 @@ export default function App() {
             <form onSubmit={handleAddressModalSave} className="space-y-4 text-xs">
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">ETIQUETA (EJ: CASA, TRABAJO)</label>
-                <input
+                <SmoothInput
                   type="text"
                   placeholder="Domicilio Principal"
                   value={addrLabel}
@@ -8874,7 +8875,7 @@ export default function App() {
 
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">CALLE Y NÚMERO (PISO / DEPTO)</label>
-                <input
+                <SmoothInput
                   type="text"
                   required
                   placeholder="Av. Pellegrini 1840, 4º B"
@@ -8887,7 +8888,7 @@ export default function App() {
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">CIUDAD / LOCALIDAD</label>
-                  <input
+                  <SmoothInput
                     type="text"
                     required
                     placeholder="Rosario"
@@ -8919,7 +8920,7 @@ export default function App() {
 
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">CÓDIGO POSTAL (CP)</label>
-                <input
+                <SmoothInput
                   type="text"
                   required
                   placeholder="2000"

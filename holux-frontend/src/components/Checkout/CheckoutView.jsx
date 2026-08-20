@@ -12,6 +12,7 @@ import {
   Tag,
   X
 } from 'lucide-react';
+import { SmoothInput } from '../Common/SmoothInput';
 
 const getProductImage = (name) => {
   if (!name) return 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=600&auto=format&fit=crop&q=80';
@@ -60,7 +61,7 @@ const ContactInputs = memo(({ checkoutName, setCheckoutName, checkoutEmail, setC
   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
     <div className="space-y-1">
       <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">NOMBRE Y APELLIDO *</label>
-      <input
+      <SmoothInput
         type="text"
         required
         value={checkoutName}
@@ -71,7 +72,7 @@ const ContactInputs = memo(({ checkoutName, setCheckoutName, checkoutEmail, setC
     </div>
     <div className="space-y-1">
       <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">CORREO ELECTRÓNICO *</label>
-      <input
+      <SmoothInput
         type="email"
         required
         value={checkoutEmail}
@@ -82,7 +83,7 @@ const ContactInputs = memo(({ checkoutName, setCheckoutName, checkoutEmail, setC
     </div>
     <div className="space-y-1">
       <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">DNI / DOCUMENTO *</label>
-      <input
+      <SmoothInput
         type="text"
         required
         value={checkoutDni}
@@ -111,7 +112,7 @@ const AddressInputs = memo(({
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
       <div className="sm:col-span-2 space-y-1">
         <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">CALLE Y NÚMERO *</label>
-        <input
+        <SmoothInput
           type="text"
           required
           value={shippingStreet}
@@ -122,7 +123,7 @@ const AddressInputs = memo(({
       </div>
       <div className="space-y-1">
         <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">PISO / DEPTO</label>
-        <input
+        <SmoothInput
           type="text"
           value={shippingApartment}
           onChange={(e) => setShippingApartment(e.target.value)}
@@ -135,7 +136,7 @@ const AddressInputs = memo(({
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
       <div className="space-y-1">
         <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">CIUDAD / LOCALIDAD *</label>
-        <input
+        <SmoothInput
           type="text"
           required
           value={shippingCity}
@@ -165,7 +166,7 @@ const AddressInputs = memo(({
       </div>
       <div className="space-y-1">
         <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">CÓDIGO POSTAL *</label>
-        <input
+        <SmoothInput
           type="text"
           required
           value={shippingPostalCode}
@@ -849,7 +850,7 @@ const CheckoutView = memo(({
                   <div className="pt-2 border-t border-gray-100 space-y-1.5">
                     <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">¿TENÉS UN CUPÓN DE DESCUENTO?</label>
                     <form onSubmit={handleApplyCouponInCheckout} className="flex gap-2">
-                      <input
+                      <SmoothInput
                         type="text"
                         value={checkoutCouponInput}
                         onChange={(e) => setCheckoutCouponInput(e.target.value.toUpperCase())}
@@ -1022,28 +1023,28 @@ const CheckoutView = memo(({
             <div className="border-t border-gray-200 pt-4 space-y-3">
               <p className="text-xs font-bold text-gray-800 uppercase">➕ AGREGAR NUEVO DOMICILIO Y GUARDAR</p>
               <div className="grid grid-cols-2 gap-2 text-xs">
-                <input
+                <SmoothInput
                   type="text"
                   placeholder="Etiqueta (Ej: Casa, Trabajo)"
                   value={newModalAddrLabel}
                   onChange={(e) => setNewModalAddrLabel(e.target.value)}
                   className="px-3 py-2 border border-gray-300 rounded-lg outline-none focus:border-[#3C6E71]"
                 />
-                <input
+                <SmoothInput
                   type="text"
                   placeholder="Calle y Número *"
                   value={newModalAddrStreet}
                   onChange={(e) => setNewModalAddrStreet(e.target.value)}
                   className="px-3 py-2 border border-gray-300 rounded-lg outline-none focus:border-[#3C6E71]"
                 />
-                <input
+                <SmoothInput
                   type="text"
                   placeholder="Ciudad / Localidad *"
                   value={newModalAddrCity}
                   onChange={(e) => setNewModalAddrCity(e.target.value)}
                   className="px-3 py-2 border border-gray-300 rounded-lg outline-none focus:border-[#3C6E71]"
                 />
-                <input
+                <SmoothInput
                   type="text"
                   placeholder="Código Postal *"
                   value={newModalAddrCp}

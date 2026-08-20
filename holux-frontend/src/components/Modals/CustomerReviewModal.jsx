@@ -1,5 +1,6 @@
 import React from 'react';
 import { X, Star } from 'lucide-react';
+import { SmoothTextarea } from '../Common/SmoothInput';
 
 export default function CustomerReviewModal({
   isOpen,
@@ -73,7 +74,7 @@ export default function CustomerReviewModal({
 
           <div>
             <label className="block text-gray-700 font-bold mb-1">Comentario</label>
-            <textarea
+            <SmoothTextarea
               required
               rows={3}
               value={reviewCommentInput}

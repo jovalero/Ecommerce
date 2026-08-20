@@ -28,6 +28,7 @@ import {
   FileText,
   Heart
 } from 'lucide-react';
+import { SmoothInput } from '../Common/SmoothInput';
 import { getOrderStatusInfo, parseOrderItems, formatMoney, formatDate } from '../../utils/orderConstants';
 import ProductCard from '../Shop/ProductCard';
 
@@ -363,7 +364,7 @@ export default function CustomerDashboard({
 
                   <div className="relative w-full sm:w-72">
                     <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 transform -translate-y-1/2" />
-                    <input
+                    <SmoothInput
                       type="text"
                       value={orderSearchQuery}
                       onChange={(e) => setOrderSearchQuery(e.target.value)}
@@ -738,7 +739,7 @@ export default function CustomerDashboard({
 
                 {/* Redeem Form */}
                 <form onSubmit={handleRedeemCouponSubmit} className="flex gap-2 p-3 bg-gray-50 border border-gray-200 rounded-2xl">
-                  <input
+                  <SmoothInput
                     type="text"
                     value={redeemInput}
                     onChange={(e) => setRedeemInput(e.target.value)}
@@ -940,7 +941,7 @@ export default function CustomerDashboard({
                 </div>
 
                 <form onSubmit={handleSendPanelSupportMessage} className="flex gap-2">
-                  <input
+                  <SmoothInput
                     type="text"
                     value={panelSupportInput}
                     onChange={(e) => setPanelSupportInput(e.target.value)}

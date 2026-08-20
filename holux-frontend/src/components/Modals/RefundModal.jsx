@@ -1,5 +1,6 @@
 import React from 'react';
 import { X, RotateCcw } from 'lucide-react';
+import { SmoothTextarea } from '../Common/SmoothInput';
 
 export default function RefundModal({
   isOpen,
@@ -73,7 +74,7 @@ export default function RefundModal({
 
           <div>
             <label className="block text-gray-700 font-bold mb-1">Observaciones</label>
-            <textarea
+            <SmoothTextarea
               rows={3}
               value={refundCommentInput}
               onChange={(e) => setRefundCommentInput(e.target.value)}

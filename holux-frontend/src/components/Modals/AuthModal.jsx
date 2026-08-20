@@ -1,5 +1,6 @@
 import React from 'react';
 import { X, Lock, Shield } from 'lucide-react';
+import { SmoothInput } from '../Common/SmoothInput';
 
 export default function AuthModal({
   isOpen,
@@ -53,7 +54,7 @@ export default function AuthModal({
             <>
               <div>
                 <label className="block text-gray-700 font-bold mb-1">Nombre Completo</label>
-                <input
+                <SmoothInput
                   type="text"
                   required
                   value={authFullName}
@@ -64,7 +65,7 @@ export default function AuthModal({
               </div>
               <div>
                 <label className="block text-gray-700 font-bold mb-1">Teléfono</label>
-                <input
+                <SmoothInput
                   type="tel"
                   value={authPhone}
                   onChange={(e) => setAuthPhone(e.target.value)}
@@ -77,7 +78,7 @@ export default function AuthModal({
 
           <div>
             <label className="block text-gray-700 font-bold mb-1">Correo Electrónico</label>
-            <input
+            <SmoothInput
               type="email"
               required
               value={authEmail}
@@ -89,7 +90,7 @@ export default function AuthModal({
 
           <div>
             <label className="block text-gray-700 font-bold mb-1">Contraseña</label>
-            <input
+            <SmoothInput
               type="password"
               required
               value={authPassword}
