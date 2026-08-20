@@ -118,7 +118,7 @@ export const HeroSlider = memo(function HeroSlider({
               alt={slide.title || 'Banner Holux'}
               decoding="async"
               loading="eager"
-              fetchpriority={idx === 0 ? "high" : "auto"}
+              fetchPriority={idx === 0 ? "high" : "auto"}
               className="absolute inset-0 w-full h-full object-cover object-center opacity-85"
             />
 
