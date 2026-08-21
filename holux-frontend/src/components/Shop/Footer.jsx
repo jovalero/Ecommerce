@@ -146,12 +146,23 @@ export default function Footer({ onOpenRefundModal }) {
             </p>
           </div>
 
-          {/* Badges / Seals */}
+          {/* Badges / Legal Seals */}
           <div className="flex flex-wrap items-center gap-2 font-mono-custom text-[10px] font-bold text-gray-300">
-            <span className="border border-[#3C6E71]/30 px-2 py-0.5 rounded bg-white/5 shadow-sm">cace</span>
-            <span className="border border-[#3C6E71]/30 px-2 py-0.5 rounded bg-white/5 shadow-sm">DATA FISCAL AFIP</span>
-            <span className="border border-[#3C6E71]/30 px-2 py-0.5 rounded bg-white/5 shadow-sm">VTEX</span>
-            <span className="border border-[#3C6E71]/30 px-2 py-0.5 rounded bg-white/5 shadow-sm">Infra Commerce</span>
+            <a 
+              href="https://www.afip.gob.ar" 
+              target="_blank" 
+              rel="noreferrer"
+              className="border border-[#3C6E71]/40 px-2.5 py-1 rounded bg-[#3C6E71]/10 text-[#3C6E71] hover:bg-[#3C6E71]/20 hover:text-white transition-colors flex items-center gap-1.5 shadow-2xs"
+              title="Formulario 960/D.M. - Data Fiscal AFIP (ARCA)"
+            >
+              <span>DATA FISCAL AFIP (ARCA)</span>
+            </a>
+            <span className="border border-white/10 px-2.5 py-1 rounded bg-white/5 text-gray-400">
+              LEY 24.240 DEFENSA DEL CONSUMIDOR
+            </span>
+            <span className="border border-emerald-500/30 px-2.5 py-1 rounded bg-emerald-950/20 text-emerald-400 flex items-center gap-1">
+              <span>🔒 SITIO SEGURO SSL 256-BIT</span>
+            </span>
           </div>
         </div>
 
