@@ -372,6 +372,7 @@ export default function App() {
   });
   const [sortBy, setSortBy] = useState('relevant'); // 'relevant' | 'price-asc' | 'price-desc'
   const [selectedDetailProduct, setSelectedDetailProduct] = useState(null);
+  const [selectedProductImageIndex, setSelectedProductImageIndex] = useState(0);
   const [detailQuantity, setDetailQuantity] = useState(1);
   const [selectedSize, setSelectedSize] = useState('');
   const [sizeError, setSizeError] = useState(false);
@@ -6448,40 +6449,115 @@ export default function App() {
               
               {/* Left visual column */}
               <div className="lg:col-span-7 flex flex-col items-center">
-                <div className="relative w-full bg-gray-50 aspect-square flex items-center justify-center border border-gray-100 rounded-lg overflow-hidden group">
-                  {getProductDiscount(selectedDetailProduct) > 0 && (
-                    <span className="absolute top-4 left-4 bg-[#3C6E71] text-white text-xs font-sans font-semibold tracking-wider px-3 py-1 rounded-full shadow-sm z-10 select-none border border-white/15">
-                      {getProductDiscount(selectedDetailProduct)}%
-                    </span>
-                  )}
+                {(() => {
+                  let imgList = [];
+                  if (Array.isArray(selectedDetailProduct.images) && selectedDetailProduct.images.length > 0) {
+                    imgList = selectedDetailProduct.images.filter(Boolean);
+                  } else if (selectedDetailProduct.image_url) {
+                    imgList = [selectedDetailProduct.image_url];
+                  } else {
+                    imgList = [getProductImage(selectedDetailProduct.name)];
+                  }
+                  if (imgList.length === 0) imgList = [getProductImage(selectedDetailProduct.name)];
                   
-                  {selectedDetailProduct.stock <= 3 && selectedDetailProduct.stock > 0 && (
-                    <span className="absolute top-4 right-4 bg-[#B85C38] text-white text-[9px] font-display font-medium tracking-widest px-2.5 py-1 rounded">
-                      ÚLTIMAS {selectedDetailProduct.stock} UNIDADES
-                    </span>
-                  )}
-                  {selectedDetailProduct.stock === 0 && (
-                    <span className="absolute top-4 right-4 bg-red-600 text-white text-[9px] font-display font-medium tracking-widest px-2.5 py-1 rounded">
-                      SIN STOCK
-                    </span>
-                  )}
+                  const activeImgUrl = imgList[selectedProductImageIndex] || imgList[0];
 
-                  {/* Large Product image container */}
-                  <div className="w-full h-full flex items-center justify-center bg-white">
-                    <img 
-                      src={selectedDetailProduct.image_url || (selectedDetailProduct.images && selectedDetailProduct.images[0]) || getProductImage(selectedDetailProduct.name)} 
-                      alt={selectedDetailProduct.name} 
-                      onError={(e) => {
-                        e.target.onerror = null;
-                        e.target.src = getProductImage(selectedDetailProduct.name);
-                      }}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                </div>
-                <p className="text-[10px] text-gray-400 font-sans tracking-wide mt-3 text-center">
-                  Imagen ilustrativa oficial de HOLUX OUTDOOR. Equipamiento fabricado bajo altos estándares de calidad.
-                </p>
+                  return (
+                    <div className="w-full flex flex-col items-center space-y-3">
+                      {/* Main Large Image Box */}
+                      <div className="relative w-full bg-gray-50 aspect-square flex items-center justify-center border border-gray-100 rounded-xl overflow-hidden group shadow-2xs">
+                        {getProductDiscount(selectedDetailProduct) > 0 && (
+                          <span className="absolute top-4 left-4 bg-[#3C6E71] text-white text-xs font-sans font-semibold tracking-wider px-3 py-1 rounded-full shadow-sm z-10 select-none border border-white/15">
+                            {getProductDiscount(selectedDetailProduct)}%
+                          </span>
+                        )}
+                        
+                        {selectedDetailProduct.stock <= 3 && selectedDetailProduct.stock > 0 && (
+                          <span className="absolute top-4 right-4 bg-[#B85C38] text-white text-[9px] font-display font-medium tracking-widest px-2.5 py-1 rounded shadow-xs z-10">
+                            ÚLTIMAS {selectedDetailProduct.stock} UNIDADES
+                          </span>
+                        )}
+                        {selectedDetailProduct.stock === 0 && (
+                          <span className="absolute top-4 right-4 bg-red-600 text-white text-[9px] font-display font-medium tracking-widest px-2.5 py-1 rounded shadow-xs z-10">
+                            SIN STOCK
+                          </span>
+                        )}
+
+                        {/* Navigation Arrows if multiple images */}
+                        {imgList.length > 1 && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedProductImageIndex((prev) => (prev > 0 ? prev - 1 : imgList.length - 1));
+                              }}
+                              className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 bg-white/90 hover:bg-white text-gray-800 rounded-full flex items-center justify-center shadow-md opacity-0 group-hover:opacity-100 transition-all duration-200 cursor-pointer z-10 hover:scale-105"
+                              title="Imagen anterior"
+                            >
+                              <ChevronLeft className="w-5 h-5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedProductImageIndex((prev) => (prev < imgList.length - 1 ? prev + 1 : 0));
+                              }}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 bg-white/90 hover:bg-white text-gray-800 rounded-full flex items-center justify-center shadow-md opacity-0 group-hover:opacity-100 transition-all duration-200 cursor-pointer z-10 hover:scale-105"
+                              title="Siguiente imagen"
+                            >
+                              <ChevronRight className="w-5 h-5" />
+                            </button>
+                          </>
+                        )}
+
+                        {/* Image */}
+                        <div className="w-full h-full flex items-center justify-center bg-white">
+                          <img 
+                            src={activeImgUrl} 
+                            alt={selectedDetailProduct.name} 
+                            onError={(e) => {
+                              e.target.onerror = null;
+                              e.target.src = getProductImage(selectedDetailProduct.name);
+                            }}
+                            className="w-full h-full object-cover transition-opacity duration-300"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Thumbnails Gallery under image in the empty space */}
+                      {imgList.length > 1 && (
+                        <div className="w-full flex items-center justify-center gap-2.5 overflow-x-auto py-1 px-2 no-scrollbar">
+                          {imgList.map((thumbUrl, idx) => {
+                            const isSelected = selectedProductImageIndex === idx;
+                            return (
+                              <button
+                                key={idx}
+                                type="button"
+                                onClick={() => setSelectedProductImageIndex(idx)}
+                                className={`relative w-14 h-14 sm:w-16 sm:h-16 rounded-lg overflow-hidden border-2 transition-all duration-150 cursor-pointer bg-white shrink-0 ${
+                                  isSelected 
+                                    ? 'border-[#3C6E71] ring-2 ring-[#3C6E71]/20 shadow-xs scale-105 opacity-100' 
+                                    : 'border-gray-200 hover:border-gray-400 opacity-60 hover:opacity-100'
+                                }`}
+                              >
+                                <img
+                                  src={thumbUrl}
+                                  alt={`${selectedDetailProduct.name} - Miniatura ${idx + 1}`}
+                                  className="w-full h-full object-cover"
+                                />
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      <p className="text-[10px] text-gray-400 font-sans tracking-wide text-center">
+                        Imagen ilustrativa oficial de HOLUX OUTDOOR. Equipamiento fabricado bajo altos estándares de calidad.
+                      </p>
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* Right metadata / purchase column */}

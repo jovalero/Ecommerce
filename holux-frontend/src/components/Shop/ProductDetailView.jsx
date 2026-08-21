@@ -1,5 +1,5 @@
-import React from 'react';
-import { ShoppingBag, Star, Ruler, ChevronLeft, Check, AlertCircle } from 'lucide-react';
+import React, { useState } from 'react';
+import { ShoppingBag, Star, Ruler, ChevronLeft, ChevronRight, Check, AlertCircle } from 'lucide-react';
 import { formatMoney } from '../../utils/orderConstants';
 
 export default function ProductDetailView({
@@ -29,6 +29,8 @@ export default function ProductDetailView({
   handleProductClick
 }) {
   if (!product) return null;
+
+  const [activeImageIdx, setActiveImageIdx] = useState(0);
 
   const discount = product.offer_price > 0 && product.price > product.offer_price
     ? Math.round(((product.price - product.offer_price) / product.price) * 100)
@@ -111,19 +113,96 @@ export default function ProductDetailView({
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 bg-white border border-gray-200 rounded-xl p-6 sm:p-10 shadow-sm">
           
           {/* Image Gallery */}
-          <div className="lg:col-span-7 space-y-4">
-            <div className="relative aspect-4/3 sm:aspect-square bg-gray-50 rounded-lg overflow-hidden border border-gray-150">
-              {discount > 0 && (
-                <span className="absolute top-4 left-4 bg-[#3C6E71] text-white text-xs sm:text-sm font-sans font-semibold tracking-wider px-3 py-1 rounded-full shadow-sm z-10 select-none border border-white/15">
-                  {discount}%
-                </span>
-              )}
-              <img
-                src={product.image_url || getProductImage(product.name)}
-                alt={product.name}
-                className="w-full h-full object-cover"
-              />
-            </div>
+          <div className="lg:col-span-7 space-y-3">
+            {(() => {
+              let imgList = [];
+              if (Array.isArray(product.images) && product.images.length > 0) {
+                imgList = product.images.filter(Boolean);
+              } else if (product.image_url) {
+                imgList = [product.image_url];
+              } else {
+                imgList = [getProductImage(product.name)];
+              }
+              if (imgList.length === 0) imgList = [getProductImage(product.name)];
+              
+              const activeImgUrl = imgList[activeImageIdx] || imgList[0];
+
+              return (
+                <div className="w-full flex flex-col items-center space-y-3">
+                  <div className="relative w-full aspect-4/3 sm:aspect-square bg-gray-50 rounded-xl overflow-hidden border border-gray-150 group shadow-2xs">
+                    {discount > 0 && (
+                      <span className="absolute top-4 left-4 bg-[#3C6E71] text-white text-xs sm:text-sm font-sans font-semibold tracking-wider px-3 py-1 rounded-full shadow-sm z-10 select-none border border-white/15">
+                        {discount}%
+                      </span>
+                    )}
+
+                    {imgList.length > 1 && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveImageIdx((prev) => (prev > 0 ? prev - 1 : imgList.length - 1));
+                          }}
+                          className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 bg-white/90 hover:bg-white text-gray-800 rounded-full flex items-center justify-center shadow-md opacity-0 group-hover:opacity-100 transition-all duration-200 cursor-pointer z-10 hover:scale-105"
+                          title="Imagen anterior"
+                        >
+                          <ChevronLeft className="w-5 h-5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveImageIdx((prev) => (prev < imgList.length - 1 ? prev + 1 : 0));
+                          }}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 bg-white/90 hover:bg-white text-gray-800 rounded-full flex items-center justify-center shadow-md opacity-0 group-hover:opacity-100 transition-all duration-200 cursor-pointer z-10 hover:scale-105"
+                          title="Siguiente imagen"
+                        >
+                          <ChevronRight className="w-5 h-5" />
+                        </button>
+                      </>
+                    )}
+
+                    <img
+                      src={activeImgUrl}
+                      alt={product.name}
+                      onError={(e) => {
+                        e.target.onerror = null;
+                        e.target.src = getProductImage(product.name);
+                      }}
+                      className="w-full h-full object-cover transition-opacity duration-300"
+                    />
+                  </div>
+
+                  {/* Thumbnails Gallery under image */}
+                  {imgList.length > 1 && (
+                    <div className="w-full flex items-center justify-center gap-2.5 overflow-x-auto py-1 px-2 no-scrollbar">
+                      {imgList.map((thumbUrl, idx) => {
+                        const isSelected = activeImageIdx === idx;
+                        return (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => setActiveImageIdx(idx)}
+                            className={`relative w-14 h-14 sm:w-16 sm:h-16 rounded-lg overflow-hidden border-2 transition-all duration-150 cursor-pointer bg-white shrink-0 ${
+                              isSelected 
+                                ? 'border-[#3C6E71] ring-2 ring-[#3C6E71]/20 shadow-xs scale-105 opacity-100' 
+                                : 'border-gray-200 hover:border-gray-400 opacity-60 hover:opacity-100'
+                            }`}
+                          >
+                            <img
+                              src={thumbUrl}
+                              alt={`${product.name} - Miniatura ${idx + 1}`}
+                              className="w-full h-full object-cover"
+                            />
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </div>
 
           {/* Product Details & Actions */}
