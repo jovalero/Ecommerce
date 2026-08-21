@@ -26,7 +26,8 @@ import {
   Settings,
   Package,
   FileText,
-  Heart
+  Heart,
+  ChevronDown
 } from 'lucide-react';
 import { SmoothInput } from '../Common/SmoothInput';
 import { getOrderStatusInfo, parseOrderItems, formatMoney, formatDate } from '../../utils/orderConstants';
@@ -93,6 +94,14 @@ export default function CustomerDashboard({
   onBuyNow
 }) {
   const [filterTab, setFilterTab] = useState('all'); // 'all' | 'pending' | 'processing' | 'shipped' | 'completed'
+  const [expandedOrders, setExpandedOrders] = useState({});
+
+  const toggleOrderExpansion = (orderId, defaultOpen) => {
+    setExpandedOrders(prev => {
+      const isCurrentlyOpen = prev[orderId] !== undefined ? prev[orderId] : defaultOpen;
+      return { ...prev, [orderId]: !isCurrentlyOpen };
+    });
+  };
 
   // Filter orders based on active tab and search query
   const filteredOrders = orders.filter(ord => {
@@ -423,20 +432,25 @@ export default function CustomerDashboard({
                       const isShipped = order.status === 'shipped';
                       const isDelivered = order.status === 'delivered';
 
-                      // Compute active step index for 5-step timeline
+                      // Compute active step index for 5-step timeline (Creado -> Pago -> Preparación -> En Camino -> Entregado)
                       let activeStep = 1;
-                      if (isPendingReview) activeStep = 2;
-                      else if (isPaid) activeStep = 3;
-                      else if (isPreparing) activeStep = 4;
-                      else if (isShipped || isDelivered) activeStep = 5;
+                      if (isDelivered) activeStep = 5;
+                      else if (isShipped) activeStep = 4;
+                      else if (isPreparing) activeStep = 3;
+                      else if (isPaid || isPendingReview) activeStep = 2;
+                      else activeStep = 1;
+
+                      const isDefaultOpen = !isDelivered && order.status !== 'cancelled' && order.status !== 'rejected';
+                      const isExpanded = expandedOrders[order.id] !== undefined ? expandedOrders[order.id] : isDefaultOpen;
+                      const orderItems = parseOrderItems(order);
 
                       return (
                         <div
                           key={order.id}
-                          className="bg-white border border-gray-200 rounded-2xl p-6 shadow-xs space-y-5 hover:border-gray-300 transition-colors"
+                          className={`bg-white border border-gray-200 rounded-2xl ${isExpanded ? 'p-5 space-y-5' : 'px-5 py-3'} shadow-xs hover:border-gray-300 transition-all`}
                         >
-                          {/* Order Card Top Bar */}
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-100 pb-3">
+                          {/* Order Card Top Bar with Toggle */}
+                          <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${isExpanded ? 'border-b border-gray-100 pb-3' : ''}`}>
                             <div className="flex items-center gap-3">
                               {isPendingReview ? (
                                 <span className="px-3 py-1 bg-amber-500 text-white font-display text-xs font-black rounded uppercase tracking-wider shadow-xs">
@@ -456,7 +470,7 @@ export default function CustomerDashboard({
                                 </span>
                               ) : isDelivered ? (
                                 <span className="px-3 py-1 bg-emerald-700 text-white font-display text-xs font-black rounded uppercase tracking-wider shadow-xs">
-                                  ENTREGADO
+                                  ENTREGADO ✓
                                 </span>
                               ) : (
                                 <span className="px-3 py-1 bg-gray-500 text-white font-display text-xs font-black rounded uppercase tracking-wider shadow-xs">
@@ -469,161 +483,242 @@ export default function CustomerDashboard({
                               </span>
                             </div>
 
-                            <span className="text-xs text-gray-500 font-sans">
-                              Fecha: {formatDate(order.created_at || order.date)}
-                            </span>
-                          </div>
-
-                          {/* 5-Step Order Progress Timeline */}
-                          <div className="space-y-2">
-                            <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider font-sans block">
-                              PROGRESO DE TU PEDIDO
-                            </span>
-                            <div className="grid grid-cols-5 gap-2 text-[11px] font-sans font-bold text-center select-none">
-                              
-                              {/* Step 1: Creado */}
-                              <div className={`p-2.5 rounded-lg border transition-all ${
-                                activeStep >= 1 
-                                  ? 'bg-emerald-50/80 border-emerald-300 text-emerald-800' 
-                                  : 'bg-gray-50 border-gray-200 text-gray-400'
-                              }`}>
-                                1. CREADO ✓
-                              </div>
-
-                              {/* Step 2: Verificación */}
-                              <div className={`p-2.5 rounded-lg border transition-all ${
-                                activeStep === 2
-                                  ? 'bg-amber-50 border-amber-300 text-amber-900 ring-1 ring-amber-400/50'
-                                  : activeStep > 2
-                                    ? 'bg-emerald-50/80 border-emerald-300 text-emerald-800'
-                                    : 'bg-gray-50 border-gray-200 text-gray-400'
-                              }`}>
-                                2. VERIFICACIÓN ⏳
-                              </div>
-
-                              {/* Step 3: Pago OK */}
-                              <div className={`p-2.5 rounded-lg border transition-all ${
-                                activeStep >= 3 
-                                  ? 'bg-emerald-50/80 border-emerald-300 text-emerald-800' 
-                                  : 'bg-gray-50 border-gray-200 text-gray-400'
-                              }`}>
-                                3. PAGO OK ✓
-                              </div>
-
-                              {/* Step 4: Preparando */}
-                              <div className={`p-2.5 rounded-lg border transition-all ${
-                                activeStep >= 4 
-                                  ? 'bg-blue-50 border-blue-300 text-blue-800' 
-                                  : 'bg-gray-50 border-gray-200 text-gray-400'
-                              }`}>
-                                4. PREPARANDO 📦
-                              </div>
-
-                              {/* Step 5: Enviado */}
-                              <div className={`p-2.5 rounded-lg border transition-all ${
-                                activeStep >= 5 
-                                  ? 'bg-emerald-100 border-emerald-400 text-emerald-900' 
-                                  : 'bg-gray-50 border-gray-200 text-gray-400'
-                              }`}>
-                                5. ENVIADO 🚚
-                              </div>
-
-                            </div>
-                          </div>
-
-                          {/* Order Details & Summary Info */}
-                          <div className="space-y-1.5 text-xs text-gray-700 font-sans">
-                            <p>
-                              <strong className="text-gray-900">Destino:</strong>{' '}
-                              {order.shipping_address ? `Entrega a Domicilio (${order.shipping_address})` : 'Entrega a Domicilio'}
-                            </p>
-                            <p>
-                              <strong className="text-gray-900">Forma de Pago:</strong>{' '}
-                              <span className="uppercase font-bold text-gray-900">
-                                {order.payment_method === 'transfer' ? 'TRANSFERENCIA BANCARIA' : 'MERCADO PAGO'}
+                            <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto">
+                              <span className="text-xs text-gray-500 font-sans">
+                                Fecha: {formatDate(order.created_at || order.date)}
                               </span>
-                            </p>
+
+                              {/* Toggle Button */}
+                              <button
+                                type="button"
+                                onClick={() => toggleOrderExpansion(order.id, isDefaultOpen)}
+                                className={`px-3 py-1.5 rounded-xl font-display text-[11px] font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs ${
+                                  isExpanded
+                                    ? 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                                    : 'bg-[#3C6E71]/10 hover:bg-[#3C6E71]/20 text-[#3C6E71]'
+                                }`}
+                                title={isExpanded ? 'Ocultar seguimiento' : 'Ver seguimiento'}
+                              >
+                                <span>{isExpanded ? 'Ocultar' : 'Ver Seguimiento'}</span>
+                                <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />
+                              </button>
+                            </div>
                           </div>
 
-                          {/* Yellow Warning Alert Box when pending verification */}
-                          {isPendingReview && (
-                            <div className="p-4 bg-amber-50/70 border border-amber-200 rounded-xl space-y-1 text-xs">
-                              <div className="flex items-center gap-2 text-amber-900 font-bold">
-                                <Clock className="w-4 h-4 text-amber-600 shrink-0" />
-                                <span>PAGO EN PROCESO DE VERIFICACIÓN</span>
-                              </div>
-                              <p className="text-amber-800/90 text-[11px] leading-relaxed pl-6">
-                                La comprobación de transferencias demora habitualmente de 2 a 24hs hábiles. Te notificaremos a tu email apenas sea validada por administración.
-                              </p>
-                            </div>
-                          )}
-
-                          {/* Chronological Status History */}
-                          <div className="space-y-2 pt-2 border-t border-gray-100">
-                            <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider font-sans block">
-                              HISTORIAL CRONOLÓGICO DE ESTADOS
-                            </span>
-                            <div className="space-y-2 text-xs font-sans">
-                              <div className="flex items-center justify-between text-gray-600">
-                                <span className="flex items-center gap-2">
-                                  <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                                  <span>Pedido recibido</span>
-                                </span>
-                                <span className="text-gray-400 text-[11px]">
-                                  {formatDate(order.created_at || order.date)} 01:37 p. m. hs
-                                </span>
-                              </div>
-
-                              {isPendingReview && (
-                                <div className="flex items-center justify-between text-gray-700 font-medium">
-                                  <span className="flex items-center gap-2">
-                                    <span className="w-2 h-2 rounded-full bg-amber-500" />
-                                    <span>Comprobante en verificación manual (24-48hs)</span>
+                          {/* Expanded Detailed View */}
+                          {isExpanded && (
+                            <div className="space-y-5 animate-in fade-in duration-300">
+                              {/* Responsive 5-Step Visual Stepper */}
+                              <div className="space-y-3 bg-gray-50/90 p-3.5 sm:p-5 rounded-2xl border border-gray-100">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[10px] sm:text-[11px] font-bold text-gray-500 uppercase tracking-wider font-sans">
+                                    PROGRESO DE TU PEDIDO
                                   </span>
-                                  <span className="text-amber-700 font-bold text-[11px]">
-                                    En proceso
+                                  <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full font-mono-custom ${
+                                    activeStep === 5 ? 'bg-emerald-100 text-emerald-800' :
+                                    activeStep >= 3 ? 'bg-emerald-100 text-emerald-800' :
+                                    activeStep === 2 ? 'bg-amber-100 text-amber-800' : 'bg-gray-200 text-gray-700'
+                                  }`}>
+                                    Paso {activeStep} de 5
                                   </span>
                                 </div>
+
+                                {/* Stepper Connecting Nodes */}
+                                <div className="relative pt-1 pb-1">
+                                  <div className="relative flex items-center justify-between">
+                                    {/* Background Track Line - Centered exactly at 16px (top-4) */}
+                                    <div className="absolute top-4 left-4 right-4 h-1 bg-gray-200 -translate-y-1/2 z-0 rounded-full" />
+                                    
+                                    {/* Active Progress Line */}
+                                    <div 
+                                      className="absolute top-4 left-4 h-1 bg-emerald-500 -translate-y-1/2 z-0 transition-all duration-500 rounded-full"
+                                      style={{ width: `calc(${((activeStep - 1) / 4)} * (100% - 32px))` }}
+                                    />
+
+                                    {[
+                                      { step: 1, label: 'Creado', icon: Check },
+                                      { step: 2, label: isPendingReview ? 'Verificación' : 'Pago OK', icon: isPendingReview ? Clock : CheckCircle2 },
+                                      { step: 3, label: 'Preparación', icon: Package },
+                                      { step: 4, label: 'En Camino', icon: Truck },
+                                      { step: 5, label: 'Entregado', icon: CheckCircle2 }
+                                    ].map((item) => {
+                                      const isDone = activeStep > item.step;
+                                      const isCurrent = activeStep === item.step;
+                                      const Icon = item.icon;
+
+                                      return (
+                                        <div key={item.step} className="relative z-10 flex flex-col items-center">
+                                          {/* Circle Node */}
+                                          <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs transition-all duration-300 ${
+                                            isCurrent
+                                              ? item.step === 2 && isPendingReview
+                                                ? 'bg-amber-500 text-white ring-4 ring-amber-100 scale-110 shadow-sm'
+                                                : 'bg-emerald-600 text-white ring-4 ring-emerald-100 scale-110 shadow-sm'
+                                              : isDone
+                                              ? 'bg-emerald-500 text-white shadow-xs'
+                                              : 'bg-white text-gray-400 border-2 border-gray-200'
+                                          }`}>
+                                            {isDone ? (
+                                              <Check className="w-4 h-4 stroke-[3]" />
+                                            ) : (
+                                              <Icon className="w-4 h-4" />
+                                            )}
+                                          </div>
+
+                                          {/* Step Label */}
+                                          <span className={`text-[11px] font-sans font-bold mt-2 hidden sm:block ${
+                                            isCurrent ? 'text-gray-900 font-extrabold' : isDone ? 'text-emerald-700' : 'text-gray-400'
+                                          }`}>
+                                            {item.label}
+                                          </span>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+
+                                  {/* Step Label for Mobile */}
+                                  <div className="sm:hidden text-center pt-2.5 border-t border-gray-200/60 mt-2">
+                                    <p className="text-xs font-bold text-gray-800">
+                                      {activeStep === 1 && '1. Pedido creado y registrado ✓'}
+                                      {activeStep === 2 && (isPendingReview ? '2. Comprobante en revisión manual ⏳' : '2. Pago aprobado y acreditado ✓')}
+                                      {activeStep === 3 && '3. Embalaje y preparación en depósito 📦'}
+                                      {activeStep === 4 && '4. Despachado y en camino 🚚'}
+                                      {activeStep === 5 && '5. Paquete entregado en destino ✅'}
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Order Details & Summary Info */}
+                              <div className="space-y-1.5 text-xs text-gray-700 font-sans">
+                                <p>
+                                  <strong className="text-gray-900">Destino:</strong>{' '}
+                                  {order.shipping_address ? `Entrega a Domicilio (${order.shipping_address})` : 'Entrega a Domicilio'}
+                                </p>
+                                <p>
+                                  <strong className="text-gray-900">Forma de Pago:</strong>{' '}
+                                  <span className="uppercase font-bold text-gray-900">
+                                    {order.payment_method === 'transfer' ? 'TRANSFERENCIA BANCARIA' : 'MERCADO PAGO'}
+                                  </span>
+                                </p>
+                              </div>
+
+                              {/* Yellow Warning Alert Box when pending verification */}
+                              {isPendingReview && (
+                                <div className="p-4 bg-amber-50/70 border border-amber-200 rounded-xl space-y-1 text-xs">
+                                  <div className="flex items-center gap-2 text-amber-900 font-bold">
+                                    <Clock className="w-4 h-4 text-amber-600 shrink-0" />
+                                    <span>PAGO EN PROCESO DE VERIFICACIÓN</span>
+                                  </div>
+                                  <p className="text-amber-800/90 text-[11px] leading-relaxed pl-6">
+                                    La comprobación de transferencias demora habitualmente de 2 a 24hs hábiles. Te notificaremos a tu email apenas sea validada por administración.
+                                  </p>
+                                </div>
                               )}
+
+                              {/* Chronological Status History */}
+                              <div className="space-y-2 pt-2 border-t border-gray-100">
+                                <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider font-sans block">
+                                  HISTORIAL CRONOLÓGICO DE ESTADOS
+                                </span>
+                                <div className="space-y-2 text-xs font-sans">
+                                  <div className="flex items-center justify-between text-gray-600">
+                                    <span className="flex items-center gap-2">
+                                      <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                                      <span>Pedido recibido</span>
+                                    </span>
+                                    <span className="text-gray-400 text-[11px]">
+                                      {formatDate(order.created_at || order.date)}
+                                    </span>
+                                  </div>
+
+                                  {isPendingReview && (
+                                    <div className="flex items-center justify-between text-gray-700 font-medium">
+                                      <span className="flex items-center gap-2">
+                                        <span className="w-2 h-2 rounded-full bg-amber-500" />
+                                        <span>Comprobante en verificación manual</span>
+                                      </span>
+                                      <span className="text-amber-700 font-bold text-[11px]">
+                                        En proceso ⏳
+                                      </span>
+                                    </div>
+                                  )}
+
+                                  {(isPaid || isPreparing || isShipped || isDelivered) && (
+                                    <div className="flex items-center justify-between text-gray-700 font-medium">
+                                      <span className="flex items-center gap-2">
+                                        <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                                        <span>Pago acreditado y aprobado</span>
+                                      </span>
+                                      <span className="text-emerald-700 font-bold text-[11px]">Aprobado ✓</span>
+                                    </div>
+                                  )}
+
+                                  {(isPreparing || isShipped || isDelivered) && (
+                                    <div className="flex items-center justify-between text-gray-700 font-medium">
+                                      <span className="flex items-center gap-2">
+                                        <span className="w-2 h-2 rounded-full bg-blue-500" />
+                                        <span>Embalaje y preparación en depósito</span>
+                                      </span>
+                                      <span className="text-blue-700 font-bold text-[11px]">Listo para despacho</span>
+                                    </div>
+                                  )}
+
+                                  {(isShipped || isDelivered) && (
+                                    <div className="flex items-center justify-between text-gray-700 font-medium">
+                                      <span className="flex items-center gap-2">
+                                        <span className="w-2 h-2 rounded-full bg-purple-500" />
+                                        <span>Despachado en camino</span>
+                                      </span>
+                                      <span className="text-purple-700 font-bold text-[11px]">En camino 🚚</span>
+                                    </div>
+                                  )}
+
+                                  {isDelivered && (
+                                    <div className="flex items-center justify-between text-emerald-950 font-semibold bg-emerald-50/70 p-2 rounded-lg border border-emerald-200/60">
+                                      <span className="flex items-center gap-2">
+                                        <span className="w-2 h-2 rounded-full bg-emerald-600 ring-2 ring-emerald-300" />
+                                        <span>Paquete entregado y recibido en destino</span>
+                                      </span>
+                                      <span className="text-emerald-700 font-bold text-[11px]">Entregado ✓</span>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Bottom Total and Actions Row */}
+                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4 border-t border-gray-100">
+                                <div className="text-right sm:order-2">
+                                  <span className="text-[10px] text-gray-400 uppercase font-bold tracking-wider block">
+                                    TOTAL
+                                  </span>
+                                  <span className="text-2xl font-black text-gray-900 font-sans">
+                                    {formatMoney(totalAmount)}
+                                  </span>
+                                </div>
+
+                                <div className="flex flex-wrap items-center gap-3 sm:order-1">
+                                  <button
+                                    onClick={() => setCustomerSelectedOrderDetail(order)}
+                                    className="px-5 py-2.5 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 font-display text-xs font-bold tracking-wider rounded-xl transition-all cursor-pointer flex items-center gap-2 shadow-2xs"
+                                  >
+                                    <Eye className="w-4 h-4 text-gray-500" />
+                                    <span>VER DETALLE DEL PEDIDO</span>
+                                  </button>
+
+                                  <a
+                                    href={`${API_BASE_URL}/api/orders/${order.id}/pdf?token=${token || ''}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="px-5 py-2.5 bg-[#3C6E71] hover:bg-[#2c5355] text-white font-display text-xs font-bold tracking-wider rounded-xl transition-all cursor-pointer flex items-center gap-2 shadow-xs"
+                                  >
+                                    <Download className="w-4 h-4 text-white" />
+                                    <span>COMPROBANTE PDF</span>
+                                  </a>
+                                </div>
+                              </div>
                             </div>
-                          </div>
-
-                          {/* Bottom Total and Actions Row */}
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4 border-t border-gray-100">
-                            
-                            {/* Total on Right (or left depending on responsive) */}
-                            <div className="text-right sm:order-2">
-                              <span className="text-[10px] text-gray-400 uppercase font-bold tracking-wider block">
-                                TOTAL
-                              </span>
-                              <span className="text-2xl font-black text-gray-900 font-sans">
-                                {formatMoney(totalAmount)}
-                              </span>
-                            </div>
-
-                            {/* Action Buttons */}
-                            <div className="flex flex-wrap items-center gap-3 sm:order-1">
-                              <button
-                                onClick={() => setCustomerSelectedOrderDetail(order)}
-                                className="px-5 py-2.5 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 font-display text-xs font-bold tracking-wider rounded-xl transition-all cursor-pointer flex items-center gap-2 shadow-2xs"
-                              >
-                                <Eye className="w-4 h-4 text-gray-500" />
-                                <span>VER DETALLE DEL PEDIDO</span>
-                              </button>
-
-                              <a
-                                href={`${API_BASE_URL}/api/orders/${order.id}/pdf?token=${token || ''}`}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="px-5 py-2.5 bg-[#3C6E71] hover:bg-[#2c5355] text-white font-display text-xs font-bold tracking-wider rounded-xl transition-all cursor-pointer flex items-center gap-2 shadow-xs"
-                              >
-                                <Download className="w-4 h-4 text-white" />
-                                <span>COMPROBANTE PDF</span>
-                              </a>
-                            </div>
-
-                          </div>
-
+                          )}
                         </div>
                       );
                     })}

@@ -32,8 +32,9 @@ class ProductCatalogController extends Controller
             'select' => '*,categories(id,name,slug)',
         ];
 
-        // Apply category filter in PostgREST if given
-        if (!empty($category) && $category !== 'all') {
+        // Apply category filter in PostgREST if given (except for virtual 'offers' category)
+        $isOffersFilter = in_array($category, ['offers', 'ofertas', 'outlet', 'descuentos']);
+        if (!empty($category) && $category !== 'all' && !$isOffersFilter) {
             if (\Illuminate\Support\Str::isUuid($category)) {
                 $query['category_id'] = 'eq.' . $category;
             } else {
@@ -46,6 +47,17 @@ class ProductCatalogController extends Controller
 
         // 2. Attach extended metadata (variants, images, extra tags, cost, etc.)
         $enriched = ProductMetadataService::attachMany($allProducts);
+
+        // Filter virtual 'offers' category
+        if ($isOffersFilter) {
+            $enriched = array_filter($enriched, function ($p) {
+                $price = (float) ($p['price'] ?? 0);
+                $offerPrice = (float) ($p['offer_price'] ?? 0);
+                $discount = (float) ($p['discount_percent'] ?? $p['discount'] ?? 0);
+                $originalPrice = (float) ($p['original_price'] ?? 0);
+                return ($offerPrice > 0 && $offerPrice < $price) || ($discount > 0) || ($originalPrice > $price);
+            });
+        }
 
         // 3. Server-side in-memory filtering for composite fields (search by name, brand, tags)
         if (!empty($search)) {

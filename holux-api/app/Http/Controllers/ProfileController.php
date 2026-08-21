@@ -97,12 +97,17 @@ class ProfileController extends Controller
      * @return JsonResponse
      */
     /**
-     * Convert DB status to human-readable app status.
+     * Convert DB status to human-readable app status with metadata service attachment.
      */
     private function formatOrder(array $order): array
     {
+        $order = \App\Services\OrderMetadataService::attach($order);
         $dbSt = $order['status'] ?? 'pending';
-        if ($dbSt === 'processing') {
+        $appSt = $order['app_status'] ?? null;
+
+        if ($appSt && in_array($appSt, ['preparing', 'shipped', 'delivered', 'pending_review', 'paid', 'rejected', 'cancelled', 'pending_payment'])) {
+            $order['status'] = $appSt;
+        } elseif ($dbSt === 'processing') {
             $order['status'] = 'pending_review';
         } elseif ($dbSt === 'pending') {
             $order['status'] = 'pending_payment';

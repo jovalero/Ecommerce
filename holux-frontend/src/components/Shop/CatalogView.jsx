@@ -432,6 +432,81 @@ export default function CatalogView({
             </div>
           </div>
 
+          {/* --- RESPONSIVE HORIZONTAL CATEGORIES & SECTIONS BAR (MOBILE & TABLET OPTIMIZED) --- */}
+          <div className="relative z-10 pt-3 border-t border-gray-100">
+            <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide py-1 text-xs select-none">
+              {/* All Products Pill */}
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedCategories([]);
+                  setSelectedCollections([]);
+                  setPage(1);
+                }}
+                className={`shrink-0 px-3.5 py-1.5 rounded-full font-display font-bold uppercase tracking-wider transition-all cursor-pointer border text-xs ${
+                  selectedCategories.length === 0 && selectedCollections.length === 0
+                    ? 'bg-[#1C2321] text-white border-[#1C2321] shadow-xs'
+                    : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-100 hover:text-black'
+                }`}
+              >
+                Todos
+              </button>
+
+              {/* Dynamic Database Categories */}
+              {availableCategories.map(cat => {
+                const isSelected = selectedCategories.includes(cat.slug);
+                return (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedCategories([cat.slug]);
+                      setSelectedCollections([]);
+                      setPage(1);
+                    }}
+                    className={`shrink-0 px-3.5 py-1.5 rounded-full font-display font-bold uppercase tracking-wider transition-all cursor-pointer border text-xs ${
+                      isSelected
+                        ? 'bg-[#3C6E71] text-white border-[#3C6E71] shadow-xs'
+                        : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-100 hover:text-black'
+                    }`}
+                  >
+                    {cat.name}
+                  </button>
+                );
+              })}
+
+              {/* Collections & Special Sections */}
+              {[
+                { key: 'mujer', label: 'Mujer' },
+                { key: 'hombre', label: 'Hombre' },
+                { key: 'niños', label: 'Niños' },
+                { key: 'outlet', label: 'Outlet 🔥' }
+              ].map(col => {
+                const isSelected = selectedCollections.includes(col.key);
+                return (
+                  <button
+                    key={col.key}
+                    type="button"
+                    onClick={() => {
+                      setSelectedCollections([col.key]);
+                      setSelectedCategories([]);
+                      setPage(1);
+                    }}
+                    className={`shrink-0 px-3.5 py-1.5 rounded-full font-display font-bold uppercase tracking-wider transition-all cursor-pointer border text-xs ${
+                      isSelected
+                        ? 'bg-[#B85C38] text-white border-[#B85C38] shadow-xs'
+                        : col.key === 'outlet'
+                        ? 'bg-orange-50 text-[#B85C38] border-orange-200 hover:bg-orange-100'
+                        : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-100 hover:text-black'
+                    }`}
+                  >
+                    {col.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           {/* Active Filter Chips (Only shown when filters are selected) */}
           {hasActiveFilters && (
             <div className="relative z-10 pt-3 border-t border-gray-100 flex items-center gap-2 flex-wrap text-xs">
@@ -726,8 +801,8 @@ export default function CatalogView({
                 </button>
               </div>
             ) : (
-              /* GRID DINÁMICO: 4 o 3 COLUMNAS EN DESKTOP, 2 EN TABLET, 1 EN MOBILE */
-              <div className={`grid grid-cols-1 sm:grid-cols-2 ${gridColumns === 3 ? 'lg:grid-cols-3' : 'lg:grid-cols-4'} gap-5 sm:gap-6 w-full`}>
+              /* GRID RESPONSIVE: 2 COLUMNAS EN CELULAR, 3 EN TABLET, 4 EN DESKTOP */
+              <div className={`grid grid-cols-2 sm:grid-cols-3 ${gridColumns === 3 ? 'lg:grid-cols-3' : 'lg:grid-cols-4'} gap-2.5 sm:gap-4 md:gap-6 w-full`}>
                 {products.map(product => (
                   <ProductCard
                     key={product.id}

@@ -523,8 +523,8 @@ export default function ProductEditModal({ product, categories = [], onClose, on
                   return (
                     <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <span className="bg-[#B85C38] text-white text-[10px] font-display font-bold tracking-widest px-2.5 py-1 rounded shadow">
-                          {pct}% OFF
+                        <span className="bg-[#3C6E71] text-white text-xs font-sans font-semibold tracking-wider px-3 py-1 rounded-full shadow-xs">
+                          {pct}%
                         </span>
                         <div>
                           <p className="text-xs font-bold text-gray-900">

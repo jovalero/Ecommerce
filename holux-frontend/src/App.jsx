@@ -38,6 +38,11 @@ import {
   Gift,
   Sparkles,
   Crown,
+  Package,
+  HelpCircle,
+  FileText,
+  CheckCircle2,
+  AlertTriangle,
   Ruler
 } from 'lucide-react';
 
@@ -59,6 +64,9 @@ import ProductCard from './components/Shop/ProductCard';
 import { SmoothInput, SmoothTextarea } from './components/Common/SmoothInput';
 import InteractiveTicker from './components/Common/InteractiveTicker';
 import HeroSlider from './components/Shop/HeroSlider';
+import InfoPagesView from './components/Shop/InfoPagesView';
+import Footer from './components/Shop/Footer';
+import MobileMenuDrawer from './components/Navigation/MobileMenuDrawer';
 import { useProductCatalog } from './hooks/useProductCatalog';
 
 // Configuration
@@ -66,13 +74,21 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://fmbhcfsrsfkglmvgbnlm.supabase.co';
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_aAzQcAqCATpYDGBVRNJRQQ_1CKarnEb';
 
-// Product Discount Config (customize which items are on sale and their percentage)
 const getProductDiscount = (product) => {
   if (!product || typeof product !== 'object') return 0;
   const normal = Number(product.price || 0);
   const offer = Number(product.offer_price || 0);
+  const explicitPct = Number(product.discount_percent || product.discount || 0);
+  const original = Number(product.original_price || 0);
+
   if (offer > 0 && normal > offer) {
     return Math.round(((normal - offer) / normal) * 100);
+  }
+  if (explicitPct > 0 && explicitPct < 100) {
+    return explicitPct;
+  }
+  if (original > normal && normal > 0) {
+    return Math.round(((original - normal) / original) * 100);
   }
   return 0;
 };
@@ -81,8 +97,13 @@ const getEffectiveProductPrice = (product) => {
   if (!product || typeof product !== 'object') return 0;
   const normal = Number(product.price || 0);
   const offer = Number(product.offer_price || 0);
+  const explicitPct = Number(product.discount_percent || product.discount || 0);
+
   if (offer > 0 && normal > offer) {
     return offer;
+  }
+  if (explicitPct > 0 && explicitPct < 100) {
+    return Math.round(normal * (1 - explicitPct / 100));
   }
   return normal;
 };
@@ -91,8 +112,17 @@ const getOriginalProductPrice = (product) => {
   if (!product || typeof product !== 'object') return 0;
   const normal = Number(product.price || 0);
   const offer = Number(product.offer_price || 0);
+  const explicitPct = Number(product.discount_percent || product.discount || 0);
+  const original = Number(product.original_price || 0);
+
   if (offer > 0 && normal > offer) {
     return normal;
+  }
+  if (explicitPct > 0 && explicitPct < 100) {
+    return normal;
+  }
+  if (original > normal) {
+    return original;
   }
   return 0;
 };
@@ -152,6 +182,73 @@ const PROMO_BANNERS = [
   }
 ];
 
+const MobilePromoCarousel = React.memo(function MobilePromoCarousel({ banners = PROMO_BANNERS }) {
+  const [currentSlide, setCurrentSlide] = useState(0);
+
+  return (
+    <div className="relative h-96 w-full rounded-lg overflow-hidden border border-gray-200 shadow-md">
+      {banners.map((banner, idx) => (
+        <div 
+          key={idx}
+          onClick={() => { window.location.hash = banner.link; }}
+          className={`absolute inset-0 transition-opacity duration-1000 ease-in-out cursor-pointer ${idx === currentSlide ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+        >
+          <img 
+            src={banner.image} 
+            alt={banner.title} 
+            loading="lazy"
+            decoding="async"
+            className="w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
+          <div className="absolute bottom-8 left-6 text-left space-y-1">
+            <span className="text-[9px] text-orange-200 font-bold uppercase tracking-widest font-sans block">
+              {banner.span}
+            </span>
+            <h3 className="text-lg font-display font-black tracking-wider text-white uppercase">
+              {banner.title}
+            </h3>
+          </div>
+        </div>
+      ))}
+      
+      {/* Control Arrows */}
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          setCurrentSlide(prev => (prev - 1 + banners.length) % banners.length);
+        }}
+        className="absolute left-3 top-1/2 transform -translate-y-1/2 p-2 bg-black/40 hover:bg-[#3C6E71] text-white rounded-full z-10 cursor-pointer transition-colors"
+      >
+        <ChevronLeft className="w-4 h-4" />
+      </button>
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          setCurrentSlide(prev => (prev + 1) % banners.length);
+        }}
+        className="absolute right-3 top-1/2 transform -translate-y-1/2 p-2 bg-black/40 hover:bg-[#3C6E71] text-white rounded-full z-10 cursor-pointer transition-colors"
+      >
+        <ChevronRight className="w-4 h-4" />
+      </button>
+
+      {/* Dot Indicators */}
+      <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-10 flex gap-2">
+        {banners.map((_, idx) => (
+          <button
+            key={idx}
+            onClick={(e) => {
+              e.stopPropagation();
+              setCurrentSlide(idx);
+            }}
+            className={`h-2 rounded-full transition-all cursor-pointer ${idx === currentSlide ? 'bg-[#3C6E71] w-4' : 'bg-white/50 w-2'}`}
+          />
+        ))}
+      </div>
+    </div>
+  );
+});
+
 const getProductImage = (name) => {
   const cleanName = name.toLowerCase();
   if (cleanName.includes('campera') || cleanName.includes('cortavientos')) {
@@ -201,9 +298,7 @@ export default function App() {
   const [products, setProducts] = useState([]);
   const novedadesRef = useRef(null);
   const destacadosRef = useRef(null);
-  const [currentPromoSlide, setCurrentPromoSlide] = useState(0);
-  const [currentNovedadesMobileIdx, setCurrentNovedadesMobileIdx] = useState(0);
-  const [currentDestacadosMobileIdx, setCurrentDestacadosMobileIdx] = useState(0);
+  const relatedRef = useRef(null);
 
   const scrollContainer = (ref, direction) => {
     if (ref.current) {
@@ -259,12 +354,20 @@ export default function App() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [activeGender, setActiveGender] = useState(null); // 'mujer' | 'hombre' | 'niños' | 'outlet' | null
   const [activeBrand, setActiveBrand] = useState(null); // brand filter
+  const [infoPageSlug, setInfoPageSlug] = useState(() => {
+    const hash = window.location.hash || '';
+    if (hash.startsWith('#/info/')) {
+      return hash.replace('#/info/', '').split('?')[0] || 'terminos';
+    }
+    return 'terminos';
+  });
   const [currentView, setCurrentView] = useState(() => {
     const hash = window.location.hash || '';
     if (hash.startsWith('#/mi-cuenta')) return 'customer_panel';
     if (hash.startsWith('#/admin')) return 'admin';
     if (hash.startsWith('#/catalogo')) return 'category';
     if (hash.startsWith('#/compra-confirmada')) return 'checkout';
+    if (hash.startsWith('#/info/')) return 'info_page';
     return 'home';
   });
   const [sortBy, setSortBy] = useState('relevant'); // 'relevant' | 'price-asc' | 'price-desc'
@@ -301,7 +404,7 @@ export default function App() {
   const [shippingCity, setShippingCity] = useState('');
   const [shippingProvince, setShippingProvince] = useState('Santa Fe');
   const [shippingPostalCode, setShippingPostalCode] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState('mercadopago'); // 'mercadopago' | 'transfer'
+  const [paymentMethod, setPaymentMethod] = useState('transfer'); // 'transfer' | 'mercadopago_checkout_pro' | 'mercadopago'
   const [paymentInstallments, setPaymentInstallments] = useState(3);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
@@ -503,6 +606,14 @@ export default function App() {
   const [customerPanelSection, setCustomerPanelSection] = useState('general'); // 'general' | 'orders' | 'favorites' | 'coupons' | 'reviews' | 'addresses' | 'messages' | 'settings'
   const [orderStatusFilter, setOrderStatusFilter] = useState('all'); // 'all' | 'pending' | 'processing' | 'shipped' | 'completed'
   const [orderSearchQuery, setOrderSearchQuery] = useState('');
+  const [expandedOrders, setExpandedOrders] = useState({});
+
+  const toggleOrderExpansion = (orderId, defaultOpen) => {
+    setExpandedOrders(prev => {
+      const isCurrentlyOpen = prev[orderId] !== undefined ? prev[orderId] : defaultOpen;
+      return { ...prev, [orderId]: !isCurrentlyOpen };
+    });
+  };
 
   // Address form
   const [editingAddress, setEditingAddress] = useState(null);
@@ -701,91 +812,52 @@ export default function App() {
     '| 15% OFF PAGANDO CON TRANSFERENCIA BANCARIA'
   ]);
 
-  // Top Ticker Mouse & Touch Dragging Handlers
-  const tickerRef = useRef(null);
-  const [isTickerDragging, setIsTickerDragging] = useState(false);
-  const [tickerStartX, setTickerStartX] = useState(0);
-  const [tickerScrollLeft, setTickerScrollLeft] = useState(0);
-
-  const handleTickerMouseDown = (e) => {
-    if (!tickerRef.current) return;
-    setIsTickerDragging(true);
-    setTickerStartX(e.pageX - tickerRef.current.offsetLeft);
-    setTickerScrollLeft(tickerRef.current.scrollLeft);
-  };
-
-  const handleTickerMouseLeaveOrUp = () => {
-    setIsTickerDragging(false);
-  };
-
-  const handleTickerMouseMove = (e) => {
-    if (!isTickerDragging || !tickerRef.current) return;
-    e.preventDefault();
-    const x = e.pageX - tickerRef.current.offsetLeft;
-    const walk = (x - tickerStartX) * 0.8;
-    tickerRef.current.scrollLeft = tickerScrollLeft - walk;
-  };
-
-  const handleTickerTouchStart = (e) => {
-    if (!tickerRef.current) return;
-    setIsTickerDragging(true);
-    setTickerStartX(e.touches[0].pageX - tickerRef.current.offsetLeft);
-    setTickerScrollLeft(tickerRef.current.scrollLeft);
-  };
-
-  const handleTickerTouchMove = (e) => {
-    if (!isTickerDragging || !tickerRef.current) return;
-    const x = e.touches[0].pageX - tickerRef.current.offsetLeft;
-    const walk = (x - tickerStartX) * 0.8;
-    tickerRef.current.scrollLeft = tickerScrollLeft - walk;
-  };
-
-  // Mouse drag scrolling state for Novedades
-  const [isNovedadesDragging, setIsNovedadesDragging] = useState(false);
-  const [novedadesStartX, setNovedadesStartX] = useState(0);
-  const [novedadesScrollLeft, setNovedadesScrollLeft] = useState(0);
+  // Mouse drag scrolling for Novedades (Zero React re-renders)
+  const isNovedadesDraggingRef = useRef(false);
+  const novedadesStartXRef = useRef(0);
+  const novedadesScrollLeftRef = useRef(0);
 
   const handleNovedadesMouseDown = (e) => {
     if (!novedadesRef.current) return;
-    setIsNovedadesDragging(true);
-    setNovedadesStartX(e.pageX - novedadesRef.current.offsetLeft);
-    setNovedadesScrollLeft(novedadesRef.current.scrollLeft);
+    isNovedadesDraggingRef.current = true;
+    novedadesStartXRef.current = e.pageX - novedadesRef.current.offsetLeft;
+    novedadesScrollLeftRef.current = novedadesRef.current.scrollLeft;
   };
 
   const handleNovedadesMouseLeaveOrUp = () => {
-    setIsNovedadesDragging(false);
+    isNovedadesDraggingRef.current = false;
   };
 
   const handleNovedadesMouseMove = (e) => {
-    if (!isNovedadesDragging || !novedadesRef.current) return;
+    if (!isNovedadesDraggingRef.current || !novedadesRef.current) return;
     e.preventDefault();
     const x = e.pageX - novedadesRef.current.offsetLeft;
-    const walk = (x - novedadesStartX) * 1.5;
-    novedadesRef.current.scrollLeft = novedadesScrollLeft - walk;
+    const walk = (x - novedadesStartXRef.current) * 1.5;
+    novedadesRef.current.scrollLeft = novedadesScrollLeftRef.current - walk;
   };
 
-  // Mouse drag scrolling state for Destacados
-  const [isDestacadosDragging, setIsDestacadosDragging] = useState(false);
-  const [destacadosStartX, setDestacadosStartX] = useState(0);
-  const [destacadosScrollLeft, setDestacadosScrollLeft] = useState(0);
+  // Mouse drag scrolling for Destacados (Zero React re-renders)
+  const isDestacadosDraggingRef = useRef(false);
+  const destacadosStartXRef = useRef(0);
+  const destacadosScrollLeftRef = useRef(0);
 
   const handleDestacadosMouseDown = (e) => {
     if (!destacadosRef.current) return;
-    setIsDestacadosDragging(true);
-    setDestacadosStartX(e.pageX - destacadosRef.current.offsetLeft);
-    setDestacadosScrollLeft(destacadosRef.current.scrollLeft);
+    isDestacadosDraggingRef.current = true;
+    destacadosStartXRef.current = e.pageX - destacadosRef.current.offsetLeft;
+    destacadosScrollLeftRef.current = destacadosRef.current.scrollLeft;
   };
 
   const handleDestacadosMouseLeaveOrUp = () => {
-    setIsDestacadosDragging(false);
+    isDestacadosDraggingRef.current = false;
   };
 
   const handleDestacadosMouseMove = (e) => {
-    if (!isDestacadosDragging || !destacadosRef.current) return;
+    if (!isDestacadosDraggingRef.current || !destacadosRef.current) return;
     e.preventDefault();
     const x = e.pageX - destacadosRef.current.offsetLeft;
-    const walk = (x - destacadosStartX) * 1.5;
-    destacadosRef.current.scrollLeft = destacadosScrollLeft - walk;
+    const walk = (x - destacadosStartXRef.current) * 1.5;
+    destacadosRef.current.scrollLeft = destacadosScrollLeftRef.current - walk;
   };
 
   // Middle Promo Installment Banner State (6 cuotas)
@@ -1290,6 +1362,12 @@ export default function App() {
       } else if (hash.startsWith('#/compra-confirmada')) {
         setCurrentView('checkout');
         return;
+      } else if (hash.startsWith('#/info/')) {
+        const slug = hash.replace('#/info/', '').split('?')[0];
+        setInfoPageSlug(slug || 'terminos');
+        setCurrentView('info_page');
+        setSelectedDetailProduct(null);
+        window.scrollTo({ top: 0, behavior: 'instant' });
       } else if (hash.startsWith('#/producto/')) {
         const prodId = hash.replace('#/producto/', '').split('?')[0];
         if (products.length > 0) {
@@ -1539,9 +1617,11 @@ export default function App() {
 
   // Update order status (Admin)
   const handleUpdateOrderStatus = async (orderId, status, rejectionReason = null) => {
-    // Update local state instantly
+    // Update local state instantly across Admin and Customer views
     setAdminOrdersList(prev => prev.map(o => o.id === orderId ? { ...o, status, rejection_reason: rejectionReason || o.rejection_reason } : o));
     setSelectedOrderDetail(prev => prev && prev.id === orderId ? { ...prev, status, rejection_reason: rejectionReason || prev.rejection_reason } : prev);
+    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status, rejection_reason: rejectionReason || o.rejection_reason } : o));
+    setCustomerSelectedOrderDetail(prev => prev && prev.id === orderId ? { ...prev, status, rejection_reason: rejectionReason || prev.rejection_reason } : prev);
 
     try {
       const res = await fetch(`${API_BASE_URL}/api/admin/orders/${orderId}`, {
@@ -1555,6 +1635,7 @@ export default function App() {
       if (res.ok) {
         fetchAdminOrders();
         fetchAdminStats();
+        fetchOrders();
       }
     } catch (e) {
       console.error(e);
@@ -2514,11 +2595,17 @@ export default function App() {
   // --- FILTERS (MEMOIZED TO PREVENT TYPING LAG IN FORMS) ---
   const sortedProducts = useMemo(() => {
     const filtered = products.filter(p => {
-      if (activeCategory && (!p.categories || p.categories.slug !== activeCategory)) {
-        return false;
+      if (activeCategory) {
+        if (activeCategory === 'outlet' || activeCategory === 'ofertas' || activeCategory === 'offers') {
+          const discount = getProductDiscount(p);
+          const hasOffer = (Number(p.offer_price) > 0 && Number(p.offer_price) < Number(p.price)) || Number(p.original_price) > Number(p.price);
+          if (discount <= 0 && !hasOffer) return false;
+        } else if (!p.categories || p.categories.slug !== activeCategory) {
+          return false;
+        }
       }
       if (activeGender) {
-        const nameLower = p.name.toLowerCase();
+        const nameLower = (p.name || '').toLowerCase();
         if (activeGender === 'mujer') {
           if (!nameLower.includes('campera') && !nameLower.includes('pantalón') && !nameLower.includes('botas') && !nameLower.includes('mochila')) {
             return false;
@@ -2535,9 +2622,9 @@ export default function App() {
           }
         }
         if (activeGender === 'outlet') {
-          if (p.price >= 80000) {
-            return false;
-          }
+          const discount = getProductDiscount(p);
+          const hasOffer = (Number(p.offer_price) > 0 && Number(p.offer_price) < Number(p.price)) || Number(p.original_price) > Number(p.price);
+          if (discount <= 0 && !hasOffer) return false;
         }
       }
       if (searchQuery.trim()) {
@@ -2585,9 +2672,19 @@ export default function App() {
 
     return (
       <div className="min-h-screen bg-gray-100 text-gray-900 font-sans selection:bg-[#3C6E71] selection:text-white flex flex-col">
-        {/* Top Header for Client Portal - Identical to Admin Header */}
-        <header className="bg-[#1C2321] text-white px-4 sm:px-8 py-4 flex items-center justify-between border-b border-[#3C6E71]/30 shadow-md sticky top-0 z-40">
+        {/* Top Header for Client Portal with Mobile Hamburger */}
+        <header className="bg-[#1C2321] text-white px-4 sm:px-8 py-3.5 flex items-center justify-between border-b border-[#3C6E71]/30 shadow-md sticky top-0 z-40">
           <div className="flex items-center gap-3">
+            {/* Hamburger Button for Mobile/Tablet */}
+            <button
+              type="button"
+              onClick={() => setIsMobileMenuOpen(true)}
+              className="p-1.5 rounded-lg hover:bg-white/10 text-white cursor-pointer transition-colors"
+              title="Abrir menú"
+            >
+              <Menu className="w-5 h-5 text-[#F2EFE9]" />
+            </button>
+
             <a 
               href="#/" 
               onClick={() => { 
@@ -2615,7 +2712,7 @@ export default function App() {
                 setActiveGender(null); 
                 setSelectedDetailProduct(null);
               }}
-              className="px-4 py-2 bg-[#3C6E71] hover:bg-[#3C6E71]/90 text-white rounded-lg text-xs font-display font-bold tracking-wider transition-all cursor-pointer flex items-center gap-2 shadow-sm"
+              className="px-3.5 py-2 bg-[#3C6E71] hover:bg-[#3C6E71]/90 text-white rounded-lg text-xs font-display font-bold tracking-wider transition-all cursor-pointer flex items-center gap-2 shadow-sm"
             >
               <RotateCcw className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">VOLVER A LA TIENDA</span>
@@ -2636,11 +2733,50 @@ export default function App() {
           </div>
         </header>
 
+        {/* Mobile / Tablet Horizontal Tabs Bar for Customer Panel */}
+        <div className="lg:hidden bg-white border-b border-gray-200 px-4 py-2.5 overflow-x-auto scrollbar-hide shadow-2xs sticky top-[57px] z-30">
+          <div className="flex items-center gap-1.5 text-xs font-display font-bold whitespace-nowrap">
+            {[
+              { id: 'general', label: 'General', icon: User },
+              { id: 'coupons', label: 'Cupones', icon: Tag, count: customerCoupons?.filter(c => !c.used_at).length },
+              { id: 'orders', label: 'Mis Pedidos', icon: Package, count: orders?.length },
+              { id: 'favorites', label: 'Favoritos', icon: Heart, count: favorites?.length },
+              { id: 'reviews', label: 'Valoraciones', icon: Star },
+              { id: 'addresses', label: 'Dirección', icon: MapPin },
+              { id: 'messages', label: 'Mensajes', icon: MessageSquare },
+              { id: 'settings', label: 'Ajustes', icon: Box }
+            ].map(tab => {
+              const Icon = tab.icon;
+              const isActive = customerPanelSection === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setCustomerPanelSection(tab.id)}
+                  className={`px-3 py-1.5 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer text-xs ${
+                    isActive 
+                      ? 'bg-[#1C2321] text-white shadow-xs' 
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  <Icon className="w-3.5 h-3.5" />
+                  <span>{tab.label}</span>
+                  {tab.count !== undefined && tab.count > 0 && (
+                    <span className={`text-[9px] px-1.5 py-0.2 rounded-full font-mono-custom ${isActive ? 'bg-[#3C6E71] text-white' : 'bg-gray-300 text-gray-800'}`}>
+                      {tab.count}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         {/* Main Dashboard Layout Grid */}
         <div className="flex-grow max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 grid grid-cols-1 lg:grid-cols-4 gap-6">
           
-          {/* LEFT SIDEBAR NAVIGATION MENU */}
-          <div className="lg:col-span-1 space-y-4">
+          {/* LEFT SIDEBAR NAVIGATION MENU (Desktop only, hidden on mobile) */}
+          <div className="hidden lg:block lg:col-span-1 space-y-4">
             
             {/* User Profile Card Header */}
             <div className="bg-white border border-gray-200 p-5 rounded-2xl shadow-sm space-y-3">
@@ -2992,38 +3128,40 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* Filter Pills */}
-                  <div className="flex flex-wrap items-center gap-2 border-b border-gray-100 pb-4 text-xs font-bold">
-                    {[
-                      { id: 'all', label: 'Ver todo' },
-                      { id: 'pending', label: 'En Verificación / A pagar' },
-                      { id: 'processing', label: 'Pagados / En Preparación' },
-                      { id: 'shipped', label: 'Enviados' },
-                      { id: 'completed', label: 'Completados' }
-                    ].map(tab => (
-                      <button
-                        key={tab.id}
-                        onClick={() => setOrderStatusFilter(tab.id)}
-                        className={`px-4 py-2 rounded-lg font-sans font-bold transition-all cursor-pointer ${
-                          orderStatusFilter === tab.id
-                            ? 'bg-[#3C6E71] text-white shadow-xs'
-                            : 'bg-gray-100 hover:bg-gray-200 text-gray-600'
-                        }`}
-                      >
-                        {tab.label}
-                      </button>
-                    ))}
+                  {/* Filter Pills with smooth horizontal touch scroll */}
+                  <div className="border-b border-gray-100 pb-3">
+                    <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide py-1 text-xs font-bold select-none">
+                      {[
+                        { id: 'all', label: 'Ver todo' },
+                        { id: 'pending', label: 'En Verificación / A pagar' },
+                        { id: 'processing', label: 'Pagados / En Preparación' },
+                        { id: 'shipped', label: 'Enviados' },
+                        { id: 'completed', label: 'Completados' }
+                      ].map(tab => (
+                        <button
+                          key={tab.id}
+                          onClick={() => setOrderStatusFilter(tab.id)}
+                          className={`shrink-0 px-3.5 py-1.5 rounded-full font-sans font-bold transition-all cursor-pointer text-xs ${
+                            orderStatusFilter === tab.id
+                              ? 'bg-[#3C6E71] text-white shadow-xs'
+                              : 'bg-gray-100 hover:bg-gray-200 text-gray-600'
+                          }`}
+                        >
+                          {tab.label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
 
                   {/* Orders List */}
-                  <div className="space-y-6">
+                  <div className="space-y-4 sm:space-y-6">
                     {orders.length === 0 ? (
                       <div className="py-12 text-center text-gray-400 space-y-3">
                         <ShoppingBag className="w-12 h-12 mx-auto stroke-[1] text-gray-300" />
                         <p className="font-display font-bold text-xs uppercase">No tienes pedidos registrados aún</p>
                         <button
                           onClick={() => { window.location.hash = '#/catalogo'; setCurrentView('category'); }}
-                          className="px-6 py-2 bg-[#3C6E71] text-white font-display text-xs font-bold uppercase rounded-xl hover:bg-[#3C6E71]/90"
+                          className="px-6 py-2 bg-[#3C6E71] text-white font-display text-xs font-bold uppercase rounded-xl hover:bg-[#3C6E71]/90 cursor-pointer"
                         >
                           Ir al Catálogo
                         </button>
@@ -3054,284 +3192,355 @@ export default function App() {
                           const isPendingReview = ord.status === 'pending_review' || ord.status === 'processing' || (ord.status === 'created' && isTransfer) || (isTransfer && !isPaid && !isRejected && !isCancelled && !isPreparing && !isShipped && !isDelivered);
 
                           let activeStep = 1;
-                          if (isPendingReview) {
-                            activeStep = 2;
-                          } else if (isPaid) {
-                            activeStep = 3;
-                          } else if (isPreparing) {
-                            activeStep = 4;
-                          } else if (isShipped || isDelivered) {
+                          if (isDelivered) {
                             activeStep = 5;
+                          } else if (isShipped) {
+                            activeStep = 4;
+                          } else if (isPreparing) {
+                            activeStep = 3;
+                          } else if (isPaid || isPendingReview) {
+                            activeStep = 2;
+                          } else {
+                            activeStep = 1;
                           }
 
+                          const isDefaultOpen = !isDelivered && !isCancelled && !isRejected;
+                          const isExpanded = expandedOrders[ord.id] !== undefined ? expandedOrders[ord.id] : isDefaultOpen;
+                          const orderItems = parseOrderItems(ord);
+
                           return (
-                            <div key={ord.id} className="bg-white border border-gray-200 rounded-2xl p-6 shadow-xs space-y-5">
-                              {/* Top Bar */}
-                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-100 pb-3">
-                                <div className="flex items-center gap-3">
+                            <div key={ord.id} className={`bg-white border border-gray-200 rounded-2xl ${isExpanded ? 'p-4 sm:p-5 space-y-4 sm:space-y-5' : 'px-4 sm:px-5 py-3'} shadow-xs transition-all hover:border-gray-300`}>
+                              {/* Top Bar Header with Toggle */}
+                              <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${isExpanded ? 'border-b border-gray-100 pb-3' : ''}`}>
+                                <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                                   {isRejected ? (
-                                    <span className="px-3 py-1 bg-red-600 text-white font-display text-xs font-black rounded uppercase tracking-wider shadow-xs">
+                                    <span className="px-2.5 py-1 bg-red-600 text-white font-display text-[11px] font-black rounded uppercase tracking-wider shadow-xs">
                                       PAGO RECHAZADO
                                     </span>
                                   ) : isCancelled ? (
-                                    <span className="px-3 py-1 bg-gray-500 text-white font-display text-xs font-black rounded uppercase tracking-wider shadow-xs">
+                                    <span className="px-2.5 py-1 bg-gray-500 text-white font-display text-[11px] font-black rounded uppercase tracking-wider shadow-xs">
                                       PEDIDO CANCELADO
                                     </span>
                                   ) : isDelivered ? (
-                                    <span className="px-3 py-1 bg-emerald-700 text-white font-display text-xs font-black rounded uppercase tracking-wider shadow-xs">
+                                    <span className="px-2.5 py-1 bg-emerald-700 text-white font-display text-[11px] font-black rounded uppercase tracking-wider shadow-xs">
                                       ENTREGADO ✓
                                     </span>
                                   ) : isShipped ? (
-                                    <span className="px-3 py-1 bg-purple-600 text-white font-display text-xs font-black rounded uppercase tracking-wider shadow-xs">
+                                    <span className="px-2.5 py-1 bg-purple-600 text-white font-display text-[11px] font-black rounded uppercase tracking-wider shadow-xs">
                                       EN CAMINO 🚚
                                     </span>
                                   ) : isPreparing ? (
-                                    <span className="px-3 py-1 bg-blue-600 text-white font-display text-xs font-black rounded uppercase tracking-wider shadow-xs">
+                                    <span className="px-2.5 py-1 bg-blue-600 text-white font-display text-[11px] font-black rounded uppercase tracking-wider shadow-xs">
                                       EN PREPARACIÓN 📦
                                     </span>
                                   ) : isPaid ? (
-                                    <span className="px-3 py-1 bg-emerald-600 text-white font-display text-xs font-black rounded uppercase tracking-wider shadow-xs">
+                                    <span className="px-2.5 py-1 bg-emerald-600 text-white font-display text-[11px] font-black rounded uppercase tracking-wider shadow-xs">
                                       PAGO APROBADO ✓
                                     </span>
                                   ) : isPendingReview ? (
-                                    <span className="px-3 py-1 bg-amber-500 text-white font-display text-xs font-black rounded uppercase tracking-wider shadow-xs">
+                                    <span className="px-2.5 py-1 bg-amber-500 text-white font-display text-[11px] font-black rounded uppercase tracking-wider shadow-xs">
                                       PAGO EN VERIFICACIÓN ⏳
                                     </span>
                                   ) : (
-                                    <span className="px-3 py-1 bg-yellow-500 text-black font-display text-xs font-black rounded uppercase tracking-wider shadow-xs">
+                                    <span className="px-2.5 py-1 bg-yellow-500 text-black font-display text-[11px] font-black rounded uppercase tracking-wider shadow-xs">
                                       PENDIENTE DE PAGO
                                     </span>
                                   )}
-                                  <span className="font-mono-custom text-sm font-bold text-gray-900 tracking-wider">
+                                  <span className="font-mono-custom text-xs sm:text-sm font-bold text-gray-900 tracking-wider">
                                     N° #{String(ord.id).length > 15 ? String(ord.id).slice(-6).toUpperCase() : ord.id}
                                   </span>
                                 </div>
-                                <span className="text-xs text-gray-500 font-sans">
-                                  Fecha: {new Date(ord.created_at || Date.now()).toLocaleDateString('es-AR')}
-                                </span>
-                              </div>
 
-                              {/* 5-Step Timeline */}
-                              <div className="space-y-2">
-                                <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider font-sans block">
-                                  PROGRESO DE TU PEDIDO
-                                </span>
-                                <div className="grid grid-cols-5 gap-2 text-[11px] font-sans font-bold text-center select-none">
-                                  <div className={`p-2.5 rounded-lg border ${activeStep >= 1 ? 'bg-emerald-50 border-emerald-300 text-emerald-800' : 'bg-gray-50 border-gray-200 text-gray-400'}`}>
-                                    1. CREADO ✓
-                                  </div>
-                                  <div className={`p-2.5 rounded-lg border ${activeStep === 2 ? 'bg-amber-50 border-amber-300 text-amber-900 ring-1 ring-amber-400/50' : activeStep > 2 ? 'bg-emerald-50 border-emerald-300 text-emerald-800' : 'bg-gray-50 border-gray-200 text-gray-400'}`}>
-                                    2. VERIFICACIÓN ⏳
-                                  </div>
-                                  <div className={`p-2.5 rounded-lg border ${activeStep >= 3 ? 'bg-emerald-50 border-emerald-300 text-emerald-800' : 'bg-gray-50 border-gray-200 text-gray-400'}`}>
-                                    3. PAGO OK ✓
-                                  </div>
-                                  <div className={`p-2.5 rounded-lg border ${activeStep >= 4 ? 'bg-blue-50 border-blue-300 text-blue-800' : 'bg-gray-50 border-gray-200 text-gray-400'}`}>
-                                    4. PREPARANDO 📦
-                                  </div>
-                                  <div className={`p-2.5 rounded-lg border ${activeStep >= 5 ? 'bg-emerald-100 border-emerald-400 text-emerald-900' : 'bg-gray-50 border-gray-200 text-gray-400'}`}>
-                                    5. ENVIADO 🚚
-                                  </div>
-                                </div>
-                              </div>
+                                <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto">
+                                  <span className="text-[11px] sm:text-xs text-gray-500 font-sans">
+                                    Fecha: {new Date(ord.created_at || Date.now()).toLocaleDateString('es-AR')}
+                                  </span>
 
-                              {/* Destination & Payment */}
-                              <div className="space-y-1 text-xs text-gray-700 font-sans">
-                                <p><strong className="text-gray-900">Destino:</strong> {ord.shipping_address ? `Entrega a Domicilio (${ord.shipping_address})` : 'Entrega a Domicilio'}</p>
-                                <p><strong className="text-gray-900">Forma de Pago:</strong> <span className="uppercase font-bold text-gray-900">{isTransfer ? 'TRANSFERENCIA BANCARIA' : (ord.payment_method || 'MERCADO PAGO')}</span></p>
-                              </div>
-
-                              {/* Contextual Status Alert Boxes */}
-                              {isPendingReview && isTransfer && (
-                                <div className="p-4 bg-amber-50/80 border border-amber-200 rounded-xl space-y-1 text-xs">
-                                  <div className="flex items-center gap-2 text-amber-900 font-bold">
-                                    <Clock className="w-4 h-4 text-amber-600 shrink-0" />
-                                    <span>PAGO EN PROCESO DE VERIFICACIÓN</span>
-                                  </div>
-                                  <p className="text-amber-800/90 text-[11px] leading-relaxed pl-6">
-                                    La comprobación de transferencias demora habitualmente de 2 a 24hs hábiles. Te notificaremos a tu email apenas sea validada por administración.
-                                  </p>
-                                </div>
-                              )}
-
-                              {!isTransfer && (isPaid || isPreparing || isShipped || isDelivered) && (
-                                <div className="p-4 bg-emerald-50/80 border border-emerald-200 rounded-xl space-y-1 text-xs">
-                                  <div className="flex items-center gap-2 text-emerald-900 font-bold">
-                                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                                    <span>PAGO PROCESADO Y ACREDITADO CON ÉXITO</span>
-                                  </div>
-                                  <p className="text-emerald-800 text-[11px] leading-relaxed pl-6">
-                                    Tu pago por Mercado Pago fue aprobado de forma instantánea. Tu pedido ya ingresó a la cola de preparación en nuestro depósito.
-                                  </p>
-                                </div>
-                              )}
-
-                              {isPreparing && (
-                                <div className="p-4 bg-blue-50/80 border border-blue-200 rounded-xl space-y-1 text-xs">
-                                  <div className="flex items-center gap-2 text-blue-900 font-bold">
-                                    <Package className="w-4 h-4 text-blue-600 shrink-0" />
-                                    <span>PEDIDO EN EMBALAJE Y PREPARACIÓN</span>
-                                  </div>
-                                  <p className="text-blue-800 text-[11px] leading-relaxed pl-6">
-                                    Estamos armando tu paquete en nuestro centro logístico de Bariloche para entregarlo al correo en las próximas horas.
-                                  </p>
-                                </div>
-                              )}
-
-                              {(isShipped || isDelivered) && ord.tracking_number && (
-                                <div className="p-4 bg-purple-50/80 border border-purple-200 rounded-xl space-y-2 text-xs">
-                                  <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-2 text-purple-900 font-bold">
-                                      <Truck className="w-4 h-4 text-purple-600 shrink-0" />
-                                      <span>PAQUETE DESPACHADO EN CAMINO</span>
-                                    </div>
-                                    {ord.shipping_courier && (
-                                      <span className="px-2 py-0.5 bg-purple-200 text-purple-900 rounded font-bold text-[10px]">
-                                        {ord.shipping_courier}
-                                      </span>
-                                    )}
-                                  </div>
-                                  <div className="flex flex-wrap items-center justify-between gap-2 pl-6">
-                                    <div>
-                                      <span className="text-[10px] text-purple-700 font-bold uppercase block">Código de Seguimiento:</span>
-                                      <span className="font-mono-custom font-bold text-gray-900 text-sm select-all">{ord.tracking_number}</span>
-                                    </div>
-                                    {ord.tracking_url && (
-                                      <a
-                                        href={ord.tracking_url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white font-display text-[10px] font-bold uppercase tracking-wider rounded-lg transition-colors inline-flex items-center gap-1"
-                                      >
-                                        <span>RASTREAR EN VIVO 🌐</span>
-                                      </a>
-                                    )}
-                                  </div>
-                                </div>
-                              )}
-
-                              {isRejected && (
-                                <div className="p-4 bg-red-50 border border-red-200 rounded-xl space-y-2 text-xs">
-                                  <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-2 text-red-900 font-bold">
-                                      <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
-                                      <span>EL PAGO DE ESTE PEDIDO FUE RECHAZADO</span>
-                                    </div>
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setCustomerResendReceiptModalOrder(ord);
-                                        setCustomerResendFile(null);
-                                      }}
-                                      className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white font-display text-[10px] font-bold uppercase rounded-lg transition-colors cursor-pointer"
-                                    >
-                                      SUBIR NUEVO COMPROBANTE 📤
-                                    </button>
-                                  </div>
-                                  {ord.rejection_reason && (
-                                    <p className="text-red-700 text-[11px] italic pl-6">
-                                      Motivo informado: "{ord.rejection_reason}"
-                                    </p>
-                                  )}
-                                </div>
-                              )}
-
-                              {/* Chronological History */}
-                              <div className="space-y-2 pt-2 border-t border-gray-100">
-                                <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider font-sans block">
-                                  HISTORIAL CRONOLÓGICO DE ESTADOS
-                                </span>
-                                <div className="space-y-2 text-xs font-sans">
-                                  <div className="flex items-center justify-between text-gray-600">
-                                    <span className="flex items-center gap-2">
-                                      <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                                      <span>Pedido recibido en sistema</span>
-                                    </span>
-                                    <span className="text-gray-400 text-[11px]">
-                                      {new Date(ord.created_at || Date.now()).toLocaleDateString('es-AR')}
-                                    </span>
-                                  </div>
-
-                                  {isTransfer && isPendingReview && (
-                                    <div className="flex items-center justify-between text-gray-700 font-medium">
-                                      <span className="flex items-center gap-2">
-                                        <span className="w-2 h-2 rounded-full bg-amber-500" />
-                                        <span>Comprobante de transferencia en verificación manual</span>
-                                      </span>
-                                      <span className="text-amber-700 font-bold text-[11px]">En proceso ⏳</span>
-                                    </div>
-                                  )}
-
-                                  {!isTransfer && (isPaid || isPreparing || isShipped || isDelivered) && (
-                                    <div className="flex items-center justify-between text-gray-700 font-medium">
-                                      <span className="flex items-center gap-2">
-                                        <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                                        <span>Pago acreditado automáticamente vía Mercado Pago</span>
-                                      </span>
-                                      <span className="text-emerald-700 font-bold text-[11px]">Aprobado ✓</span>
-                                    </div>
-                                  )}
-
-                                  {isTransfer && isPaid && (
-                                    <div className="flex items-center justify-between text-gray-700 font-medium">
-                                      <span className="flex items-center gap-2">
-                                        <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                                        <span>Transferencia bancaria validada y aprobada</span>
-                                      </span>
-                                      <span className="text-emerald-700 font-bold text-[11px]">Aprobado ✓</span>
-                                    </div>
-                                  )}
-
-                                  {(isPreparing || isShipped || isDelivered) && (
-                                    <div className="flex items-center justify-between text-gray-700 font-medium">
-                                      <span className="flex items-center gap-2">
-                                        <span className="w-2 h-2 rounded-full bg-blue-500" />
-                                        <span>Embalaje y preparación en depósito</span>
-                                      </span>
-                                      <span className="text-blue-700 font-bold text-[11px]">Listo para despacho</span>
-                                    </div>
-                                  )}
-
-                                  {(isShipped || isDelivered) && (
-                                    <div className="flex items-center justify-between text-gray-700 font-medium">
-                                      <span className="flex items-center gap-2">
-                                        <span className="w-2 h-2 rounded-full bg-purple-500" />
-                                        <span>Despachado con {ord.shipping_courier || 'Transporte Express'}</span>
-                                      </span>
-                                      <span className="text-purple-700 font-bold text-[11px]">En camino 🚚</span>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-
-                              {/* Bottom Total & Actions */}
-                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4 border-t border-gray-100">
-                                <div className="text-right sm:order-2">
-                                  <span className="text-[10px] text-gray-400 uppercase font-bold tracking-wider block">TOTAL</span>
-                                  <span className="text-2xl font-black text-gray-900 font-sans">${Math.round(ord.total || ord.total_amount || 0).toLocaleString('es-AR')}</span>
-                                </div>
-                                <div className="flex flex-wrap items-center gap-3 sm:order-1">
+                                  {/* Toggle Expand / Collapse Button */}
                                   <button
                                     type="button"
-                                    onClick={() => setCustomerSelectedOrderDetail(ord)}
-                                    className="px-5 py-2.5 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 font-display text-xs font-bold tracking-wider rounded-xl transition-all cursor-pointer flex items-center gap-2 shadow-2xs"
+                                    onClick={() => toggleOrderExpansion(ord.id, isDefaultOpen)}
+                                    className={`px-3 py-1.5 rounded-xl font-display text-[11px] font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs ${
+                                      isExpanded
+                                        ? 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                                        : 'bg-[#3C6E71]/10 hover:bg-[#3C6E71]/20 text-[#3C6E71]'
+                                    }`}
+                                    title={isExpanded ? 'Ocultar seguimiento detallado' : 'Ver seguimiento detallado'}
                                   >
-                                    <Eye className="w-4 h-4 text-gray-500" />
-                                    <span>VER DETALLE DEL PEDIDO</span>
+                                    <span>{isExpanded ? 'Ocultar' : 'Ver Seguimiento'}</span>
+                                    <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />
                                   </button>
-
-                                  <a
-                                    href={`${API_BASE_URL}/api/orders/${ord.id}/pdf?token=${token || ''}`}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="px-5 py-2.5 bg-[#3C6E71] hover:bg-[#2c5355] text-white font-display text-xs font-bold tracking-wider rounded-xl transition-all cursor-pointer flex items-center gap-2 shadow-xs"
-                                  >
-                                    <Download className="w-4 h-4 text-white" />
-                                    <span>COMPROBANTE PDF</span>
-                                  </a>
                                 </div>
                               </div>
 
+                              {/* Expanded Detailed View */}
+                              {isExpanded && (
+                                <div className="space-y-4 sm:space-y-5 animate-in fade-in duration-300">
+                                  {/* Responsive 5-Step Visual Stepper */}
+                                  <div className="space-y-3 bg-gray-50/90 p-3.5 sm:p-5 rounded-2xl border border-gray-100">
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-[10px] sm:text-[11px] font-bold text-gray-500 uppercase tracking-wider font-sans">
+                                        PROGRESO DE TU PEDIDO
+                                      </span>
+                                      <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full font-mono-custom ${
+                                        activeStep === 5 ? 'bg-emerald-100 text-emerald-800' :
+                                        activeStep >= 3 ? 'bg-emerald-100 text-emerald-800' :
+                                        activeStep === 2 ? 'bg-amber-100 text-amber-800' : 'bg-gray-200 text-gray-700'
+                                      }`}>
+                                        Paso {activeStep} de 5
+                                      </span>
+                                    </div>
+
+                                    {/* Stepper Connecting Nodes */}
+                                    <div className="relative pt-1 pb-1">
+                                      <div className="relative flex items-center justify-between">
+                                        {/* Background Track Line - Centered exactly at 16px (top-4) */}
+                                        <div className="absolute top-4 left-4 right-4 h-1 bg-gray-200 -translate-y-1/2 z-0 rounded-full" />
+                                        
+                                        {/* Active Progress Line */}
+                                        <div 
+                                          className="absolute top-4 left-4 h-1 bg-emerald-500 -translate-y-1/2 z-0 transition-all duration-500 rounded-full"
+                                          style={{ width: `calc(${((activeStep - 1) / 4)} * (100% - 32px))` }}
+                                        />
+
+                                        {[
+                                          { step: 1, label: 'Creado', icon: Check },
+                                          { step: 2, label: isPendingReview ? 'Verificación' : 'Pago OK', icon: isPendingReview ? Clock : CheckCircle2 },
+                                          { step: 3, label: 'Preparación', icon: Package },
+                                          { step: 4, label: 'En Camino', icon: Truck },
+                                          { step: 5, label: 'Entregado', icon: CheckCircle2 }
+                                        ].map((item) => {
+                                          const isDone = activeStep > item.step;
+                                          const isCurrent = activeStep === item.step;
+                                          const Icon = item.icon;
+
+                                          return (
+                                            <div key={item.step} className="relative z-10 flex flex-col items-center">
+                                              {/* Circle Node */}
+                                              <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs transition-all duration-300 ${
+                                                isCurrent
+                                                  ? item.step === 2 && isPendingReview
+                                                    ? 'bg-amber-500 text-white ring-4 ring-amber-100 scale-110 shadow-sm'
+                                                    : 'bg-emerald-600 text-white ring-4 ring-emerald-100 scale-110 shadow-sm'
+                                                  : isDone
+                                                  ? 'bg-emerald-500 text-white shadow-xs'
+                                                  : 'bg-white text-gray-400 border-2 border-gray-200'
+                                              }`}>
+                                                {isDone ? (
+                                                  <Check className="w-4 h-4 stroke-[3]" />
+                                                ) : (
+                                                  <Icon className="w-4 h-4" />
+                                                )}
+                                              </div>
+
+                                              {/* Step Label */}
+                                              <span className={`text-[11px] font-sans font-bold mt-2 hidden sm:block ${
+                                                isCurrent ? 'text-gray-900 font-extrabold' : isDone ? 'text-emerald-700' : 'text-gray-400'
+                                              }`}>
+                                                {item.label}
+                                              </span>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+
+                                      {/* Step Label for Mobile */}
+                                      <div className="sm:hidden text-center pt-2.5 border-t border-gray-200/60 mt-2">
+                                        <p className="text-xs font-bold text-gray-800">
+                                          {activeStep === 1 && '1. Pedido creado y registrado ✓'}
+                                          {activeStep === 2 && (isPendingReview ? '2. Comprobante en revisión manual ⏳' : '2. Pago aprobado y acreditado ✓')}
+                                          {activeStep === 3 && '3. Embalaje y preparación en depósito 📦'}
+                                          {activeStep === 4 && '4. Despachado y en camino 🚚'}
+                                          {activeStep === 5 && '5. Paquete entregado en destino ✅'}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {/* Info Summary */}
+                                  <div className="space-y-1 text-xs text-gray-700 font-sans">
+                                    <p><strong className="text-gray-900">Destino:</strong> {ord.shipping_address ? `Entrega a Domicilio (${ord.shipping_address})` : 'Entrega a Domicilio'}</p>
+                                    <p><strong className="text-gray-900">Forma de Pago:</strong> <span className="uppercase font-bold text-gray-900">{isTransfer ? 'TRANSFERENCIA BANCARIA' : (ord.payment_method || 'MERCADO PAGO')}</span></p>
+                                  </div>
+
+                                  {/* Alerts & Messages */}
+                                  {isPendingReview && (
+                                    <div className="p-4 bg-amber-50/70 border border-amber-200 rounded-xl space-y-1 text-xs">
+                                      <div className="flex items-center gap-2 text-amber-900 font-bold">
+                                        <Clock className="w-4 h-4 text-amber-600 shrink-0" />
+                                        <span>PAGO EN PROCESO DE VERIFICACIÓN</span>
+                                      </div>
+                                      <p className="text-amber-800/90 text-[11px] leading-relaxed pl-6">
+                                        Tu comprobante está siendo revisado por nuestro equipo de administración. Una vez aprobado, comenzaremos con el embalaje y despacho de tus productos.
+                                      </p>
+                                    </div>
+                                  )}
+
+                                  {isShipped && ord.tracking_number && (
+                                    <div className="p-4 bg-purple-50/80 border border-purple-200 rounded-xl space-y-2 text-xs">
+                                      <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2 text-purple-900 font-bold">
+                                          <Truck className="w-4 h-4 text-purple-600 shrink-0" />
+                                          <span>PAQUETE DESPACHADO EN CAMINO</span>
+                                        </div>
+                                        {ord.shipping_courier && (
+                                          <span className="px-2 py-0.5 bg-purple-200 text-purple-900 rounded font-bold text-[10px]">
+                                            {ord.shipping_courier}
+                                          </span>
+                                        )}
+                                      </div>
+                                      <div className="flex flex-wrap items-center justify-between gap-2 pl-6">
+                                        <div>
+                                          <span className="text-[10px] text-purple-700 font-bold uppercase block">Código de Seguimiento:</span>
+                                          <span className="font-mono-custom font-bold text-gray-900 text-sm select-all">{ord.tracking_number}</span>
+                                        </div>
+                                        {ord.tracking_url && (
+                                          <a
+                                            href={ord.tracking_url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white font-display text-[10px] font-bold uppercase tracking-wider rounded-lg transition-colors inline-flex items-center gap-1"
+                                          >
+                                            <span>RASTREAR EN VIVO 🌐</span>
+                                          </a>
+                                        )}
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {isRejected && (
+                                    <div className="p-4 bg-red-50 border border-red-200 rounded-xl space-y-2 text-xs">
+                                      <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2 text-red-900 font-bold">
+                                          <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
+                                          <span>EL PAGO DE ESTE PEDIDO FUE RECHAZADO</span>
+                                        </div>
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setCustomerResendReceiptModalOrder(ord);
+                                            setCustomerResendFile(null);
+                                          }}
+                                          className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white font-display text-[10px] font-bold uppercase rounded-lg transition-colors cursor-pointer"
+                                        >
+                                          SUBIR NUEVO COMPROBANTE 📤
+                                        </button>
+                                      </div>
+                                      {ord.rejection_reason && (
+                                        <p className="text-red-700 text-[11px] italic pl-6">
+                                          Motivo informado: "{ord.rejection_reason}"
+                                        </p>
+                                      )}
+                                    </div>
+                                  )}
+
+                                  {/* Chronological History */}
+                                  <div className="space-y-2 pt-2 border-t border-gray-100">
+                                    <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider font-sans block">
+                                      HISTORIAL CRONOLÓGICO DE ESTADOS
+                                    </span>
+                                    <div className="space-y-2 text-xs font-sans">
+                                      <div className="flex items-center justify-between text-gray-600">
+                                        <span className="flex items-center gap-2">
+                                          <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                                          <span>Pedido recibido en sistema</span>
+                                        </span>
+                                        <span className="text-gray-400 text-[11px]">
+                                          {new Date(ord.created_at || Date.now()).toLocaleDateString('es-AR')}
+                                        </span>
+                                      </div>
+
+                                      {isTransfer && isPendingReview && (
+                                        <div className="flex items-center justify-between text-gray-700 font-medium">
+                                          <span className="flex items-center gap-2">
+                                            <span className="w-2 h-2 rounded-full bg-amber-500" />
+                                            <span>Comprobante de transferencia en verificación manual</span>
+                                          </span>
+                                          <span className="text-amber-700 font-bold text-[11px]">En proceso ⏳</span>
+                                        </div>
+                                      )}
+
+                                      {!isTransfer && (isPaid || isPreparing || isShipped || isDelivered) && (
+                                        <div className="flex items-center justify-between text-gray-700 font-medium">
+                                          <span className="flex items-center gap-2">
+                                            <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                                            <span>Pago acreditado automáticamente vía Mercado Pago</span>
+                                          </span>
+                                          <span className="text-emerald-700 font-bold text-[11px]">Aprobado ✓</span>
+                                        </div>
+                                      )}
+
+                                      {isTransfer && isPaid && (
+                                        <div className="flex items-center justify-between text-gray-700 font-medium">
+                                          <span className="flex items-center gap-2">
+                                            <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                                            <span>Transferencia bancaria validada y aprobada</span>
+                                          </span>
+                                          <span className="text-emerald-700 font-bold text-[11px]">Aprobado ✓</span>
+                                        </div>
+                                      )}
+
+                                      {(isPreparing || isShipped || isDelivered) && (
+                                        <div className="flex items-center justify-between text-gray-700 font-medium">
+                                          <span className="flex items-center gap-2">
+                                            <span className="w-2 h-2 rounded-full bg-blue-500" />
+                                            <span>Embalaje y preparación en depósito</span>
+                                          </span>
+                                          <span className="text-blue-700 font-bold text-[11px]">Listo para despacho</span>
+                                        </div>
+                                      )}
+
+                                      {(isShipped || isDelivered) && (
+                                        <div className="flex items-center justify-between text-gray-700 font-medium">
+                                          <span className="flex items-center gap-2">
+                                            <span className="w-2 h-2 rounded-full bg-purple-500" />
+                                            <span>Despachado con {ord.shipping_courier || 'Transporte Express'}</span>
+                                          </span>
+                                          <span className="text-purple-700 font-bold text-[11px]">En camino 🚚</span>
+                                        </div>
+                                      )}
+
+                                      {isDelivered && (
+                                        <div className="flex items-center justify-between text-emerald-950 font-semibold bg-emerald-50/70 p-2 rounded-lg border border-emerald-200/60">
+                                          <span className="flex items-center gap-2">
+                                            <span className="w-2 h-2 rounded-full bg-emerald-600 ring-2 ring-emerald-300" />
+                                            <span>Paquete entregado y recibido en destino</span>
+                                          </span>
+                                          <span className="text-emerald-700 font-bold text-[11px]">Entregado ✓</span>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  {/* Bottom Total & Actions */}
+                                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-gray-100">
+                                    <div className="flex items-baseline justify-between sm:justify-start sm:flex-col sm:text-right sm:order-2">
+                                      <span className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">TOTAL ABONADO</span>
+                                      <span className="text-xl sm:text-2xl font-black text-gray-900 font-sans">${Math.round(ord.total || ord.total_amount || 0).toLocaleString('es-AR')}</span>
+                                    </div>
+                                    <div className="grid grid-cols-1 sm:flex items-center gap-2 sm:gap-3 sm:order-1">
+                                      <button
+                                        type="button"
+                                        onClick={() => setCustomerSelectedOrderDetail(ord)}
+                                        className="w-full sm:w-auto px-4 py-2.5 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 font-display text-xs font-bold tracking-wider rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2 shadow-2xs"
+                                      >
+                                        <Eye className="w-4 h-4 text-gray-500" />
+                                        <span>VER DETALLE</span>
+                                      </button>
+
+                                      <a
+                                        href={`${API_BASE_URL}/api/orders/${ord.id}/pdf?token=${token || ''}`}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="w-full sm:w-auto px-4 py-2.5 bg-[#3C6E71] hover:bg-[#2c5355] text-white font-display text-xs font-bold tracking-wider rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2 shadow-xs text-center"
+                                      >
+                                        <Download className="w-4 h-4 text-white" />
+                                        <span>COMPROBANTE PDF</span>
+                                      </a>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           );
                         })
@@ -4411,6 +4620,22 @@ export default function App() {
             </div>
           </div>
         )}
+
+        {/* Mobile Navigation Drawer in Customer Panel */}
+        <MobileMenuDrawer
+          isOpen={isMobileMenuOpen}
+          onClose={() => setIsMobileMenuOpen(false)}
+          token={token}
+          userProfile={userProfile}
+          categories={categories}
+          setCurrentView={setCurrentView}
+          setIsAuthModalOpen={setIsAuthModalOpen}
+          setAuthMode={setAuthMode}
+          setAdminTab={setAdminTab}
+        />
+
+        {/* Footer in Customer Panel */}
+        <Footer onOpenRefundModal={() => setIsRefundModalOpen(true)} />
       </div>
     );
   }
@@ -5975,115 +6200,18 @@ export default function App() {
         </div>
       </header>
 
-      {/* MOBILE SLIDING MENU DRAWER (LEFT SIDE) */}
-      {isMobileMenuOpen && (
-        <div className="fixed inset-0 z-50 xl:hidden font-sans">
-          {/* Backdrop */}
-          <div 
-            className="absolute inset-0 bg-black/75 backdrop-blur-sm animate-in fade-in duration-200" 
-            onClick={() => setIsMobileMenuOpen(false)} 
-          />
-
-          {/* Drawer */}
-          <div className="relative w-4/5 max-w-xs bg-[#1C2321] text-white h-full shadow-2xl flex flex-col z-10 border-r border-[#3C6E71]/30 animate-in slide-in-from-left duration-300">
-            
-            {/* Drawer Header */}
-            <div className="p-4 border-b border-[#3C6E71]/20 flex items-center justify-between">
-              <span className="font-display text-lg font-bold tracking-wider text-[#F2EFE9] flex items-center gap-2">
-                <img src="/holuxlogo.png" alt="HOLUX" className="h-6 w-auto object-contain brightness-0 invert" />
-                <span>HOLUX</span>
-              </span>
-              <button
-                onClick={() => setIsMobileMenuOpen(false)}
-                className="p-1.5 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Drawer Links */}
-            <div className="flex-grow overflow-y-auto p-4 space-y-3 text-xs">
-              
-              <button
-                onClick={() => { window.location.hash = '#/catalogo'; setIsMobileMenuOpen(false); }}
-                className="w-full text-left font-display font-bold text-sm tracking-wider py-2.5 px-3 rounded-lg hover:bg-[#3C6E71]/20 text-white flex items-center justify-between"
-              >
-                <span>TODO EL CATÁLOGO</span>
-                <ChevronRight className="w-4 h-4 text-[#3C6E71]" />
-              </button>
-
-              <div className="border-t border-[#3C6E71]/20 pt-3 space-y-1">
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-3 block">CATEGORÍAS DE MONTAÑA</span>
-                {categories.map(cat => (
-                  <button
-                    key={cat.id}
-                    onClick={() => { window.location.hash = `#/catalogo?categoria=${cat.slug}`; setIsMobileMenuOpen(false); }}
-                    className="w-full text-left font-display font-bold text-xs tracking-wider py-2 px-3 rounded-lg hover:bg-[#3C6E71]/20 text-gray-200 hover:text-white block"
-                  >
-                    {cat.name.toUpperCase()}
-                  </button>
-                ))}
-              </div>
-
-              <div className="border-t border-[#3C6E71]/20 pt-3 space-y-1">
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-3 block">GÉNERO & SECCIONES</span>
-                <button
-                  onClick={() => { window.location.hash = '#/catalogo?genero=mujer'; setIsMobileMenuOpen(false); }}
-                  className="w-full text-left font-display font-bold text-xs tracking-wider py-2 px-3 rounded-lg hover:bg-[#3C6E71]/20 text-gray-200 hover:text-white block"
-                >
-                  MUJER
-                </button>
-                <button
-                  onClick={() => { window.location.hash = '#/catalogo?genero=hombre'; setIsMobileMenuOpen(false); }}
-                  className="w-full text-left font-display font-bold text-xs tracking-wider py-2 px-3 rounded-lg hover:bg-[#3C6E71]/20 text-gray-200 hover:text-white block"
-                >
-                  HOMBRE
-                </button>
-                <button
-                  onClick={() => { window.location.hash = '#/catalogo?genero=niños'; setIsMobileMenuOpen(false); }}
-                  className="w-full text-left font-display font-bold text-xs tracking-wider py-2 px-3 rounded-lg hover:bg-[#3C6E71]/20 text-gray-200 hover:text-white block"
-                >
-                  NIÑOS
-                </button>
-                <button
-                  onClick={() => { window.location.hash = '#/catalogo?categoria=accesorios'; setIsMobileMenuOpen(false); }}
-                  className="w-full text-left font-display font-bold text-xs tracking-wider py-2 px-3 rounded-lg hover:bg-[#3C6E71]/20 text-gray-200 hover:text-white block"
-                >
-                  ACCESORIOS
-                </button>
-                <button
-                  onClick={() => { window.location.hash = '#/catalogo?genero=outlet'; setIsMobileMenuOpen(false); }}
-                  className="w-full text-left font-display font-bold text-xs tracking-wider py-2 px-3 rounded-lg bg-[#3C6E71]/20 text-[#3C6E71] border border-[#3C6E71]/40 block mt-2"
-                >
-                  OUTLET 🔥
-                </button>
-              </div>
-
-              {token && userProfile && userProfile.role === 'admin' && (
-                <div className="border-t border-[#3C6E71]/20 pt-3">
-                  <button
-                    onClick={() => { setCurrentView('admin'); setAdminTab('dashboard'); setIsMobileMenuOpen(false); }}
-                    className="w-full text-left font-display font-bold text-xs tracking-wider py-2.5 px-3 rounded-lg bg-black hover:bg-neutral-800 text-white flex items-center justify-between shadow-md cursor-pointer border border-white/10"
-                  >
-                    <span className="flex items-center gap-2">
-                      <Shield className="w-4 h-4" />
-                      PANEL DE ADMINISTRACIÓN
-                    </span>
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
-                </div>
-              )}
-
-            </div>
-
-            {/* Drawer Footer */}
-            <div className="p-4 border-t border-[#3C6E71]/20 text-center">
-              <p className="text-[10px] text-gray-400 font-mono-custom">HOLUX Outdoor Equipment © 2026</p>
-            </div>
-
-          </div>
-        </div>
-      )}
+      {/* MOBILE SLIDING MENU DRAWER (LEFT SIDE - RESPONSIVE MOBILE & TABLET) */}
+      <MobileMenuDrawer
+        isOpen={isMobileMenuOpen}
+        onClose={() => setIsMobileMenuOpen(false)}
+        token={token}
+        userProfile={userProfile}
+        categories={categories}
+        setCurrentView={setCurrentView}
+        setIsAuthModalOpen={setIsAuthModalOpen}
+        setAuthMode={setAuthMode}
+        setAdminTab={setAdminTab}
+      />
     </div>
 
       {currentView === 'home' && (
@@ -6119,133 +6247,23 @@ export default function App() {
                   onMouseUp={handleNovedadesMouseLeaveOrUp}
                   onMouseLeave={handleNovedadesMouseLeaveOrUp}
                   onMouseMove={handleNovedadesMouseMove}
-                  className="flex gap-6 overflow-x-auto scroll-smooth snap-x snap-mandatory scrollbar-hide py-4 select-none cursor-default"
+                  className="flex gap-3 sm:gap-5 overflow-x-auto scroll-smooth snap-x snap-mandatory scrollbar-hide py-4 select-none cursor-default"
                 >
-                  {[...products].reverse().slice(0, 8).map(product => {
-                    const discount = getProductDiscount(product);
-                    const effectivePrice = getEffectiveProductPrice(product);
-                    const originalPrice = getOriginalProductPrice(product);
-                    return (
-                      <div
-                        key={product.id}
-                        className="snap-start shrink-0 w-[260px] sm:w-[280px] md:w-[300px] bg-white border border-gray-200 rounded-lg overflow-hidden flex flex-col justify-between hover:shadow-xl hover:border-gray-300 transition-all duration-300"
-                      >
-                        {/* Image Area */}
-                        <div 
-                          onClick={() => handleProductClick(product)}
-                          className="relative bg-gray-50 aspect-square overflow-hidden border-b border-gray-100 group-hover:bg-gray-100/50 transition-colors cursor-pointer"
-                        >
-                          {product.is_featured && (
-                            <span className="absolute top-3 left-3 bg-amber-500 text-white text-[9px] font-display font-bold tracking-widest px-2 py-0.5 rounded shadow z-10">
-                              ⭐ DESTACADO
-                            </span>
-                          )}
-                          {product.is_new && (
-                            <span className="absolute top-3 right-3 bg-blue-600 text-white text-[9px] font-display font-bold tracking-widest px-2 py-0.5 rounded shadow z-10">
-                              🔥 NOVEDAD
-                            </span>
-                          )}
-                          {discount > 0 && !product.is_featured && (
-                            <span className="absolute top-3 left-3 bg-[#B85C38] text-white text-[10px] font-display font-bold tracking-widest px-2.5 py-1 rounded shadow z-10">
-                              {discount}% OFF
-                            </span>
-                          )}
-                          {product.stock <= 3 && product.stock > 0 && (
-                            <span className="absolute top-3 right-3 bg-[#B85C38] text-white text-[10px] font-display font-medium tracking-widest px-2.5 py-1 rounded">
-                              ÚLTIMAS {product.stock} UNIDADES
-                            </span>
-                          )}
-                          {product.stock === 0 && (
-                            <span className="absolute top-3 right-3 bg-red-600 text-white text-[10px] font-display font-medium tracking-widest px-2.5 py-1 rounded">
-                              SIN STOCK
-                            </span>
-                          )}
-                          <img 
-                            src={product.image_url || (product.images && product.images[0]) || getProductImage(product.name)} 
-                            alt={product.name} 
-                            onError={(e) => {
-                              e.target.onerror = null;
-                              e.target.src = getProductImage(product.name);
-                            }}
-                            className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-all duration-500"
-                          />
-                          <button
-                            onClick={(e) => { e.stopPropagation(); handleToggleFavorite(product.id); }}
-                            className={`absolute bottom-3 left-3 bg-white/95 border border-gray-200 hover:border-gray-300 shadow-sm p-1.5 rounded-full flex items-center justify-center transition-all cursor-pointer ${
-                              favorites.some(id => String(id) === String(product.id)) ? 'text-rose-500 bg-rose-50 border-rose-200' : 'text-gray-500 hover:text-rose-500'
-                            }`}
-                            title={favorites.some(id => String(id) === String(product.id)) ? "Quitar de favoritos" : "Guardar en favoritos"}
-                          >
-                            <Heart className={`w-4 h-4 ${favorites.some(id => String(id) === String(product.id)) ? 'fill-rose-500 text-rose-500' : ''}`} />
-                          </button>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); handleProductClick(product); }}
-                            className="absolute bottom-3 right-3 bg-white/95 border border-gray-200 hover:border-gray-300 shadow-sm p-1.5 rounded-full flex items-center gap-1.5 text-xs text-gray-600 hover:text-black transition-all cursor-pointer"
-                            title="Ver valoraciones"
-                          >
-                            <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" />
-                            <span className="font-sans text-xs font-bold">Reseñas</span>
-                          </button>
-                        </div>
-
-                        {/* Details info */}
-                        <div className="p-5 flex-grow flex flex-col justify-between space-y-4">
-                          <div className="space-y-1.5 text-left">
-                            <div className="text-xs text-[#3C6E71] font-bold uppercase tracking-wider font-sans truncate">
-                              {product.brand.toUpperCase()} • {product.categories ? product.categories.name.toUpperCase() : 'AVENTURA'}
-                            </div>
-                            <h3 
-                              onClick={() => handleProductClick(product)}
-                              className="font-sans font-bold text-gray-900 text-base tracking-wide line-clamp-1 hover:text-[#3C6E71] transition-colors cursor-pointer"
-                            >
-                              {product.name}
-                            </h3>
-                            <p className="text-xs text-gray-500 line-clamp-2 leading-relaxed font-sans">
-                              {product.description || "Equipo de alta montaña Holux, confeccionado con costuras reforzadas y materiales impermeables."}
-                            </p>
-                          </div>
-
-                          <div className="space-y-3 pt-2 text-left">
-                            <div className="flex flex-col space-y-1">
-                              <div className="flex items-baseline gap-2 flex-wrap">
-                                <span className="text-xl font-black text-gray-950 font-sans">
-                                  ${Math.round(effectivePrice).toLocaleString('es-AR')}
-                                </span>
-                                {discount > 0 && originalPrice > 0 && (
-                                  <span className="text-sm text-gray-400 line-through font-sans">
-                                    ${Math.round(originalPrice).toLocaleString('es-AR')}
-                                  </span>
-                                )}
-                              </div>
-                              {Number(product.installments) > 1 && (
-                                <div>
-                                  <span className="bg-[#EBDCF0] text-[#7E3793] text-xs font-bold px-2.5 py-1 rounded tracking-wide uppercase inline-block font-sans">
-                                    {product.installments} cuotas de ${Math.round(effectivePrice / product.installments).toLocaleString('es-AR')}
-                                  </span>
-                                </div>
-                              )}
-                              <span className="text-xs text-gray-400 font-sans block">
-                                CFT: 0% | Precio sin impuestos: ${Math.round(effectivePrice * 0.79).toLocaleString('es-AR')}
-                              </span>
-                            </div>
-
-                            <button
-                              onClick={(e) => { e.stopPropagation(); handleProductClick(product); }}
-                              disabled={product.stock === 0}
-                              className={`w-full py-3 rounded font-sans text-sm font-bold tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer ${
-                                product.stock > 0 
-                                  ? 'bg-[#1C2321] text-white hover:bg-black hover:shadow-md' 
-                                  : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                              }`}
-                            >
-                              <span>{product.stock > 0 ? 'AGREGAR' : 'AGOTADO'}</span>
-                              {product.stock > 0 && <ShoppingBag className="w-4 h-4" />}
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
+                  {[...products].reverse().slice(0, 8).map(product => (
+                    <div
+                      key={product.id}
+                      className="snap-start shrink-0 w-[165px] sm:w-[220px] md:w-[280px]"
+                    >
+                      <ProductCard
+                        product={product}
+                        isFavorite={favorites.some(id => String(id) === String(product.id))}
+                        onToggleFavorite={handleToggleFavorite}
+                        onProductClick={handleProductClick}
+                        onAddToCart={addToCart}
+                        onBuyNow={handleProductClick}
+                      />
+                    </div>
+                  ))}
                 </div>
 
                 {/* Right Arrow */}
@@ -6299,57 +6317,9 @@ export default function App() {
               ))}
             </div>
 
-            {/* Mobile View (Swipeable Carousel) */}
+            {/* Mobile View (Swipeable Carousel - Isolated Performance Component) */}
             <div className="block md:hidden max-w-7xl mx-auto px-4">
-              <div className="relative h-96 w-full rounded-lg overflow-hidden border border-gray-200 shadow-md">
-                {PROMO_BANNERS.map((banner, idx) => (
-                  <div 
-                    key={idx}
-                    onClick={() => { window.location.hash = banner.link; }}
-                    className={`absolute inset-0 transition-opacity duration-1000 ease-in-out cursor-pointer ${idx === currentPromoSlide ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
-                  >
-                    <img 
-                      src={banner.image} 
-                      alt={banner.title} 
-                      className="w-full h-full object-cover"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
-                    <div className="absolute bottom-8 left-6 text-left space-y-1">
-                      <span className="text-[9px] text-orange-200 font-bold uppercase tracking-widest font-sans block">
-                        {banner.span}
-                      </span>
-                      <h3 className="text-lg font-display font-black tracking-wider text-white uppercase">
-                        {banner.title}
-                      </h3>
-                    </div>
-                  </div>
-                ))}
-                
-                {/* Control Arrows */}
-                <button
-                  onClick={() => setCurrentPromoSlide(prev => (prev - 1 + PROMO_BANNERS.length) % PROMO_BANNERS.length)}
-                  className="absolute left-3 top-1/2 transform -translate-y-1/2 p-2 bg-black/40 text-white rounded-full z-10 cursor-pointer"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => setCurrentPromoSlide(prev => (prev + 1) % PROMO_BANNERS.length)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 p-2 bg-black/40 text-white rounded-full z-10 cursor-pointer"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-
-                {/* Dot Indicators */}
-                <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-10 flex gap-2">
-                  {PROMO_BANNERS.map((_, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => setCurrentPromoSlide(idx)}
-                      className={`w-2 h-2 rounded-full transition-all ${idx === currentPromoSlide ? 'bg-[#3C6E71] w-4' : 'bg-white/50'}`}
-                    />
-                  ))}
-                </div>
-              </div>
+              <MobilePromoCarousel banners={PROMO_BANNERS} />
             </div>
           </section>
 
@@ -6381,123 +6351,23 @@ export default function App() {
                     onMouseUp={handleDestacadosMouseLeaveOrUp}
                     onMouseLeave={handleDestacadosMouseLeaveOrUp}
                     onMouseMove={handleDestacadosMouseMove}
-                    className="flex gap-6 overflow-x-auto scroll-smooth snap-x snap-mandatory scrollbar-hide py-4 select-none cursor-default"
+                    className="flex gap-3 sm:gap-5 overflow-x-auto scroll-smooth snap-x snap-mandatory scrollbar-hide py-4 select-none cursor-default"
                   >
-                    {products.map(product => {
-                      const discount = getProductDiscount(product);
-                      const effectivePrice = getEffectiveProductPrice(product);
-                      const originalPrice = getOriginalProductPrice(product);
-                      return (
-                        <div
-                          key={product.id}
-                          className="snap-start shrink-0 w-[260px] sm:w-[280px] md:w-[300px] bg-white border border-gray-200 rounded-lg overflow-hidden flex flex-col justify-between hover:shadow-xl hover:border-gray-300 transition-all duration-300"
-                        >
-                          {/* Image Area */}
-                          <div 
-                            onClick={() => handleProductClick(product)}
-                            className="relative bg-gray-50 aspect-square overflow-hidden border-b border-gray-100 group-hover:bg-gray-100/50 transition-colors cursor-pointer"
-                          >
-                            {discount > 0 && (
-                              <span className="absolute top-3 left-3 bg-[#B85C38] text-white text-[10px] font-display font-bold tracking-widest px-2.5 py-1 rounded shadow z-10">
-                                {discount}% OFF
-                              </span>
-                            )}
-                            {product.stock <= 3 && product.stock > 0 && (
-                              <span className="absolute top-3 right-3 bg-[#B85C38] text-white text-[10px] font-display font-medium tracking-widest px-2.5 py-1 rounded">
-                                ÚLTIMAS {product.stock} UNIDADES
-                              </span>
-                            )}
-                            {product.stock === 0 && (
-                              <span className="absolute top-3 right-3 bg-red-600 text-white text-[10px] font-display font-medium tracking-widest px-2.5 py-1 rounded">
-                                SIN STOCK
-                              </span>
-                            )}
-                            <img 
-                              src={product.image_url || (product.images && product.images[0]) || getProductImage(product.name)} 
-                              alt={product.name} 
-                              onError={(e) => {
-                                e.target.onerror = null;
-                                e.target.src = getProductImage(product.name);
-                              }}
-                              className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-all duration-500"
-                            />
-                            <button
-                              onClick={(e) => { e.stopPropagation(); handleToggleFavorite(product.id); }}
-                              className={`absolute bottom-3 left-3 bg-white/95 border border-gray-200 hover:border-gray-300 shadow-sm p-1.5 rounded-full flex items-center justify-center transition-all cursor-pointer ${
-                                favorites.some(id => String(id) === String(product.id)) ? 'text-rose-500 bg-rose-50 border-rose-200' : 'text-gray-500 hover:text-rose-500'
-                              }`}
-                              title={favorites.some(id => String(id) === String(product.id)) ? "Quitar de favoritos" : "Guardar en favoritos"}
-                            >
-                              <Heart className={`w-4 h-4 ${favorites.some(id => String(id) === String(product.id)) ? 'fill-rose-500 text-rose-500' : ''}`} />
-                            </button>
-                            <button
-                              onClick={(e) => { e.stopPropagation(); handleProductClick(product); }}
-                              className="absolute bottom-3 right-3 bg-white/95 border border-gray-200 hover:border-gray-300 shadow-sm p-1.5 rounded-full flex items-center gap-1.5 text-xs text-gray-600 hover:text-black transition-all cursor-pointer"
-                              title="Ver valoraciones"
-                            >
-                              <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" />
-                              <span className="font-sans text-xs font-bold">Reseñas</span>
-                            </button>
-                          </div>
-
-                          {/* Details info */}
-                          <div className="p-5 flex-grow flex flex-col justify-between space-y-4">
-                            <div className="space-y-1.5 text-left">
-                              <div className="text-xs text-[#3C6E71] font-bold uppercase tracking-wider font-sans truncate">
-                                {product.brand.toUpperCase()} • {product.categories ? product.categories.name.toUpperCase() : 'AVENTURA'}
-                              </div>
-                              <h3 
-                                onClick={() => handleProductClick(product)}
-                                className="font-sans font-bold text-gray-900 text-base tracking-wide line-clamp-1 hover:text-[#3C6E71] transition-colors cursor-pointer"
-                              >
-                                {product.name}
-                              </h3>
-                              <p className="text-xs text-gray-500 line-clamp-2 leading-relaxed font-sans">
-                                {product.description || "Equipo de alta montaña Holux, confeccionado con costuras reforzadas y materiales impermeables."}
-                              </p>
-                            </div>
-
-                            <div className="space-y-3 pt-2 text-left">
-                              <div className="flex flex-col space-y-1">
-                                <div className="flex items-baseline gap-2 flex-wrap">
-                                  <span className="text-xl font-black text-gray-955 font-sans">
-                                    ${Math.round(effectivePrice).toLocaleString('es-AR')}
-                                  </span>
-                                  {discount > 0 && originalPrice > 0 && (
-                                    <span className="text-sm text-gray-400 line-through font-sans">
-                                      ${Math.round(originalPrice).toLocaleString('es-AR')}
-                                    </span>
-                                  )}
-                                </div>
-                                {Number(product.installments) > 1 && (
-                                  <div>
-                                    <span className="bg-[#EBDCF0] text-[#7E3793] text-xs font-bold px-2.5 py-1 rounded tracking-wide uppercase inline-block font-sans">
-                                      {product.installments} cuotas de ${Math.round(product.price / product.installments).toLocaleString('es-AR')}
-                                    </span>
-                                  </div>
-                                )}
-                                <span className="text-xs text-gray-400 font-sans block">
-                                  CFT: 0% | Precio sin impuestos: ${Math.round(product.price * 0.79).toLocaleString('es-AR')}
-                                </span>
-                              </div>
-
-                              <button
-                                onClick={(e) => { e.stopPropagation(); handleProductClick(product); }}
-                                disabled={product.stock === 0}
-                                className={`w-full py-3 rounded font-sans text-sm font-bold tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer ${
-                                  product.stock > 0 
-                                    ? 'bg-[#1C2321] text-white hover:bg-black hover:shadow-md' 
-                                    : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                }`}
-                              >
-                                <span>{product.stock > 0 ? 'AGREGAR' : 'AGOTADO'}</span>
-                                {product.stock > 0 && <ShoppingBag className="w-4 h-4" />}
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
+                    {products.map(product => (
+                      <div
+                        key={product.id}
+                        className="snap-start shrink-0 w-[165px] sm:w-[220px] md:w-[280px]"
+                      >
+                        <ProductCard
+                          product={product}
+                          isFavorite={favorites.some(id => String(id) === String(product.id))}
+                          onToggleFavorite={handleToggleFavorite}
+                          onProductClick={handleProductClick}
+                          onAddToCart={addToCart}
+                          onBuyNow={handleProductClick}
+                        />
+                      </div>
+                    ))}
                   </div>
 
                   {/* Right Arrow */}
@@ -6572,8 +6442,8 @@ export default function App() {
               <div className="lg:col-span-7 flex flex-col items-center">
                 <div className="relative w-full bg-gray-50 aspect-square flex items-center justify-center border border-gray-100 rounded-lg overflow-hidden group">
                   {getProductDiscount(selectedDetailProduct) > 0 && (
-                    <span className="absolute top-4 left-4 bg-[#B85C38] text-white text-[9px] font-display font-bold tracking-widest px-2.5 py-1 rounded shadow z-10">
-                      {getProductDiscount(selectedDetailProduct)}% OFF
+                    <span className="absolute top-4 left-4 bg-[#3C6E71] text-white text-xs font-sans font-semibold tracking-wider px-3 py-1 rounded-full shadow-sm z-10 select-none border border-white/15">
+                      {getProductDiscount(selectedDetailProduct)}%
                     </span>
                   )}
                   
@@ -6648,16 +6518,10 @@ export default function App() {
                           )}
                         </div>
 
-                        {Number(selectedDetailProduct.installments) > 1 && (
-                          <div className="pt-1">
-                            <span className="bg-[#EBDCF0] text-[#7E3793] text-[10.5px] font-black px-2.5 py-1 rounded tracking-wide uppercase inline-block font-sans">
-                              {selectedDetailProduct.installments} cuotas fijas de ${Math.round(effectivePrice / selectedDetailProduct.installments).toLocaleString('es-AR')}
-                            </span>
-                          </div>
-                        )}
-                        <span className="text-[9px] text-gray-400 font-sans block">
-                          CFTA: 0% | Precio sugerido al público con IVA incluido. Válido para todo el territorio nacional.
-                        </span>
+                        <div className="space-y-0.5 pt-1.5 text-gray-400 font-sans text-xs leading-tight">
+                          <div>CFTA: 0%</div>
+                          <div>Precio sin impuestos nacionales: ${Math.round(effectivePrice * 0.79).toLocaleString('es-AR')}</div>
+                        </div>
                       </div>
                     );
                   })()}
@@ -7073,117 +6937,58 @@ export default function App() {
               </div>
             </div>
 
-            {/* --- RELATED PRODUCTS --- */}
-            <div className="mt-12 space-y-6">
-              <h3 className="font-display text-lg font-bold text-gray-900 tracking-wider text-left border-b border-gray-200 pb-3">
-                TE PUEDE INTERESAR
-              </h3>
+            {/* --- RELATED PRODUCTS (Responsive Carousel on Mobile/Tablet, Grid on Desktop) --- */}
+            <div className="mt-12 space-y-6 relative group/related">
+              <div className="flex items-center justify-between border-b border-gray-200 pb-3">
+                <h3 className="font-display text-lg font-bold text-gray-900 tracking-wider text-left">
+                  TE PUEDE INTERESAR
+                </h3>
+                {/* Arrow Controls (Visible on tablet & desktop) */}
+                <div className="hidden sm:flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => scrollContainer(relatedRef, 'left')}
+                    className="p-1.5 rounded-full bg-gray-100 hover:bg-[#3C6E71] hover:text-white text-gray-700 transition-colors cursor-pointer"
+                    title="Anterior"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => scrollContainer(relatedRef, 'right')}
+                    className="p-1.5 rounded-full bg-gray-100 hover:bg-[#3C6E71] hover:text-white text-gray-700 transition-colors cursor-pointer"
+                    title="Siguiente"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
               
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {/* Carousel / Grid Container */}
+              <div 
+                ref={relatedRef}
+                className="flex lg:grid lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 overflow-x-auto lg:overflow-visible scroll-smooth snap-x snap-mandatory scrollbar-hide py-2"
+              >
                 {(products
                   .filter(p => p.id !== selectedDetailProduct.id && (selectedDetailProduct.category_id ? p.category_id === selectedDetailProduct.category_id : true))
-                  .slice(0, 4).length > 0
-                    ? products.filter(p => p.id !== selectedDetailProduct.id && (selectedDetailProduct.category_id ? p.category_id === selectedDetailProduct.category_id : true)).slice(0, 4)
-                    : products.filter(p => p.id !== selectedDetailProduct.id).slice(0, 4)
-                ).map(product => {
-                  const discount = getProductDiscount(product);
-                  const effectivePrice = getEffectiveProductPrice(product);
-                  const originalPrice = getOriginalProductPrice(product);
-                  return (
-                    <div
-                      key={product.id}
-                      className="group bg-white border border-gray-200 rounded-xl overflow-hidden flex flex-col justify-between hover:shadow-xl hover:border-gray-300 transition-all duration-300"
-                    >
-                      {/* Image Area */}
-                      <div 
-                        onClick={() => handleProductClick(product)}
-                        className="relative bg-gray-50 aspect-square overflow-hidden border-b border-gray-100 group-hover:bg-gray-100/50 transition-colors cursor-pointer"
-                      >
-                        {discount > 0 && (
-                          <span className="absolute top-3 left-3 bg-[#B85C38] text-white text-[9px] font-display font-bold tracking-widest px-2 py-0.5 rounded shadow z-10">
-                            {discount}% OFF
-                          </span>
-                        )}
-                        {product.is_featured && (
-                          <span className="absolute top-3 right-3 bg-amber-500 text-white text-[9px] font-display font-bold tracking-widest px-2 py-0.5 rounded shadow z-10">
-                            ⭐ DESTACADO
-                          </span>
-                        )}
-                        {product.stock === 0 && (
-                          <span className="absolute top-3 right-3 bg-red-600 text-white text-[9px] font-display font-medium tracking-widest px-2 py-0.5 rounded">
-                            SIN STOCK
-                          </span>
-                        )}
-                        <img 
-                          src={product.image_url || (product.images && product.images[0]) || getProductImage(product.name)} 
-                          alt={product.name} 
-                          onError={(e) => {
-                            e.target.onerror = null;
-                            e.target.src = getProductImage(product.name);
-                          }}
-                          className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-all duration-500"
-                        />
-                      </div>
-
-                      {/* Content Area */}
-                      <div className="p-4 flex-grow flex flex-col justify-between space-y-3">
-                        <div className="space-y-1.5 text-left">
-                          <div className="text-[10px] text-[#3C6E71] font-bold uppercase tracking-widest font-sans truncate">
-                            {(product.brand || 'HOLUX').toUpperCase()} • {product.categories?.name?.toUpperCase() || 'AVENTURA'}
-                          </div>
-                          
-                          <h4 
-                            onClick={() => handleProductClick(product)}
-                            className="font-sans font-bold text-gray-900 text-sm tracking-wide line-clamp-1 hover:text-[#3C6E71] transition-colors cursor-pointer"
-                          >
-                            {product.name}
-                          </h4>
-
-                          <p className="text-xs text-gray-500 line-clamp-2 leading-relaxed font-sans font-normal">
-                            {product.description || "Equipamiento técnico de alta performance Holux con costuras reforzadas y materiales impermeables de alta durabilidad."}
-                          </p>
-                        </div>
-
-                        {/* Price & Tax Transparency (Ley 27.743) */}
-                        <div className="space-y-2 pt-2 border-t border-gray-100 text-left">
-                          <div className="flex items-baseline gap-2">
-                            <span className="text-lg font-black text-gray-950 font-sans">
-                              ${Math.round(effectivePrice).toLocaleString('es-AR')}
-                            </span>
-                            {discount > 0 && originalPrice > 0 && (
-                              <span className="text-xs text-gray-400 line-through font-sans">
-                                ${Math.round(originalPrice).toLocaleString('es-AR')}
-                              </span>
-                            )}
-                          </div>
-
-                          {Number(product.installments) > 1 && (
-                            <div>
-                              <span className="bg-[#EBDCF0] text-[#7E3793] text-[9.5px] font-bold px-2 py-0.5 rounded tracking-wide uppercase inline-block font-sans">
-                                {product.installments} cuotas fijas de ${Math.round(effectivePrice / product.installments).toLocaleString('es-AR')}
-                              </span>
-                            </div>
-                          )}
-
-                          <span className="text-[9px] text-gray-400 font-sans block leading-tight">
-                            CFT: 0% | Precio sin impuestos: ${Math.round(effectivePrice * 0.79).toLocaleString('es-AR')} (IVA 21% discriminado - Ley N° 27.743)
-                          </span>
-
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleProductClick(product);
-                            }}
-                            className="w-full mt-2 py-2 bg-black hover:bg-neutral-800 text-white rounded-lg text-xs font-bold font-sans tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
-                          >
-                            <span>VER DETALLES</span>
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
+                  .slice(0, 6).length > 0
+                    ? products.filter(p => p.id !== selectedDetailProduct.id && (selectedDetailProduct.category_id ? p.category_id === selectedDetailProduct.category_id : true)).slice(0, 6)
+                    : products.filter(p => p.id !== selectedDetailProduct.id).slice(0, 6)
+                ).map(product => (
+                  <div
+                    key={product.id}
+                    className="snap-start shrink-0 w-[165px] sm:w-[220px] md:w-[260px] lg:w-auto"
+                  >
+                    <ProductCard
+                      product={product}
+                      isFavorite={favorites.some(id => String(id) === String(product.id))}
+                      onToggleFavorite={handleToggleFavorite}
+                      onProductClick={handleProductClick}
+                      onAddToCart={addToCart}
+                      onBuyNow={handleProductClick}
+                    />
+                  </div>
+                ))}
               </div>
             </div>
 
@@ -7265,160 +7070,24 @@ export default function App() {
         />
       )}
 
-      {/* --- FOOTER (HOLUX DARK BRAND THEME + REFERENCE STRUCTURE) --- */}
-      <footer className="bg-[#1C2321] text-[#F2EFE9] border-t border-[#3C6E71]/20 py-10 sm:py-14 select-none">
-        <div className="w-full px-4 sm:px-8 lg:px-12">
-          
-          {/* Main Top Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-8 lg:gap-12 pb-10 border-b border-[#3C6E71]/20">
-            
-            {/* Column 1: Newsletter Signup & Brand Info (Spans 5 cols on desktop) */}
-            <div className="md:col-span-5 space-y-4">
-              <h2 className="font-display text-xl sm:text-2xl font-black text-white tracking-tight leading-tight uppercase">
-                ¡RECIBÍ NUESTRAS OFERTAS <br className="hidden sm:inline" />
-                Y NOVEDADES POR MAIL!
-              </h2>
+      {/* --- INFO / LEGAL / HELP PAGES VIEW --- */}
+      {currentView === 'info_page' && (
+        <InfoPagesView
+          initialPage={infoPageSlug}
+          onNavigateHome={() => {
+            window.location.hash = '#/';
+            setCurrentView('home');
+          }}
+          onNavigateCatalog={() => {
+            window.location.hash = '#/catalogo';
+            setCurrentView('category');
+          }}
+        />
+      )}
 
-              <form 
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  alert('¡Gracias por suscribirte a las novedades de Holux!');
-                }}
-                className="flex flex-wrap items-center gap-2 pt-1"
-              >
-                <input
-                  type="email"
-                  required
-                  placeholder="Correo Electrónico"
-                  className="px-3.5 py-2.5 bg-white/10 border border-[#3C6E71]/40 rounded-lg text-xs text-white placeholder-gray-400 outline-none focus:border-[#3C6E71] transition-all w-44 sm:w-52 shadow-sm"
-                />
-                <input
-                  type="text"
-                  placeholder="Cumpleaños"
-                  className="px-3.5 py-2.5 bg-white/10 border border-[#3C6E71]/40 rounded-lg text-xs text-white placeholder-gray-400 outline-none focus:border-[#3C6E71] transition-all w-32 sm:w-36 shadow-sm"
-                />
-                <button
-                  type="submit"
-                  className="p-2.5 bg-black hover:bg-neutral-800 text-white rounded-lg transition-colors cursor-pointer shadow-sm flex items-center justify-center border border-white/20"
-                  title="Suscribirse"
-                >
-                  <ChevronRight className="w-5 h-5 stroke-[2.5]" />
-                </button>
-              </form>
-
-              <div className="pt-4 space-y-1">
-                <span className="font-display text-base font-bold tracking-wider text-white flex items-center gap-2 uppercase">
-                  <img src="/holuxlogo.png" alt="HOLUX" className="h-5 w-auto object-contain brightness-0 invert" />
-                  <span>Holux Outdoor Equipment</span>
-                </span>
-                <p className="text-[10px] text-gray-400 font-sans leading-tight">
-                  Holux S.A. Av. Pellegrini 1840, Rosario, Santa Fe. CUIT: 30-64270999-9
-                </p>
-              </div>
-            </div>
-
-            {/* Column 2: ACERCA DE NOSOTROS (Spans 2.5 cols) */}
-            <div className="md:col-span-3 lg:col-span-2 space-y-3">
-              <h3 className="font-display text-xs font-bold text-[#3C6E71] uppercase tracking-wider">
-                ACERCA DE NOSOTROS
-              </h3>
-              <ul className="space-y-1.5 text-xs text-gray-300 font-medium">
-                <li><a href="#/catalogo" className="hover:text-white transition-colors">RR HH</a></li>
-                <li><a href="#/catalogo" className="hover:text-white transition-colors">Catálogo Mayorista</a></li>
-                <li><a href="#/catalogo" className="hover:text-white transition-colors">Nuestros Locales</a></li>
-                <li><a href="#/catalogo" className="hover:text-white transition-colors">Eventos</a></li>
-                <li><a href="#/catalogo" className="hover:text-white transition-colors">Hot Sale</a></li>
-                <li><a href="#/catalogo" className="hover:text-white transition-colors">Cyber Monday</a></li>
-              </ul>
-            </div>
-
-            {/* Column 3: CENTRO DE AYUDA (Spans 2.5 cols) */}
-            <div className="md:col-span-4 lg:col-span-3 space-y-3">
-              <h3 className="font-display text-xs font-bold text-[#3C6E71] uppercase tracking-wider">
-                CENTRO DE AYUDA
-              </h3>
-              <ul className="space-y-1.5 text-xs text-gray-300 font-medium">
-                <li><a href="#/catalogo" className="hover:text-white transition-colors">Seguimiento de Envío</a></li>
-                <li><a href="#/catalogo" className="hover:text-white transition-colors">Preguntas Frecuentes</a></li>
-                <li><a href="#/catalogo" className="hover:text-white transition-colors">Envíos y Medios de Pago</a></li>
-                <li><a href="#/catalogo" className="hover:text-white transition-colors">Compras Corporativas</a></li>
-                <li><a href="#/catalogo" className="hover:text-white transition-colors">Términos y Condiciones</a></li>
-                <li><a href="#/catalogo" className="hover:text-white transition-colors">Cómo canjear un cupón</a></li>
-                <li><a href="#/catalogo" className="hover:text-white transition-colors">Ciberestafas</a></li>
-              </ul>
-            </div>
-
-            {/* Column 4: Social Networks & Botón de Arrepentimiento */}
-            <div className="md:col-span-12 lg:col-span-2 flex flex-col items-start lg:items-end justify-between space-y-4">
-              {/* Social Icons Row */}
-              <div className="flex flex-wrap items-center gap-1.5">
-                {/* WhatsApp */}
-                <span title="WhatsApp" className="w-7 h-7 bg-white/10 border border-[#3C6E71]/30 rounded-md flex items-center justify-center text-white text-xs hover:bg-[#3C6E71] transition-colors cursor-pointer shadow-sm font-bold">
-                  wa
-                </span>
-                {/* Facebook */}
-                <span title="Facebook" className="w-7 h-7 bg-white/10 border border-[#3C6E71]/30 rounded-md flex items-center justify-center text-white text-xs hover:bg-[#3C6E71] transition-colors cursor-pointer shadow-sm font-bold">
-                  f
-                </span>
-                {/* Instagram */}
-                <span title="Instagram" className="w-7 h-7 bg-white/10 border border-[#3C6E71]/30 rounded-md flex items-center justify-center text-white text-xs hover:bg-[#3C6E71] transition-colors cursor-pointer shadow-sm font-bold">
-                  ig
-                </span>
-                {/* TikTok */}
-                <span title="TikTok" className="w-7 h-7 bg-white/10 border border-[#3C6E71]/30 rounded-md flex items-center justify-center text-white text-xs hover:bg-[#3C6E71] transition-colors cursor-pointer shadow-sm font-bold">
-                  tk
-                </span>
-                {/* LinkedIn */}
-                <span title="LinkedIn" className="w-7 h-7 bg-white/10 border border-[#3C6E71]/30 rounded-md flex items-center justify-center text-white text-xs hover:bg-[#3C6E71] transition-colors cursor-pointer shadow-sm font-bold">
-                  in
-                </span>
-                {/* YouTube */}
-                <span title="YouTube" className="w-7 h-7 bg-white/10 border border-[#3C6E71]/30 rounded-md flex items-center justify-center text-white text-xs hover:bg-[#3C6E71] transition-colors cursor-pointer shadow-sm font-bold">
-                  yt
-                </span>
-                {/* Mail */}
-                <span title="Email" className="w-7 h-7 bg-white/10 border border-[#3C6E71]/30 rounded-md flex items-center justify-center text-white text-xs hover:bg-[#3C6E71] transition-colors cursor-pointer shadow-sm font-bold">
-                  @
-                </span>
-              </div>
-
-              {/* Botón de arrepentimiento */}
-              <div>
-                <button
-                  type="button"
-                  onClick={() => setIsRefundModalOpen(true)}
-                  className="px-4 py-2 bg-white/10 border border-[#3C6E71]/40 hover:bg-[#3C6E71] rounded-xl text-xs font-bold text-white shadow-md transition-all cursor-pointer"
-                >
-                  Botón de arrepentimiento
-                </button>
-              </div>
-            </div>
-
-          </div>
-
-          {/* Bottom Legal & Certification Badges */}
-          <div className="pt-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 text-[10px] text-gray-400 font-sans">
-            <div className="space-y-1 max-w-2xl">
-              <p className="font-bold text-gray-200 uppercase">
-                © {new Date().getFullYear()} HOLUX S.A. TODOS LOS DERECHOS RESERVADOS.
-              </p>
-              <p className="leading-tight text-gray-400">
-                El consumidor podrá iniciar un reclamo, completando el Formulario de denuncias Ventanilla Única Federal de Defensa del Consumidor ingresando desde <a href="#" className="font-bold text-[#3C6E71] underline hover:text-white">AQUÍ</a>.
-                Para más información, podrá consultar la Ley de Defensa del Consumidor ingrese <a href="#" className="font-bold text-[#3C6E71] underline hover:text-white">AQUÍ</a>.
-              </p>
-            </div>
-
-            {/* Badges / Seals */}
-            <div className="flex flex-wrap items-center gap-3 shrink-0 font-mono-custom text-[10px] font-bold text-gray-300">
-              <span className="border border-[#3C6E71]/30 px-2 py-0.5 rounded bg-white/5 shadow-sm">cace</span>
-              <span className="border border-[#3C6E71]/30 px-2 py-0.5 rounded bg-white/5 shadow-sm">DATA FISCAL AFIP</span>
-              <span className="border border-[#3C6E71]/30 px-2 py-0.5 rounded bg-white/5 shadow-sm">VTEX</span>
-              <span className="border border-[#3C6E71]/30 px-2 py-0.5 rounded bg-white/5 shadow-sm">Infra Commerce</span>
-            </div>
-          </div>
-
-        </div>
-      </footer>
+      {/* --- FOOTER (HOLUX DARK BRAND THEME - RESPONSIVE MOBILE & TABLET OPTIMIZED) --- */}
+      {/* --- FOOTER COMPONENT --- */}
+      <Footer onOpenRefundModal={() => setIsRefundModalOpen(true)} />
 
       {/* --- CART DRAWER --- */}
       {isCartOpen && (

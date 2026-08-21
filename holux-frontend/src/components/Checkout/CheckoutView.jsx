@@ -10,7 +10,8 @@ import {
   ShoppingBag,
   Download,
   Tag,
-  X
+  X,
+  Building2
 } from 'lucide-react';
 import { SmoothInput } from '../Common/SmoothInput';
 
@@ -241,7 +242,7 @@ const CheckoutView = memo(({
   const tierDiscount = tierPercent > 0 ? Math.round((subtotal * tierPercent) / 100) : 0;
   const tierBadge = userProfile?.benefits?.badge || (userProfile?.tier === 'super_vip' ? '👑 SUPER VIP' : '⭐ VIP');
 
-  const transferDiscount = paymentMethod === 'transfer' ? Math.round(subtotal * 0.10) : 0;
+  const transferDiscount = 0;
 
   let couponDiscount = 0;
   if (appliedCoupon) {
@@ -621,7 +622,64 @@ const CheckoutView = memo(({
               </div>
 
               <div className="space-y-3">
-                {/* Option 1: Mercado Pago Checkout Pro (Dinero en Cuenta / App / QR / Mercado Crédito / Rapipago) */}
+                {/* Option 1: Transferencia Bancaria Directa */}
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod('transfer')}
+                  className={`w-full p-4 rounded-xl border text-left flex items-start justify-between transition-all cursor-pointer ${paymentMethod === 'transfer' ? 'border-[#3C6E71] bg-[#3C6E71]/5 shadow-sm ring-1 ring-[#3C6E71]/30' : 'border-gray-200 hover:border-gray-300'}`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="p-2 bg-[#3C6E71] text-white rounded-lg font-bold text-xs flex items-center justify-center">
+                      <Building2 className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <span className="font-display text-xs font-bold text-gray-900 block uppercase">TRANSFERENCIA BANCARIA</span>
+                      <span className="text-[10px] text-gray-500">Pago directo mediante CBU / CVU o Alias bancario</span>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-bold bg-[#3C6E71]/15 text-[#3C6E71] px-2.5 py-1 rounded uppercase">BANCO / CBU</span>
+                </button>
+
+                {paymentMethod === 'transfer' && (
+                  <div className="p-4 bg-emerald-50/60 border border-emerald-200 rounded-xl space-y-4 text-xs text-emerald-900 font-sans">
+                    <div className="space-y-1">
+                      <p className="font-bold uppercase tracking-wider text-emerald-800">Datos Bancarios para Transferir:</p>
+                      <p className="font-mono-custom text-[11px] text-gray-800">CBU: 0170098520000001234567</p>
+                      <p className="font-mono-custom text-[11px] text-gray-800">Alias: HOLUX.OFICIAL.MP</p>
+                      <p className="text-[11px] text-emerald-800 font-bold">Total a Transferir: ${Math.round(subtotalAfterDiscount + shippingCost).toLocaleString('es-AR')}</p>
+                    </div>
+
+                    {/* Mandatory Receipt Upload Box */}
+                    <div className="p-3 bg-white rounded-xl border border-emerald-300 space-y-2">
+                      <label className="text-[10px] font-bold text-gray-700 uppercase tracking-wider block">
+                        ADJUNTAR COMPROBANTE DE TRANSFERENCIA (OBLIGATORIO) *
+                      </label>
+                      <p className="text-[10px] text-gray-500">Formatos permitidos: JPG, PNG o PDF (Máximo 5MB)</p>
+
+                      <div className="relative">
+                        <input
+                          type="file"
+                          accept="image/jpeg,image/png,image/jpg,application/pdf"
+                          onChange={handleTransferReceiptFileChange}
+                          className="w-full text-xs text-gray-700 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-emerald-600 file:text-white hover:file:bg-emerald-700 cursor-pointer"
+                        />
+                      </div>
+
+                      {transferReceiptName && (
+                        <div className="flex items-center justify-between p-2 bg-emerald-100/70 rounded-lg border border-emerald-200 text-emerald-900 font-mono-custom text-[11px]">
+                          <span className="truncate max-w-[200px]">📄 {transferReceiptName}</span>
+                          <span className="font-bold text-emerald-700 text-[10px] uppercase">¡CARGADO!</span>
+                        </div>
+                      )}
+
+                      {transferReceiptError && (
+                        <p className="text-[11px] text-red-600 font-bold">{transferReceiptError}</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Option 2: Mercado Pago Checkout Pro (Dinero en Cuenta / App / QR / Mercado Crédito / Rapipago) */}
                 <button
                   type="button"
                   onClick={() => setPaymentMethod('mercadopago_checkout_pro')}
@@ -651,7 +709,7 @@ const CheckoutView = memo(({
                   </div>
                 )}
 
-                {/* Option 2: Mercado Pago Card Brick (Tarjeta de Crédito / Débito) */}
+                {/* Option 3: Mercado Pago Card Brick (Tarjeta de Crédito / Débito) */}
                 <button
                   type="button"
                   onClick={() => setPaymentMethod('mercadopago')}
@@ -694,65 +752,6 @@ const CheckoutView = memo(({
                     </div>
                   </div>
                 )}
-
-                {/* Option 2: Transferencia Bancaria (10% OFF) */}
-                <button
-                  type="button"
-                  onClick={() => setPaymentMethod('transfer')}
-                  className={`w-full p-4 rounded-xl border text-left flex items-start justify-between transition-all cursor-pointer ${paymentMethod === 'transfer' ? 'border-emerald-600 bg-emerald-50/70 shadow-sm' : 'border-gray-200 hover:border-gray-300'}`}
-                >
-                  <div className="flex items-start gap-3">
-                    <div className="p-2 bg-emerald-600 text-white rounded-lg font-bold text-xs">
-                      %
-                    </div>
-                    <div>
-                      <span className="font-display text-xs font-bold text-gray-900 block uppercase">TRANSFERENCIA BANCARIA</span>
-                      <span className="text-[10px] text-emerald-700 font-semibold">¡10% DE DESCUENTO ADICIONAL EN TU COMPRA!</span>
-                    </div>
-                  </div>
-                  <span className="text-xs font-bold bg-emerald-600 text-white px-2 py-0.5 rounded">10% OFF</span>
-                </button>
-
-                {paymentMethod === 'transfer' && (
-                  <div className="p-4 bg-emerald-50/60 border border-emerald-200 rounded-xl space-y-4 text-xs text-emerald-900 font-sans">
-                    <div className="space-y-1">
-                      <p className="font-bold uppercase tracking-wider text-emerald-800">Datos Bancarios para Transferir:</p>
-                      <p className="font-mono-custom text-[11px] text-gray-800">CBU: 0170098520000001234567</p>
-                      <p className="font-mono-custom text-[11px] text-gray-800">Alias: HOLUX.OFICIAL.MP</p>
-                      <p className="text-[11px] text-emerald-800 font-bold">Total con Descuento: ${Math.round(subtotal * 0.90).toLocaleString('es-AR')}</p>
-                    </div>
-
-                    {/* Mandatory Receipt Upload Box */}
-                    <div className="p-3 bg-white rounded-xl border border-emerald-300 space-y-2">
-                      <label className="text-[10px] font-bold text-gray-700 uppercase tracking-wider block">
-                        ADJUNTAR COMPROBANTE DE TRANSFERENCIA (OBLIGATORIO) *
-                      </label>
-                      <p className="text-[10px] text-gray-500">Formatos permitidos: JPG, PNG o PDF (Máximo 5MB)</p>
-
-                      <div className="relative">
-                        <input
-                          type="file"
-                          accept="image/jpeg,image/png,image/jpg,application/pdf"
-                          onChange={handleTransferReceiptFileChange}
-                          className="w-full text-xs text-gray-700 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-emerald-600 file:text-white hover:file:bg-emerald-700 cursor-pointer"
-                        />
-                      </div>
-
-                      {transferReceiptName && (
-                        <div className="flex items-center justify-between p-2 bg-emerald-100/70 rounded-lg border border-emerald-200 text-emerald-900 font-mono-custom text-[11px]">
-                          <span className="truncate max-w-[200px]">📄 {transferReceiptName}</span>
-                          <span className="font-bold text-emerald-700 text-[10px] uppercase">¡CARGADO!</span>
-                        </div>
-                      )}
-
-                      {transferReceiptError && (
-                        <p className="text-[11px] text-red-600 font-bold">{transferReceiptError}</p>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-
               </div>
             </div>
 
@@ -885,9 +884,9 @@ const CheckoutView = memo(({
                   </div>
                 )}
 
-                {paymentMethod === 'transfer' && (
+                {paymentMethod === 'transfer' && transferDiscount > 0 && (
                   <div className="flex items-center justify-between text-emerald-600 font-bold">
-                    <span>Descuento Transferencia (10% OFF):</span>
+                    <span>Descuento Transferencia:</span>
                     <span className="font-mono-custom">-${transferDiscount.toLocaleString('es-AR')}</span>
                   </div>
                 )}

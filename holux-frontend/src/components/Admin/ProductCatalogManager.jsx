@@ -325,6 +325,7 @@ export default function ProductCatalogManager({
               className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 focus:border-[#3C6E71] focus:bg-white rounded-xl text-xs font-medium text-gray-700 outline-none transition-all cursor-pointer"
             >
               <option value="all">Todas las categorías</option>
+              <option value="offers" className="font-bold text-[#B85C38]">🔥 Solo en Oferta / Descuento</option>
               {categories.map(cat => (
                 <option key={cat.id} value={cat.slug || cat.id}>
                   {cat.name}
@@ -378,7 +379,7 @@ export default function ProductCatalogManager({
             )}
             {category !== 'all' && (
               <span className="bg-purple-50 text-purple-700 font-bold px-2.5 py-1 rounded-lg flex items-center gap-1.5">
-                Categoría: {categories.find(c => c.slug === category || c.id === category)?.name || category}
+                Categoría: {category === 'offers' ? '🔥 Solo en Oferta / Descuento' : (categories.find(c => c.slug === category || c.id === category)?.name || category)}
                 <button type="button" onClick={() => setCategory('all')} className="hover:text-black cursor-pointer"><X className="w-3 h-3" /></button>
               </span>
             )}
@@ -641,16 +642,42 @@ export default function ProductCatalogManager({
                         </span>
                       </td>
 
-                      {/* Price */}
+                      {/* Price & Offer */}
                       <td className="p-3.5 font-mono-custom">
-                        <div className="font-bold text-gray-900 text-xs">
-                          ARS ${Math.round(prod.price || 0).toLocaleString('es-AR')}
-                        </div>
-                        {Number(prod.offer_price) > 0 && (
-                          <div className="text-[10px] text-emerald-600 font-bold">
-                            Oferta: ${Math.round(prod.offer_price).toLocaleString('es-AR')}
-                          </div>
-                        )}
+                        {(() => {
+                          const basePrice = Number(prod.price || 0);
+                          const offPrice = Number(prod.offer_price || 0);
+                          const discPct = Number(prod.discount_percent || prod.discount || 0);
+                          const origPrice = Number(prod.original_price || 0);
+
+                          const isOffActive = (offPrice > 0 && offPrice < basePrice) || discPct > 0 || (origPrice > basePrice);
+                          const effective = (offPrice > 0 && offPrice < basePrice) ? offPrice : (discPct > 0 ? Math.round(basePrice * (1 - discPct / 100)) : basePrice);
+                          const pct = isOffActive ? (discPct > 0 ? discPct : (origPrice > basePrice ? Math.round(((origPrice - basePrice) / origPrice) * 100) : Math.round(((basePrice - offPrice) / basePrice) * 100))) : 0;
+
+                          if (isOffActive) {
+                            return (
+                              <div className="space-y-0.5">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="font-bold text-emerald-700 text-xs">
+                                    ARS ${Math.round(effective).toLocaleString('es-AR')}
+                                  </span>
+                                  <span className="bg-[#3C6E71] text-white text-[9.5px] font-semibold px-2 py-0.5 rounded-full font-sans shadow-2xs">
+                                    {pct}%
+                                  </span>
+                                </div>
+                                <div className="text-[10px] text-gray-400 line-through">
+                                  ARS ${Math.round(origPrice > basePrice ? origPrice : basePrice).toLocaleString('es-AR')}
+                                </div>
+                              </div>
+                            );
+                          }
+
+                          return (
+                            <div className="font-bold text-gray-900 text-xs">
+                              ARS ${Math.round(basePrice).toLocaleString('es-AR')}
+                            </div>
+                          );
+                        })()}
                       </td>
 
                       {/* Stock Badge */}

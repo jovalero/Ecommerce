@@ -114,8 +114,8 @@ export default function ProductDetailView({
           <div className="lg:col-span-7 space-y-4">
             <div className="relative aspect-4/3 sm:aspect-square bg-gray-50 rounded-lg overflow-hidden border border-gray-150">
               {discount > 0 && (
-                <span className="absolute top-4 left-4 bg-[#B85C38] text-white text-xs font-display font-bold tracking-widest px-3 py-1.5 rounded shadow z-10">
-                  {discount}% OFF
+                <span className="absolute top-4 left-4 bg-[#3C6E71] text-white text-xs sm:text-sm font-sans font-semibold tracking-wider px-3 py-1 rounded-full shadow-sm z-10 select-none border border-white/15">
+                  {discount}%
                 </span>
               )}
               <img
