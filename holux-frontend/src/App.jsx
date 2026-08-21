@@ -965,7 +965,7 @@ export default function App() {
   };
 
   const fetchUserProfile = async () => {
-    if (!token) return;
+    if (!token || token === 'null' || token === 'undefined') return;
 
     try {
       const res = await fetch(`${API_BASE_URL}/api/me`, {
@@ -977,6 +977,12 @@ export default function App() {
         setCheckoutName(data.full_name || '');
         if (data.email) setCheckoutEmail(data.email);
         return;
+      }
+      if (res.status === 401) {
+        setToken(null);
+        setUserProfile(null);
+        localStorage.removeItem('user_token');
+        localStorage.removeItem('holux_auth_token');
       }
     } catch (e) {
       console.error("Error loading profile from API:", e);

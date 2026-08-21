@@ -46,6 +46,7 @@ export function useProductCatalog(token) {
 
   // Fetch categories for the filter dropdown
   const fetchCategories = useCallback(async () => {
+    if (!token || token === 'null' || token === 'undefined') return;
     try {
       const res = await fetch(`${API_BASE}/api/admin/categorias`, {
         headers: {
@@ -64,6 +65,10 @@ export function useProductCatalog(token) {
 
   // Fetch products with server-side filters & pagination
   const fetchProducts = useCallback(async () => {
+    if (!token || token === 'null' || token === 'undefined') {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {

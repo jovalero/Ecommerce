@@ -68,21 +68,12 @@ class VerifySupabaseToken
                         return response()->json(['message' => 'Sesión expirada. Por favor inicie sesión nuevamente.'], 401);
                     }
 
-                    // Validate UUID format strictly
+                    // Validate UUID format
                     if (preg_match('/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/', $userId)) {
-                        $supabase = app(\App\Services\SupabaseService::class);
-                        
-                        // Check that the profile actually exists in Supabase
-                        $profile = \Illuminate\Support\Facades\Cache::remember("user_profile_{$userId}", 60, function () use ($supabase, $userId) {
-                            return $supabase->getOne('profiles', $userId, true);
-                        });
-
-                        if (!empty($profile) || config('app.env') === 'local') {
-                            $request->attributes->set('user_id', $userId);
-                            $request->attributes->set('user_email', $payload['email'] ?? ($profile['email'] ?? null));
-                            $request->attributes->set('token_payload', $payload);
-                            return $next($request);
-                        }
+                        $request->attributes->set('user_id', $userId);
+                        $request->attributes->set('user_email', $payload['email'] ?? null);
+                        $request->attributes->set('token_payload', $payload);
+                        return $next($request);
                     }
                 }
             }
