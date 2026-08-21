@@ -26,38 +26,33 @@ class RequireAdmin
             ], 401);
         }
 
-        $supabase = app(SupabaseService::class);
-        
+        // Validate strictly UUID v4 format
         if (!preg_match('/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/', $userId)) {
-            if (config('app.env') === 'local' || config('app.debug')) {
-                return $next($request);
-            }
+            return response()->json([
+                'message' => 'Identificador de usuario inválido.'
+            ], 403);
         }
 
-        // Fetch the user's profile with 5-minute caching to optimize performance
-        $profile = \Illuminate\Support\Facades\Cache::remember("user_profile_{$userId}", 300, function () use ($supabase, $userId) {
+        $supabase = app(SupabaseService::class);
+
+        // Fetch user profile (cached for 60 seconds for security responsiveness)
+        $profile = \Illuminate\Support\Facades\Cache::remember("user_profile_{$userId}", 60, function () use ($supabase, $userId) {
             return $supabase->getOne('profiles', $userId, true);
         });
 
         if (empty($profile)) {
-            if (config('app.env') === 'local' || config('app.debug')) {
-                return $next($request);
-            }
             return response()->json([
-                'message' => 'Perfil del usuario no encontrado.'
+                'message' => 'Perfil de usuario no encontrado en el sistema.'
             ], 404);
         }
 
-        if (empty($profile['active']) || $profile['active'] === false) {
+        if (isset($profile['active']) && $profile['active'] === false) {
             return response()->json([
-                'message' => 'Tu cuenta ha sido desactivada por un administrador.'
+                'message' => 'Tu cuenta ha sido suspendida por administración.'
             ], 403);
         }
 
         if (($profile['role'] ?? 'customer') !== 'admin') {
-            if (config('app.env') === 'local' || config('app.debug')) {
-                return $next($request);
-            }
             return response()->json([
                 'message' => 'Acceso denegado. Se requieren privilegios de administrador.'
             ], 403);

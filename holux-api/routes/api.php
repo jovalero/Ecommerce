@@ -40,11 +40,13 @@ Route::middleware('throttle:api')->group(function () {
     Route::get('/products/{id}', [ProductController::class, 'show']);
     Route::get('/products/{id}/reviews', [ReviewController::class, 'index']); // Approved reviews
 
-    // Orders (Allows both guests and authenticated checkouts)
-    Route::post('/orders', [OrderController::class, 'store']);
-    Route::post('/process_order', [OrderController::class, 'processOrder']);
-    Route::post('/orders/process-payment', [OrderController::class, 'processOrder']);
-    Route::post('/webhooks/mercadopago', [OrderController::class, 'handleMercadoPagoWebhook']);
+    // Sensitive payment and order creation endpoints (Protected with strict rate-limiting)
+    Route::middleware('throttle:15,1')->group(function () {
+        Route::post('/orders', [OrderController::class, 'store']);
+        Route::post('/process_order', [OrderController::class, 'processOrder']);
+        Route::post('/orders/process-payment', [OrderController::class, 'processOrder']);
+        Route::post('/webhooks/mercadopago', [OrderController::class, 'handleMercadoPagoWebhook']);
+    });
 });
 
 // ==========================================

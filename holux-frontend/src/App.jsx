@@ -916,9 +916,11 @@ export default function App() {
   useEffect(() => {
     if (token) {
       localStorage.setItem('user_token', token);
+      localStorage.setItem('holux_auth_token', token);
       fetchUserProfile();
     } else {
       localStorage.removeItem('user_token');
+      localStorage.removeItem('holux_auth_token');
       setUserProfile(null);
     }
   }, [token]);

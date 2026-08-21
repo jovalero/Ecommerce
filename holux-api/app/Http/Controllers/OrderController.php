@@ -328,43 +328,43 @@ class OrderController extends Controller
                 }
 
                 $errBody = json_decode($res->getBody()->getContents(), true);
-                Log::info('Mercado Pago Sandbox Mode Notice: ', $errBody ?: []);
+                Log::warning('Mercado Pago Payment API Error: ', $errBody ?: []);
+
+                return response()->json([
+                    'message' => $errBody['message'] ?? 'El pago fue rechazado por la pasarela de pagos.',
+                    'status' => 'rejected',
+                    'status_detail' => $errBody['cause'][0]['description'] ?? 'payment_rejected'
+                ], 422);
             } catch (\Throwable $err) {
                 Log::error('Mercado Pago API Exception: ' . $err->getMessage());
+                return response()->json([
+                    'message' => 'Error de comunicación con la pasarela de pagos.',
+                    'status' => 'rejected',
+                    'status_detail' => 'gateway_error'
+                ], 500);
             }
         }
 
-        // Default sandbox simulation response matching Mercado Pago V1 Orders API schema
+        // Fallback for development without configured token
+        if (config('app.env') === 'production') {
+            return response()->json([
+                'message' => 'La pasarela de pagos no está configurada para recibir cobros.',
+                'status' => 'rejected',
+                'status_detail' => 'gateway_unconfigured'
+            ], 503);
+        }
+
         return response()->json([
-            'id' => 'ORD' . strtoupper(\Illuminate\Support\Str::random(24)),
+            'id' => 'DEV_SANDBOX_' . strtoupper(\Illuminate\Support\Str::random(16)),
             'type' => 'online',
-            'processing_mode' => 'automatic',
+            'processing_mode' => 'sandbox_dev',
             'external_reference' => $externalRef,
             'total_amount' => $totalAmount,
-            'total_paid_amount' => $totalAmount,
-            'country_code' => 'ARG',
-            'user_id' => '2021490138',
             'status' => 'approved',
             'status_detail' => 'accredited',
             'idempotency_key' => $idempotencyKey,
-            'transactions' => [
-                'payments' => [
-                    [
-                        'id' => 'PAY' . strtoupper(\Illuminate\Support\Str::random(24)),
-                        'amount' => $totalAmount,
-                        'paid_amount' => $totalAmount,
-                        'status' => 'processed',
-                        'status_detail' => 'accredited',
-                        'payment_method' => $transactions['payments'][0]['payment_method'] ?? [
-                            'id' => 'master',
-                            'type' => 'credit_card',
-                            'token' => 'token_demo_123',
-                            'installments' => 1
-                        ]
-                    ]
-                ]
-            ],
-            'message' => '¡Orden procesada con éxito vía Mercado Pago V1 Orders API!'
+            'transactions' => $transactions,
+            'message' => 'Simulación de desarrollo completada.'
         ], 200);
     }
 
@@ -446,7 +446,7 @@ class OrderController extends Controller
                         'old_status' => $oldStatus,
                         'new_status' => $newStatus,
                         'changed_by' => 'mercadopago_webhook',
-                        'comment' => "Mercado Pago Webhook: status {$mpStatus}, amount ${paidAmount}"
+                        'comment' => "Mercado Pago Webhook: status {$mpStatus}, amount $" . $paidAmount
                     ], true);
                 } catch (\Throwable $e) {
                     Log::warning("Order log error: " . $e->getMessage());

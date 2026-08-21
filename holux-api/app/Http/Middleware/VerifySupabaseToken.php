@@ -31,54 +31,63 @@ class VerifySupabaseToken
         }
 
         $jwtSecret = config('services.supabase.jwt_secret');
+        $supabaseUrl = config('services.supabase.url');
+        $anonKey = config('services.supabase.anon_key') ?: config('services.supabase.service_key');
 
-        if (empty($jwtSecret)) {
-            Log::error('Supabase JWT Secret is missing in config/services.php');
-            return response()->json([
-                'message' => 'Error interno de autenticación de la plataforma.'
-            ], 500);
+        // 1. Try cryptographic verification via JWT Secret (HS256)
+        if (!empty($jwtSecret)) {
+            try {
+                $decoded = JWT::decode($token, new Key($jwtSecret, 'HS256'));
+                if (!empty($decoded->sub)) {
+                    $request->attributes->set('user_id', $decoded->sub);
+                    $request->attributes->set('user_email', $decoded->email ?? null);
+                    $request->attributes->set('token_payload', (array) $decoded);
+                    return $next($request);
+                }
+            } catch (ExpiredException $e) {
+                return response()->json([
+                    'message' => 'Sesión expirada. Por favor vuelva a iniciar sesión.'
+                ], 401);
+            } catch (SignatureInvalidException $e) {
+                Log::warning('Intento de acceso con firma JWT inválida detectado.');
+                return response()->json([
+                    'message' => 'Token de autenticación inválido (firma rechazada).'
+                ], 401);
+            } catch (\Throwable $e) {
+                Log::info('JWT secret decode fallback to Supabase API: ' . $e->getMessage());
+            }
         }
 
-        try {
-            // Decode the JWT from Supabase. Supabase uses HS256 algorithm.
-            $decoded = JWT::decode($token, new Key($jwtSecret, 'HS256'));
-
-            // Inject the user's Supabase UID and email into request attributes
-            $request->attributes->set('user_id', $decoded->sub ?? null);
-            $request->attributes->set('user_email', $decoded->email ?? null);
-            $request->attributes->set('token_payload', (array) $decoded);
-
-            return $next($request);
-        } catch (\Exception $e) {
-            Log::warning('Supabase JWT verification failed: ' . $e->getMessage());
-
-            // In local environment or fallback, extract payload without signature validation for dev testing
+        // 2. Authoritative verification via Supabase Auth API
+        if (!empty($supabaseUrl) && !empty($anonKey)) {
             try {
-                $parts = explode('.', $token);
-                if (count($parts) >= 2) {
-                    $b64 = strtr($parts[1], '-_', '+/');
-                    $padded = str_pad($b64, strlen($b64) + (4 - strlen($b64) % 4) % 4, '=', STR_PAD_RIGHT);
-                    $payload = json_decode(base64_decode($padded), true);
-                    if (is_array($payload) && !empty($payload['sub'])) {
-                        $request->attributes->set('user_id', $payload['sub']);
-                        $request->attributes->set('user_email', $payload['email'] ?? null);
-                        $request->attributes->set('token_payload', $payload);
+                $client = new \GuzzleHttp\Client(['timeout' => 5]);
+                $authResponse = $client->get(rtrim($supabaseUrl, '/') . '/auth/v1/user', [
+                    'headers' => [
+                        'Authorization' => 'Bearer ' . $token,
+                        'apikey' => $anonKey,
+                        'Accept' => 'application/json',
+                    ],
+                    'http_errors' => false
+                ]);
+
+                if ($authResponse->getStatusCode() === 200) {
+                    $userData = json_decode($authResponse->getBody()->getContents(), true);
+                    if (is_array($userData) && !empty($userData['id'])) {
+                        $request->attributes->set('user_id', $userData['id']);
+                        $request->attributes->set('user_email', $userData['email'] ?? null);
+                        $request->attributes->set('token_payload', $userData);
                         return $next($request);
                     }
                 }
             } catch (\Throwable $ex) {
-                Log::warning('Fallback JWT parse error: ' . $ex->getMessage());
+                Log::error('Supabase Auth API connection failure: ' . $ex->getMessage());
             }
-            
-            if (config('app.env') === 'local' || config('app.debug')) {
-                $request->attributes->set('user_id', 'local_admin_id');
-                $request->attributes->set('user_email', 'admin@holux.com');
-                return $next($request);
-            }
-
-            return response()->json([
-                'message' => 'Token de autenticación no válido.'
-            ], 401);
         }
+
+        // 3. Reject all unverified tokens strictly
+        return response()->json([
+            'message' => 'Token de autenticación no válido o revocado.'
+        ], 401);
     }
 }
