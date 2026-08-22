@@ -7,9 +7,15 @@ export default function ProductEditModal({ product, categories = [], onClose, on
   // Basic info
   const [name, setName] = useState(product?.name || '');
   const [brand, setBrand] = useState(product?.brand || 'HOLUX');
-  const [categoryId, setCategoryId] = useState(product?.category_id || (categories[0]?.id || ''));
   const [description, setDescription] = useState(product?.description || '');
-  const [tags, setTags] = useState(product?.tags ? product.tags.join(', ') : 'Trekking, Outdoor, Alta Montaña');
+  const [specs, setSpecs] = useState(() => {
+    if (Array.isArray(product?.specs)) return product.specs.join('\n');
+    if (Array.isArray(product?.specifications)) return product.specifications.join('\n');
+    if (typeof product?.specs === 'string') return product.specs;
+    if (typeof product?.specifications === 'string') return product.specifications;
+    return '';
+  });
+  const [tags, setTags] = useState(product?.tags ? product.tags.join(', ') : 'Fragancias, Perfumes, Nicho');
 
   // Pricing & Costs
   const [price, setPrice] = useState(product?.price || 0);
@@ -185,6 +191,7 @@ export default function ProductEditModal({ product, categories = [], onClose, on
       brand,
       category_id: categoryId,
       description,
+      specs: specs ? specs.split('\n').map(s => s.trim()).filter(Boolean) : [],
       tags: tags.split(',').map(t => t.trim()).filter(Boolean),
       price: Number(price),
       offer_price: Number(offerPrice),
@@ -410,13 +417,31 @@ export default function ProductEditModal({ product, categories = [], onClose, on
             </div>
 
             <div>
-              <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">Descripción Técnica Completa</label>
+              <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">Descripción del Producto</label>
               <SmoothTextarea
                 rows={3}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Detalla materiales (Gore-Tex, Cordura), impermeabilidad (10.000mm), uso recomendado, etc."
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:border-[#3C6E71] outline-none"
+                placeholder="Detalla notas olfativas de salida, corazón y fondo, acordes principales, fijación, etc."
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:border-[#3C6E71] outline-none text-xs font-sans"
+              />
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">
+                  Detalles y Especificaciones (1 viñeta por línea)
+                </label>
+                <span className="text-[10px] text-gray-400 font-mono-custom">
+                  Se muestran como viñetas debajo de la descripción
+                </span>
+              </div>
+              <SmoothTextarea
+                rows={4}
+                value={specs}
+                onChange={(e) => setSpecs(e.target.value)}
+                placeholder={"100% Original en caja sellada con celofán y estampilla de importación\nConcentración Eau de Parfum (EDP) de alta fijación y proyección\nBatch code y número de serie verificable\nGarantía oficial Holux de autenticidad"}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:border-[#3C6E71] outline-none font-sans text-xs"
               />
             </div>
 

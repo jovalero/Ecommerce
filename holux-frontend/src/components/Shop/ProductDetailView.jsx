@@ -254,7 +254,7 @@ export default function ProductDetailView({
 
               {/* Description */}
               <p className="text-xs sm:text-sm text-gray-600 leading-relaxed font-sans pt-2">
-                {product.description || 'Diseñado y testeado en la Patagonia argentina. Fabricado con tejidos resistentes a la abrasión, impermeabilidad certificada y costuras termoselladas.'}
+                {product.description || 'Fragancia exclusiva de alta gama HOLUX. Elaborada con esencias de primera calidad, fijación prolongada y acordes olfativos sofisticados.'}
               </p>
 
               {/* Size Selector */}

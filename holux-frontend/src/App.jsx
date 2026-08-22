@@ -6574,7 +6574,7 @@ export default function App() {
                       )}
 
                       <p className="text-[10px] text-gray-400 font-sans tracking-wide text-center">
-                        Imagen ilustrativa oficial de HOLUX OUTDOOR. Equipamiento fabricado bajo altos estándares de calidad.
+                        Imagen ilustrativa oficial de HOLUX. Fragancia 100% original con garantía de autenticidad.
                       </p>
                     </div>
                   );
@@ -6757,7 +6757,7 @@ export default function App() {
                             Descripción del producto
                           </h4>
                           <p className="text-xs text-gray-600 leading-relaxed font-sans font-medium">
-                            {selectedDetailProduct.description || "Este equipamiento técnico de alta performance Holux está especialmente desarrollado para soportar condiciones climáticas exigentes. Cuenta con diseño ergonómico, costuras reforzadas y materiales impermeables de alta durabilidad."}
+                            {selectedDetailProduct.description || "Fragancia exclusiva de alta gama HOLUX. Elaborada con esencias de primera calidad, fijación prolongada y acordes olfativos sofisticados."}
                           </p>
                         </div>
 
@@ -6766,11 +6766,29 @@ export default function App() {
                           <h4 className="text-xs font-bold uppercase tracking-wider text-gray-900 font-display">
                             Detalles y especificaciones
                           </h4>
-                          <ul className="text-xs text-gray-500 space-y-1 list-disc list-inside font-sans font-medium">
-                            <li>Material impermeable y cortavientos de alta densidad</li>
-                            <li>Costuras termoselladas para máxima protección contra el agua</li>
-                            <li>Diseño ligero y comprimible para fácil almacenamiento en mochila</li>
-                            <li>Garantía oficial Holux de resistencia al desgaste extremo</li>
+                          <ul className="text-xs text-gray-600 space-y-1 list-disc list-inside font-sans font-medium">
+                            {(() => {
+                              const rawSpecs = selectedDetailProduct.specs || selectedDetailProduct.specifications;
+                              let specList = [];
+                              if (Array.isArray(rawSpecs) && rawSpecs.length > 0) {
+                                specList = rawSpecs.filter(Boolean);
+                              } else if (typeof rawSpecs === 'string' && rawSpecs.trim()) {
+                                specList = rawSpecs.split('\n').map(s => s.trim()).filter(Boolean);
+                              }
+
+                              if (specList.length === 0) {
+                                specList = [
+                                  "100% Original en caja sellada con celofán y estampilla de importación",
+                                  "Concentración Eau de Parfum / Extracto de alta fijación y proyección",
+                                  "Batch code y número de serie verificable",
+                                  "Garantía oficial Holux de autenticidad y satisfacción asegurada"
+                                ];
+                              }
+
+                              return specList.map((item, idx) => (
+                                <li key={idx}>{item}</li>
+                              ));
+                            })()}
                           </ul>
                         </div>
 
