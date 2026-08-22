@@ -33,7 +33,7 @@ export const ProductCard = memo(function ProductCard({
   const netPrice = Math.round(effectivePrice * 0.79);
   const stock = Number(product.stock) || 0;
   const isOutOfStock = stock <= 0;
-  const imageUrl = product.image_url || (Array.isArray(product.images) && product.images[0]) || 'https://images.unsplash.com/photo-1544923246-77307dd654cb?w=800&auto=format&fit=crop&q=80';
+  const imageUrl = product.image_url || (Array.isArray(product.images) && product.images[0]) || '/holuxlogo.png';
 
   return (
     <div className="group bg-white border border-gray-200/90 rounded-xl sm:rounded-2xl overflow-hidden flex flex-col justify-between hover:shadow-xl hover:border-gray-300 transition-all duration-300 relative text-left h-full">
@@ -88,9 +88,9 @@ export const ProductCard = memo(function ProductCard({
           alt={product.name}
           onError={(e) => {
             e.target.onerror = null;
-            e.target.src = 'https://images.unsplash.com/photo-1544923246-77307dd654cb?w=800&auto=format&fit=crop&q=80';
+            e.target.src = '/holuxlogo.png';
           }}
-          className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-all duration-500"
+          className={`absolute inset-0 w-full h-full ${imageUrl.includes('holuxlogo.png') ? 'object-contain p-8 brightness-0' : 'object-cover'} group-hover:scale-105 transition-all duration-500`}
         />
 
         {/* Badge de Reseñas */}
@@ -106,7 +106,7 @@ export const ProductCard = memo(function ProductCard({
         <div className="space-y-1 sm:space-y-1.5">
           {/* Categoría */}
           <div className="text-[8px] sm:text-[10px] text-[#3C6E71] font-bold uppercase tracking-wider font-sans truncate">
-            {(product.brand || 'HOLUX').toUpperCase()} • {(product.categories?.name || 'AVENTURA').toUpperCase()}
+            {(product.brand || 'HOLUX').toUpperCase()} • {(product.categories?.name || 'PERFUMERÍA').toUpperCase()}
           </div>
           
           {/* Nombre del producto */}
@@ -119,9 +119,11 @@ export const ProductCard = memo(function ProductCard({
           </h3>
 
           {/* Descripción */}
-          <p className="text-[9px] sm:text-[11px] text-gray-500 line-clamp-1 sm:line-clamp-2 leading-tight sm:leading-relaxed font-sans">
-            {product.description || "Equipo de alta montaña Holux, confeccionado con costuras reforzadas y materiales impermeables."}
-          </p>
+          {product.description && (
+            <p className="text-[9px] sm:text-[11px] text-gray-500 line-clamp-1 sm:line-clamp-2 leading-tight sm:leading-relaxed font-sans">
+              {product.description}
+            </p>
+          )}
         </div>
 
         {/* 3. Precio e Información Fiscal */}

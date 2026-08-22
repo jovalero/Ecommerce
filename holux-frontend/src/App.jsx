@@ -6752,45 +6752,42 @@ export default function App() {
                         )}
 
                         {/* Description headings */}
-                        <div className="space-y-2 pt-4 border-t border-gray-100">
-                          <h4 className="text-xs font-bold uppercase tracking-wider text-gray-900 font-display">
-                            Descripción del producto
-                          </h4>
-                          <p className="text-xs text-gray-600 leading-relaxed font-sans font-medium">
-                            {selectedDetailProduct.description || "Fragancia exclusiva de alta gama HOLUX. Elaborada con esencias de primera calidad, fijación prolongada y acordes olfativos sofisticados."}
-                          </p>
-                        </div>
+                        {selectedDetailProduct.description && (
+                          <div className="space-y-2 pt-4 border-t border-gray-100">
+                            <h4 className="text-xs font-bold uppercase tracking-wider text-gray-900 font-display">
+                              Descripción del producto
+                            </h4>
+                            <p className="text-xs text-gray-600 leading-relaxed font-sans font-medium">
+                              {selectedDetailProduct.description}
+                            </p>
+                          </div>
+                        )}
 
-                        {/* Specs listing */}
-                        <div className="space-y-1.5 pt-2">
-                          <h4 className="text-xs font-bold uppercase tracking-wider text-gray-900 font-display">
-                            Detalles y especificaciones
-                          </h4>
-                          <ul className="text-xs text-gray-600 space-y-1 list-disc list-inside font-sans font-medium">
-                            {(() => {
-                              const rawSpecs = selectedDetailProduct.specs || selectedDetailProduct.specifications;
-                              let specList = [];
-                              if (Array.isArray(rawSpecs) && rawSpecs.length > 0) {
-                                specList = rawSpecs.filter(Boolean);
-                              } else if (typeof rawSpecs === 'string' && rawSpecs.trim()) {
-                                specList = rawSpecs.split('\n').map(s => s.trim()).filter(Boolean);
-                              }
+                        {/* Specs listing - ONLY render if product has explicit custom specs */}
+                        {(() => {
+                          const rawSpecs = selectedDetailProduct.specs || selectedDetailProduct.specifications;
+                          let specList = [];
+                          if (Array.isArray(rawSpecs) && rawSpecs.length > 0) {
+                            specList = rawSpecs.filter(Boolean);
+                          } else if (typeof rawSpecs === 'string' && rawSpecs.trim()) {
+                            specList = rawSpecs.split('\n').map(s => s.trim()).filter(Boolean);
+                          }
 
-                              if (specList.length === 0) {
-                                specList = [
-                                  "100% Original en caja sellada con celofán y estampilla de importación",
-                                  "Concentración Eau de Parfum / Extracto de alta fijación y proyección",
-                                  "Batch code y número de serie verificable",
-                                  "Garantía oficial Holux de autenticidad y satisfacción asegurada"
-                                ];
-                              }
+                          if (specList.length === 0) return null;
 
-                              return specList.map((item, idx) => (
-                                <li key={idx}>{item}</li>
-                              ));
-                            })()}
-                          </ul>
-                        </div>
+                          return (
+                            <div className="space-y-1.5 pt-2">
+                              <h4 className="text-xs font-bold uppercase tracking-wider text-gray-900 font-display">
+                                Detalles y especificaciones
+                              </h4>
+                              <ul className="text-xs text-gray-600 space-y-1 list-disc list-inside font-sans font-medium">
+                                {specList.map((item, idx) => (
+                                  <li key={idx}>{item}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          );
+                        })()}
 
                         {/* PDP Action Box (Quantity and Dual Buttons: Comprar Ahora & Agregar al Carrito) */}
                         <div className="pt-6 border-t border-gray-100 space-y-4">
@@ -7087,20 +7084,20 @@ export default function App() {
                 </div>
               </div>
               
-              {/* Carousel / Grid Container */}
+              {/* Carousel Container */}
               <div 
                 ref={relatedRef}
-                className="flex lg:grid lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 overflow-x-auto lg:overflow-visible scroll-smooth snap-x snap-mandatory scrollbar-hide py-2"
+                className="flex gap-3 sm:gap-5 lg:gap-6 overflow-x-auto scroll-smooth snap-x snap-mandatory scrollbar-hide py-3 select-none cursor-default"
               >
                 {(products
                   .filter(p => p.id !== selectedDetailProduct.id && (selectedDetailProduct.category_id ? p.category_id === selectedDetailProduct.category_id : true))
-                  .slice(0, 6).length > 0
-                    ? products.filter(p => p.id !== selectedDetailProduct.id && (selectedDetailProduct.category_id ? p.category_id === selectedDetailProduct.category_id : true)).slice(0, 6)
-                    : products.filter(p => p.id !== selectedDetailProduct.id).slice(0, 6)
+                  .slice(0, 10).length > 0
+                    ? products.filter(p => p.id !== selectedDetailProduct.id && (selectedDetailProduct.category_id ? p.category_id === selectedDetailProduct.category_id : true)).slice(0, 10)
+                    : products.filter(p => p.id !== selectedDetailProduct.id).slice(0, 10)
                 ).map(product => (
                   <div
                     key={product.id}
-                    className="snap-start shrink-0 w-[165px] sm:w-[220px] md:w-[260px] lg:w-auto"
+                    className="snap-start shrink-0 w-[170px] sm:w-[220px] md:w-[260px] lg:w-[270px]"
                   >
                     <ProductCard
                       product={product}
