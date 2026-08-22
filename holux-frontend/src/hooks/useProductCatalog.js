@@ -88,6 +88,11 @@ export function useProductCatalog(token) {
         }
       });
 
+      if (res.status === 401) {
+        setError('Sesión expirada o no autorizada. Por favor iniciá sesión nuevamente.');
+        return;
+      }
+
       if (!res.ok) {
         throw new Error(`HTTP ${res.status}: Error al cargar catálogo`);
       }

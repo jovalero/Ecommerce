@@ -578,7 +578,7 @@ export default function App() {
           }
         }
       } catch (err) {
-        console.error("Error syncing favorites:", err);
+        // Stale or expired token
       }
     };
     syncFavorites();
