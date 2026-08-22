@@ -1978,16 +1978,24 @@ export default function App() {
   const handleDeleteProduct = async (id) => {
     if (!confirm('¿Seguro de eliminar este producto?')) return;
     try {
-      const res = await fetch(`${API_BASE_URL}/api/admin/products/${id}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) {
-        fetchAdminProducts();
-        fetchCatalog();
+      if (productCatalogState && typeof productCatalogState.deleteSingleProduct === 'function') {
+        await productCatalogState.deleteSingleProduct(id);
+      } else {
+        const res = await fetch(`${API_BASE_URL}/api/admin/products/${id}`, {
+          method: 'DELETE',
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json'
+          }
+        });
+        if (res.ok) {
+          productCatalogState.fetchProducts();
+        }
       }
+      fetchCatalog();
     } catch (e) {
       console.error(e);
+      alert('No se pudo eliminar el producto.');
     }
   };
 

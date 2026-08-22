@@ -276,6 +276,30 @@ export function useProductCatalog(token) {
     }
   };
 
+  // Single Product Delete
+  const deleteSingleProduct = async (id) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/products/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+        }
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || 'Error al eliminar producto');
+      }
+      setProducts(prev => prev.filter(p => String(p.id) !== String(id)));
+      setPagination(prev => ({ ...prev, total: Math.max(0, prev.total - 1) }));
+      fetchProducts();
+      return true;
+    } catch (err) {
+      console.error(err);
+      throw err;
+    }
+  };
+
   // Export CSV
   const handleExportCSV = async () => {
     try {
@@ -356,6 +380,7 @@ export function useProductCatalog(token) {
     executeBulkCategory,
     executeBulkInstallments,
     executeBulkDelete,
+    deleteSingleProduct,
     handleExportCSV,
     handleImportCSV,
   };
