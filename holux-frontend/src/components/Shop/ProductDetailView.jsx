@@ -246,7 +246,7 @@ export default function ProductDetailView({
                 {Number(product.installments) > 1 && (
                   <div>
                     <span className="bg-[#EBDCF0] text-[#7E3793] text-xs font-bold px-2.5 py-1 rounded tracking-wide uppercase inline-block font-sans">
-                      {product.installments} cuotas fijas de {formatMoney(product.price / product.installments)}
+                      {product.installments} cuotas fijas de {formatMoney(effectivePrice / product.installments)}
                     </span>
                   </div>
                 )}

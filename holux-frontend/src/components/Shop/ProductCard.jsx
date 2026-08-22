@@ -137,6 +137,15 @@ export const ProductCard = memo(function ProductCard({
             )}
           </div>
 
+          {/* Cartel Morado de Cuotas Fijas */}
+          {Number(product.installments) > 1 && (
+            <div>
+              <span className="bg-[#EBDCF0] text-[#7E3793] text-[9px] sm:text-[10px] font-extrabold px-2 py-0.5 rounded tracking-tight uppercase inline-block font-sans">
+                {product.installments} cuotas fijas de ${Math.round(effectivePrice / Number(product.installments)).toLocaleString('es-AR')}
+              </span>
+            </div>
+          )}
+
           <div className="space-y-0.5 text-gray-400 font-sans text-[8.5px] sm:text-[9.5px] leading-tight">
             <div>CFTA: 0%</div>
             <div>Precio sin impuestos nacionales: ${netPrice.toLocaleString('es-AR')}</div>
