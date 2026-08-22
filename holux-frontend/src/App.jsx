@@ -368,6 +368,7 @@ export default function App() {
     if (hash.startsWith('#/catalogo')) return 'category';
     if (hash.startsWith('#/compra-confirmada')) return 'checkout';
     if (hash.startsWith('#/info/')) return 'info_page';
+    if (hash.startsWith('#/producto/')) return 'product-detail';
     return 'home';
   });
   const [sortBy, setSortBy] = useState('relevant'); // 'relevant' | 'price-asc' | 'price-desc'
@@ -1386,17 +1387,31 @@ export default function App() {
         window.scrollTo({ top: 0, behavior: 'instant' });
       } else if (hash.startsWith('#/producto/')) {
         const prodId = hash.replace('#/producto/', '').split('?')[0];
-        if (products.length > 0) {
-          const found = products.find(p => String(p.id) === String(prodId));
-          if (found) {
-            setSelectedDetailProduct(found);
-            setSelectedProduct(found);
-            setDetailQuantity(1);
-            setSelectedSize('');
-            setSizeError(false);
-            setCurrentView('product-detail');
-            handleOpenReviews(found);
-          }
+        setCurrentView('product-detail');
+        const found = products.find(p => String(p.id) === String(prodId));
+        if (found) {
+          setSelectedDetailProduct(found);
+          setSelectedProduct(found);
+          setDetailQuantity(1);
+          setSelectedSize('');
+          setSizeError(false);
+          handleOpenReviews(found);
+          window.scrollTo({ top: 0, behavior: 'instant' });
+        } else if (prodId) {
+          fetch(`${API_BASE_URL}/api/products/${prodId}`)
+            .then(res => res.ok ? res.json() : null)
+            .then(prod => {
+              if (prod) {
+                setSelectedDetailProduct(prod);
+                setSelectedProduct(prod);
+                setDetailQuantity(1);
+                setSelectedSize('');
+                setSizeError(false);
+                handleOpenReviews(prod);
+                window.scrollTo({ top: 0, behavior: 'instant' });
+              }
+            })
+            .catch(err => console.error(err));
         }
       }
     };
@@ -6423,8 +6438,9 @@ export default function App() {
       )}
 
       {/* --- DEDICATED PRODUCT DETAIL PAGE VIEW --- */}
-      {currentView === 'product-detail' && selectedDetailProduct && (
-        <main className="flex-grow bg-[#F2EFE9] py-10 font-sans">
+      {currentView === 'product-detail' && (
+        selectedDetailProduct ? (
+          <main className="flex-grow bg-[#F2EFE9] py-10 font-sans">
           <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8">
             
             {/* Breadcrumbs */}
@@ -7083,6 +7099,16 @@ export default function App() {
 
           </div>
         </main>
+        ) : (
+          <main className="flex-grow bg-[#F2EFE9] py-32 font-sans flex items-center justify-center">
+            <div className="text-center space-y-4">
+              <div className="w-10 h-10 border-4 border-[#3C6E71] border-t-transparent rounded-full animate-spin mx-auto"></div>
+              <p className="font-display text-xs font-bold text-gray-700 uppercase tracking-widest">
+                Cargando producto...
+              </p>
+            </div>
+          </main>
+        )
       )}
 
       {/* --- PROMO BANNER (CUOTAS / FINANCIACIÓN) --- */}
