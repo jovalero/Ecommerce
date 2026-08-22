@@ -2604,31 +2604,29 @@ export default function App() {
   // --- FILTERS (MEMOIZED TO PREVENT TYPING LAG IN FORMS) ---
   const sortedProducts = useMemo(() => {
     const filtered = products.filter(p => {
+      const nameLower = (p.name || '').toLowerCase();
+      const isUnisex = nameLower.includes('unissex') || nameLower.includes('unisex');
+      const catSlug = p.categories ? p.categories.slug : '';
+
       if (activeCategory) {
         if (activeCategory === 'outlet' || activeCategory === 'ofertas' || activeCategory === 'offers') {
           const discount = getProductDiscount(p);
           const hasOffer = (Number(p.offer_price) > 0 && Number(p.offer_price) < Number(p.price)) || Number(p.original_price) > Number(p.price);
           if (discount <= 0 && !hasOffer) return false;
-        } else if (!p.categories || p.categories.slug !== activeCategory) {
-          return false;
+        } else {
+          const isDirectMatch = catSlug === activeCategory;
+          const isUnisexMatch = isUnisex && (activeCategory === 'perfumes-hombre' || activeCategory === 'perfumes-mujer');
+          if (!isDirectMatch && !isUnisexMatch) return false;
         }
       }
       if (activeGender) {
-        const nameLower = (p.name || '').toLowerCase();
         if (activeGender === 'mujer') {
-          if (!nameLower.includes('campera') && !nameLower.includes('pantalón') && !nameLower.includes('botas') && !nameLower.includes('mochila')) {
-            return false;
-          }
+          const isFeminine = catSlug === 'perfumes-mujer' || nameLower.includes('feminino') || nameLower.includes('pour femme') || nameLower.includes('for her') || isUnisex;
+          if (!isFeminine) return false;
         }
         if (activeGender === 'hombre') {
-          if (!nameLower.includes('campera') && !nameLower.includes('pantalón') && !nameLower.includes('bastones') && !nameLower.includes('termo')) {
-            return false;
-          }
-        }
-        if (activeGender === 'niños') {
-          if (!nameLower.includes('termo') && !nameLower.includes('bastones') && !nameLower.includes('bolsa')) {
-            return false;
-          }
+          const isMasculine = catSlug === 'perfumes-hombre' || nameLower.includes('masculino') || nameLower.includes('pour homme') || nameLower.includes('for men') || isUnisex;
+          if (!isMasculine) return false;
         }
         if (activeGender === 'outlet') {
           const discount = getProductDiscount(p);

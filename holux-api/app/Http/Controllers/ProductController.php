@@ -104,13 +104,19 @@ class ProductController extends Controller
 
             // A) Category filter
             if (!empty($categorySlugs)) {
-                if (!in_array($pCatSlug, $categorySlugs, true)) {
+                $isUnisex = str_contains($pNameLower, 'unissex') || str_contains($pNameLower, 'unisex');
+                $matchedCat = in_array($pCatSlug, $categorySlugs, true);
+                if (!$matchedCat && $isUnisex && (in_array('perfumes-hombre', $categorySlugs, true) || in_array('perfumes-mujer', $categorySlugs, true))) {
+                    $matchedCat = true;
+                }
+                if (!$matchedCat) {
                     return false;
                 }
             }
 
-            // B) Collections filter (mujer, hombre, niños/ninos, outlet)
+            // B) Collections filter (mujer, hombre, outlet)
             if (!empty($collections)) {
+                $isUnisex = str_contains($pNameLower, 'unissex') || str_contains($pNameLower, 'unisex');
                 $collectionMatch = false;
                 foreach ($collections as $col) {
                     if ($col === 'outlet') {
@@ -120,40 +126,26 @@ class ProductController extends Controller
                         }
                     } elseif ($col === 'mujer') {
                         if (
+                            $pCatSlug === 'perfumes-mujer' ||
+                            $isUnisex ||
                             in_array('mujer', $pTags, true) ||
                             in_array('femenino', $pTags, true) ||
-                            str_contains($pNameLower, 'campera') ||
-                            str_contains($pNameLower, 'pantalón') ||
-                            str_contains($pNameLower, 'pantalon') ||
-                            str_contains($pNameLower, 'botas') ||
-                            str_contains($pNameLower, 'mochila') ||
-                            str_contains($pNameLower, 'chaleco')
+                            str_contains($pNameLower, 'feminino') ||
+                            str_contains($pNameLower, 'pour femme') ||
+                            str_contains($pNameLower, 'for her')
                         ) {
                             $collectionMatch = true;
                             break;
                         }
                     } elseif ($col === 'hombre') {
                         if (
+                            $pCatSlug === 'perfumes-hombre' ||
+                            $isUnisex ||
                             in_array('hombre', $pTags, true) ||
                             in_array('masculino', $pTags, true) ||
-                            str_contains($pNameLower, 'campera') ||
-                            str_contains($pNameLower, 'pantalón') ||
-                            str_contains($pNameLower, 'pantalon') ||
-                            str_contains($pNameLower, 'bastones') ||
-                            str_contains($pNameLower, 'termo') ||
-                            str_contains($pNameLower, 'zapatillas')
-                        ) {
-                            $collectionMatch = true;
-                            break;
-                        }
-                    } elseif ($col === 'niños' || $col === 'ninos') {
-                        if (
-                            in_array('niños', $pTags, true) ||
-                            in_array('ninos', $pTags, true) ||
-                            str_contains($pNameLower, 'termo') ||
-                            str_contains($pNameLower, 'bastones') ||
-                            str_contains($pNameLower, 'gorro') ||
-                            str_contains($pNameLower, 'bolsa')
+                            str_contains($pNameLower, 'masculino') ||
+                            str_contains($pNameLower, 'pour homme') ||
+                            str_contains($pNameLower, 'for men')
                         ) {
                             $collectionMatch = true;
                             break;
