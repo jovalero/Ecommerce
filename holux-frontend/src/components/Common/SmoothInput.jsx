@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef, memo } from 'react';
+import React, { useState, useEffect, useRef, memo } from 'react';
 
 /**
  * SmoothInput: Ultra-responsive input that isolates keystrokes to 0ms input lag,
@@ -91,6 +91,12 @@ export const SmoothTextarea = memo(React.forwardRef(function SmoothTextarea(
     isTypingRef.current = false;
     if (onBlur) {
       onBlur(e);
+    }
+  };
+
+  const handleKeyDown = (e) => {
+    if (onKeyDown) {
+      onKeyDown(e);
     }
   };
 
