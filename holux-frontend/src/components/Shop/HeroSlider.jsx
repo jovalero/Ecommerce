@@ -148,11 +148,19 @@ export const HeroSlider = memo(function HeroSlider({
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      window.location.hash = '#/catalogo';
+                      if (slide.link) {
+                        if (slide.link.startsWith('#') || slide.link.startsWith('/')) {
+                          window.location.hash = slide.link.replace(/^#\/?/, '#/');
+                        } else {
+                          window.open(slide.link, '_blank');
+                        }
+                      } else {
+                        window.location.hash = '#/catalogo';
+                      }
                     }}
                     className="px-6 py-3 sm:px-8 sm:py-3.5 bg-black hover:bg-neutral-800 text-white font-display text-xs sm:text-sm font-bold tracking-widest rounded-lg shadow-lg hover:shadow-xl transition-all cursor-pointer inline-flex items-center gap-2 border border-white/10"
                   >
-                    {slide.cta}
+                    {slide.cta || 'EXPLORAR CATÁLOGO'}
                     <ChevronRight className="w-4 h-4" />
                   </button>
                 </div>

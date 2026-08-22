@@ -87,6 +87,9 @@ export default function BannerEditor({ heroSlides = [], setHeroSlides, promoBann
     }
 
     setHeroSlides(updated);
+    try {
+      localStorage.setItem('holux_hero_slides', JSON.stringify(updated));
+    } catch (err) {}
     setEditingIndex(null);
     setSavedMsg(true);
     setTimeout(() => setSavedMsg(false), 3000);
@@ -100,12 +103,28 @@ export default function BannerEditor({ heroSlides = [], setHeroSlides, promoBann
     updated[idx] = updated[targetIdx];
     updated[targetIdx] = temp;
     setHeroSlides(updated);
+    try {
+      localStorage.setItem('holux_hero_slides', JSON.stringify(updated));
+    } catch (err) {}
   };
 
   const handleDelete = (idx) => {
-    if (!confirm('¿Seguro de eliminar este banner?')) return;
-    const updated = heroSlides.filter((_, i) => i !== idx);
-    setHeroSlides(updated);
+    setConfirmMeta({
+      title: '¿ELIMINAR BANNER?',
+      message: `¿Estás seguro de que deseas eliminar permanentemente el banner #${idx + 1}? Esta acción no se puede deshacer.`
+    });
+    setConfirmAction(() => () => {
+      const updated = heroSlides.filter((_, i) => i !== idx);
+      setHeroSlides(updated);
+      try {
+        localStorage.setItem('holux_hero_slides', JSON.stringify(updated));
+      } catch (err) {}
+      if (editingIndex === idx) {
+        setEditingIndex(null);
+        setTitle('');
+      }
+    });
+    setIsConfirmOpen(true);
   };
 
   const handleSaveAllGlobal = () => {
@@ -372,6 +391,31 @@ export default function BannerEditor({ heroSlides = [], setHeroSlides, promoBann
                   required
                   value={span}
                   onChange={(e) => setSpan(e.target.value)}
+                  className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-900 focus:border-[#3C6E71] focus:bg-white outline-none transition-all"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">PALABRA DESTACADA (FONDO VERDE)</label>
+                <input
+                  type="text"
+                  value={highlight}
+                  onChange={(e) => setHighlight(e.target.value)}
+                  placeholder="Ej: EXCLUSIVO / NUEVA TEMPORADA"
+                  className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-900 focus:border-[#3C6E71] focus:bg-white outline-none transition-all"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">TEXTO DEL BOTÓN (CTA)</label>
+                <input
+                  type="text"
+                  required
+                  value={cta}
+                  onChange={(e) => setCta(e.target.value)}
+                  placeholder="Ej: VER PERFUMES / COMPRAR AHORA"
                   className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-900 focus:border-[#3C6E71] focus:bg-white outline-none transition-all"
                 />
               </div>

@@ -380,7 +380,14 @@ export default function App() {
   const [sizeGuideCategory, setSizeGuideCategory] = useState('tops'); // 'tops' | 'bottoms' | 'footwear'
 
   // Cart & Orders
-  const [heroSlides, setHeroSlides] = useState(slides);
+  const [heroSlides, setHeroSlides] = useState(() => {
+    try {
+      const saved = localStorage.getItem('holux_hero_slides');
+      return saved ? JSON.parse(saved) : slides;
+    } catch (e) {
+      return slides;
+    }
+  });
   const [selectedPrintOrder, setSelectedPrintOrder] = useState(null);
   const [selectedOrderDetail, setSelectedOrderDetail] = useState(null);
   const [adminOrderSearchQuery, setAdminOrderSearchQuery] = useState('');
@@ -6225,7 +6232,7 @@ export default function App() {
         <>
           {/* --- HERO BANNER (SLIDER CAROUSEL) --- */}
           {/* --- HERO BANNER (Isolated Performance Optimized Slider) --- */}
-          <HeroSlider slides={slides} />
+          <HeroSlider slides={heroSlides} />
 
           {/* --- NOVEDADES DE HOLUX (SLIDER CAROUSEL) --- */}
           <section id="catalogo" className="w-full px-4 sm:px-8 lg:px-12 py-12">
