@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Trash2, Image as ImageIcon, Video, Copy, Tag, DollarSign, Layers, Search, Sparkles, GripVertical, ArrowUp, ArrowDown } from 'lucide-react';
+import { X, Plus, Trash2, Image as ImageIcon, Video, Copy, Tag, DollarSign, Layers, Search, Sparkles, GripVertical, ArrowUp, ArrowDown, Star, ChevronLeft, ChevronRight } from 'lucide-react';
 import ConfirmationModal from './ConfirmationModal';
 import { SmoothInput, SmoothTextarea } from '../Common/SmoothInput';
 
@@ -126,6 +126,45 @@ export default function ProductEditModal({ product, categories = [], onClose, on
 
   const handleRemoveImage = (idx) => {
     setImages(images.filter((_, i) => i !== idx));
+  };
+
+  const [draggedImageIndex, setDraggedImageIndex] = useState(null);
+
+  const handleSetMainImage = (idx) => {
+    if (idx === 0) return;
+    const selected = images[idx];
+    const remaining = images.filter((_, i) => i !== idx);
+    setImages([selected, ...remaining]);
+  };
+
+  const handleMoveImage = (idx, direction) => {
+    const targetIdx = idx + direction;
+    if (targetIdx < 0 || targetIdx >= images.length) return;
+    const updated = [...images];
+    const temp = updated[idx];
+    updated[idx] = updated[targetIdx];
+    updated[targetIdx] = temp;
+    setImages(updated);
+  };
+
+  const handleImageDragStart = (e, idx) => {
+    setDraggedImageIndex(idx);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleImageDragOver = (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleImageDrop = (e, targetIdx) => {
+    e.preventDefault();
+    if (draggedImageIndex === null || draggedImageIndex === targetIdx) return;
+    const updated = [...images];
+    const [draggedItem] = updated.splice(draggedImageIndex, 1);
+    updated.splice(targetIdx, 0, draggedItem);
+    setImages(updated);
+    setDraggedImageIndex(null);
   };
 
   // Curation Flags
@@ -658,26 +697,101 @@ export default function ProductEditModal({ product, categories = [], onClose, on
 
             {/* List of images */}
             <div>
-              <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-2">Imágenes del Producto ({images.length})</label>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
-                {images.map((img, idx) => (
-                  <div key={idx} className="relative group border border-gray-200 rounded-lg overflow-hidden bg-gray-100 h-28 flex items-center justify-center">
-                    <img src={img} alt={`Preview ${idx}`} className="w-full h-full object-cover" />
-                    {idx === 0 && (
-                      <span className="absolute top-1 left-1 bg-[#3C6E71] text-white px-1.5 py-0.5 rounded text-[8px] font-bold tracking-wider font-display shadow">
-                        PRINCIPAL
-                      </span>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveImage(idx)}
-                      className="absolute top-1 right-1 bg-red-600 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer shadow"
-                      title="Eliminar imagen"
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-2 gap-1">
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">
+                  Imágenes del Producto ({images.length})
+                </label>
+                <span className="text-[10px] text-[#3C6E71] font-mono-custom font-semibold">
+                  💡 Arrastrá para reordenar o tocá "Hacer Principal"
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mb-3">
+                {images.map((img, idx) => {
+                  const isMain = idx === 0;
+                  const isDragging = draggedImageIndex === idx;
+
+                  return (
+                    <div
+                      key={idx}
+                      draggable
+                      onDragStart={(e) => handleImageDragStart(e, idx)}
+                      onDragOver={handleImageDragOver}
+                      onDrop={(e) => handleImageDrop(e, idx)}
+                      className={`relative group border-2 rounded-xl overflow-hidden bg-gray-100 h-32 flex items-center justify-center transition-all cursor-grab active:cursor-grabbing select-none ${
+                        isMain 
+                          ? 'border-[#3C6E71] ring-2 ring-[#3C6E71]/25 shadow-sm' 
+                          : 'border-gray-200 hover:border-[#3C6E71]/60'
+                      } ${isDragging ? 'opacity-30 scale-95' : 'opacity-100'}`}
                     >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                ))}
+                      <img src={img} alt={`Preview ${idx}`} className="w-full h-full object-cover pointer-events-none" />
+                      
+                      {/* Badge Principal o Botón para Hacer Principal */}
+                      {isMain ? (
+                        <span className="absolute top-1.5 left-1.5 bg-[#3C6E71] text-white px-2 py-0.5 rounded text-[8px] font-bold tracking-wider font-display shadow flex items-center gap-1 z-10">
+                          <Star className="w-2.5 h-2.5 fill-white" />
+                          PRINCIPAL
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleSetMainImage(idx);
+                          }}
+                          className="absolute top-1.5 left-1.5 bg-black/80 hover:bg-[#3C6E71] text-white px-2 py-0.5 rounded text-[8px] font-bold tracking-wider font-display shadow opacity-0 group-hover:opacity-100 transition-all cursor-pointer flex items-center gap-1 z-10"
+                          title="Establecer como imagen principal del producto"
+                        >
+                          <Star className="w-2.5 h-2.5" />
+                          HACER PRINCIPAL
+                        </button>
+                      )}
+
+                      {/* Flechas de reordenar rápido a la izquierda / derecha */}
+                      <div className="absolute bottom-1.5 left-1.5 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                        {idx > 0 && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleMoveImage(idx, -1);
+                            }}
+                            className="bg-black/75 hover:bg-black text-white p-1 rounded-md cursor-pointer transition-colors shadow"
+                            title="Mover a la izquierda"
+                          >
+                            <ChevronLeft className="w-3 h-3" />
+                          </button>
+                        )}
+                        {idx < images.length - 1 && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleMoveImage(idx, 1);
+                            }}
+                            className="bg-black/75 hover:bg-black text-white p-1 rounded-md cursor-pointer transition-colors shadow"
+                            title="Mover a la derecha"
+                          >
+                            <ChevronRight className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Botón eliminar imagen */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemoveImage(idx);
+                        }}
+                        className="absolute top-1.5 right-1.5 bg-red-600 hover:bg-red-700 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-all cursor-pointer shadow z-10"
+                        title="Eliminar imagen"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
 
               <div className="flex gap-2">
