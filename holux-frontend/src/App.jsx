@@ -940,12 +940,52 @@ export default function App() {
     if (hash && hash.startsWith('#')) {
       const params = new URLSearchParams(hash.substring(1));
       const accessToken = params.get('access_token');
+      const refreshToken = params.get('refresh_token');
       if (accessToken) {
         setToken(accessToken);
+        if (refreshToken) {
+          localStorage.setItem('supabase_refresh_token', refreshToken);
+        }
         // Clean up url hash
         window.history.replaceState(null, null, window.location.pathname);
       }
     }
+  }, []);
+
+  // Automatic Background Token Refresh (Keeps session alive for weeks/months)
+  useEffect(() => {
+    const refreshSession = async () => {
+      const refreshToken = localStorage.getItem('supabase_refresh_token');
+      if (!refreshToken) return;
+      try {
+        const response = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': SUPABASE_ANON_KEY
+          },
+          body: JSON.stringify({ refresh_token: refreshToken })
+        });
+        if (response.ok) {
+          const data = await response.json();
+          if (data.access_token) {
+            setToken(data.access_token);
+            localStorage.setItem('user_token', data.access_token);
+            localStorage.setItem('holux_auth_token', data.access_token);
+            if (data.refresh_token) {
+              localStorage.setItem('supabase_refresh_token', data.refresh_token);
+            }
+          }
+        }
+      } catch (err) {
+        // silent refresh
+      }
+    };
+
+    // Auto-refresh on mount and every 20 minutes
+    refreshSession();
+    const interval = setInterval(refreshSession, 20 * 60 * 1000);
+    return () => clearInterval(interval);
   }, []);
 
   const fetchCatalog = async () => {
@@ -2075,6 +2115,9 @@ export default function App() {
         const data = await response.json();
         if (response.ok && data.access_token) {
           setToken(data.access_token);
+          if (data.refresh_token) {
+            localStorage.setItem('supabase_refresh_token', data.refresh_token);
+          }
           setIsAuthModalOpen(false);
           setAuthEmail('');
           setAuthPassword('');
