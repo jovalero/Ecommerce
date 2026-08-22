@@ -105,7 +105,17 @@ class ProductController extends Controller
             // A) Category filter
             if (!empty($categorySlugs)) {
                 $isUnisex = str_contains($pNameLower, 'unissex') || str_contains($pNameLower, 'unisex');
-                $matchedCat = in_array($pCatSlug, $categorySlugs, true);
+                $matchedCat = in_array($pCatSlug, $categorySlugs, true) || in_array(strtolower((string)($p['category_id'] ?? '')), $categorySlugs, true);
+                
+                if (!$matchedCat && !empty($p['category_ids']) && is_array($p['category_ids'])) {
+                    foreach ($p['category_ids'] as $cid) {
+                        if (in_array(strtolower((string)$cid), $categorySlugs, true)) {
+                            $matchedCat = true;
+                            break;
+                        }
+                    }
+                }
+
                 if (!$matchedCat && $isUnisex && (in_array('perfumes-hombre', $categorySlugs, true) || in_array('perfumes-mujer', $categorySlugs, true))) {
                     $matchedCat = true;
                 }

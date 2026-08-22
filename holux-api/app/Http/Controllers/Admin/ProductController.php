@@ -63,7 +63,7 @@ class ProductController extends Controller
             // Persist extended metadata (variants, images, description, etc.)
             $metadata = $request->only([
                 'variants', 'images', 'image_url', 'description', 'tags', 'specs', 'specifications',
-                'offer_price', 'cost_price', 'slug', 'meta_title', 'meta_description',
+                'category_ids', 'offer_price', 'cost_price', 'slug', 'meta_title', 'meta_description',
                 'is_featured', 'is_new', 'video_url'
             ]);
             if (!empty($metadata)) {
@@ -125,7 +125,7 @@ class ProductController extends Controller
             // Persist extended metadata (variants, images, description, etc.)
             $metadata = $request->only([
                 'variants', 'images', 'image_url', 'description', 'tags', 'specs', 'specifications',
-                'offer_price', 'cost_price', 'slug', 'meta_title', 'meta_description',
+                'category_ids', 'offer_price', 'cost_price', 'slug', 'meta_title', 'meta_description',
                 'is_featured', 'is_new', 'video_url'
             ]);
             if (!empty($metadata)) {

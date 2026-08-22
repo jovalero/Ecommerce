@@ -7,8 +7,33 @@ export default function ProductEditModal({ product, categories = [], onClose, on
   // Basic info
   const [name, setName] = useState(product?.name || '');
   const [brand, setBrand] = useState(product?.brand || 'HOLUX');
+  const [categoryIds, setCategoryIds] = useState(() => {
+    if (Array.isArray(product?.category_ids) && product.category_ids.length > 0) {
+      return product.category_ids;
+    }
+    if (product?.category_id) {
+      return [product.category_id];
+    }
+    return categories[0]?.id ? [categories[0].id] : [];
+  });
   const [categoryId, setCategoryId] = useState(product?.category_id || (categories[0]?.id || ''));
   const [description, setDescription] = useState(product?.description || '');
+
+  const toggleCategory = (catId) => {
+    setCategoryIds(prev => {
+      let updated;
+      if (prev.includes(catId)) {
+        if (prev.length === 1) return prev;
+        updated = prev.filter(id => id !== catId);
+      } else {
+        updated = [...prev, catId];
+      }
+      if (updated.length > 0) {
+        setCategoryId(updated[0]);
+      }
+      return updated;
+    });
+  };
   const [specs, setSpecs] = useState(() => {
     if (Array.isArray(product?.specs)) return product.specs.join('\n');
     if (Array.isArray(product?.specifications)) return product.specifications.join('\n');
@@ -190,7 +215,8 @@ export default function ProductEditModal({ product, categories = [], onClose, on
       id: product?.id,
       name,
       brand,
-      category_id: categoryId,
+      category_id: categoryIds[0] || categoryId || categories[0]?.id || '',
+      category_ids: categoryIds,
       description,
       specs: specs ? specs.split('\n').map(s => s.trim()).filter(Boolean) : [],
       tags: tags.split(',').map(t => t.trim()).filter(Boolean),
@@ -389,32 +415,57 @@ export default function ProductEditModal({ product, categories = [], onClose, on
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">Categoría Principal *</label>
-                <select
-                  required
-                  value={categoryId}
-                  onChange={(e) => setCategoryId(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:border-[#3C6E71] outline-none bg-white font-bold text-gray-800"
-                >
-                  <option value="">Seleccionar Categoría</option>
-                  {categories.map(cat => (
-                    <option key={cat.id} value={cat.id}>{cat.name}</option>
-                  ))}
-                </select>
+            {/* Categorías Múltiples (Checkboxes) */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">
+                  Categorías a las que pertenece el producto (Podés marcar varias) *
+                </label>
+                <span className="text-[10px] text-[#3C6E71] font-mono-custom font-bold bg-[#3C6E71]/10 px-2 py-0.5 rounded-full">
+                  {categoryIds.length} seleccionada{categoryIds.length === 1 ? '' : 's'}
+                </span>
               </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 bg-gray-50/80 p-3 rounded-xl border border-gray-200">
+                {categories.map(cat => {
+                  const isChecked = categoryIds.includes(cat.id);
+                  return (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => toggleCategory(cat.id)}
+                      className={`flex items-center gap-2.5 p-2.5 rounded-lg border text-xs cursor-pointer transition-all text-left ${
+                        isChecked
+                          ? 'bg-[#3C6E71]/10 border-[#3C6E71] text-[#3C6E71] shadow-2xs font-bold'
+                          : 'bg-white border-gray-200 text-gray-700 hover:border-gray-300 font-medium'
+                      }`}
+                    >
+                      <div className={`w-4 h-4 rounded flex items-center justify-center border transition-all shrink-0 ${
+                        isChecked ? 'bg-[#3C6E71] border-[#3C6E71] text-white' : 'border-gray-300 bg-white'
+                      }`}>
+                        {isChecked && (
+                          <svg className="w-3 h-3 fill-current" viewBox="0 0 20 20">
+                            <path d="M0 11l2-2 5 5L18 3l2 2L7 18z"/>
+                          </svg>
+                        )}
+                      </div>
+                      <span className="truncate">{cat.name}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
 
-              <div>
-                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">Etiquetas / Tags (separados por coma)</label>
-                <SmoothInput
-                  type="text"
-                  value={tags}
-                  onChange={(e) => setTags(e.target.value)}
-                  placeholder="Ej: Trekking, Impermeable, Nieve"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:border-[#3C6E71] outline-none"
-                />
-              </div>
+            <div>
+              <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">
+                Etiquetas / Tags adicionales (separados por coma)
+              </label>
+              <SmoothInput
+                type="text"
+                value={tags}
+                onChange={(e) => setTags(e.target.value)}
+                placeholder="Ej: Unisex, Amaderado, Cítrico, Noche, Verano"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:border-[#3C6E71] outline-none text-xs"
+              />
             </div>
 
             <div>

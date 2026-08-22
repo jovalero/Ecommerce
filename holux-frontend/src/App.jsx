@@ -2630,24 +2630,26 @@ export default function App() {
       const isUnisex = nameLower.includes('unissex') || nameLower.includes('unisex');
       const catSlug = p.categories ? p.categories.slug : '';
 
+      const catIds = Array.isArray(p.category_ids) ? p.category_ids : (p.category_id ? [p.category_id] : []);
+
       if (activeCategory) {
         if (activeCategory === 'outlet' || activeCategory === 'ofertas' || activeCategory === 'offers') {
           const discount = getProductDiscount(p);
           const hasOffer = (Number(p.offer_price) > 0 && Number(p.offer_price) < Number(p.price)) || Number(p.original_price) > Number(p.price);
           if (discount <= 0 && !hasOffer) return false;
         } else {
-          const isDirectMatch = catSlug === activeCategory;
+          const isDirectMatch = catSlug === activeCategory || catIds.includes(activeCategory) || (Array.isArray(categories) && categories.some(c => c.slug === activeCategory && catIds.includes(c.id)));
           const isUnisexMatch = isUnisex && (activeCategory === 'perfumes-hombre' || activeCategory === 'perfumes-mujer');
           if (!isDirectMatch && !isUnisexMatch) return false;
         }
       }
       if (activeGender) {
         if (activeGender === 'mujer') {
-          const isFeminine = catSlug === 'perfumes-mujer' || nameLower.includes('feminino') || nameLower.includes('pour femme') || nameLower.includes('for her') || isUnisex;
+          const isFeminine = catSlug === 'perfumes-mujer' || (Array.isArray(categories) && categories.some(c => c.slug === 'perfumes-mujer' && catIds.includes(c.id))) || nameLower.includes('feminino') || nameLower.includes('pour femme') || nameLower.includes('for her') || isUnisex;
           if (!isFeminine) return false;
         }
         if (activeGender === 'hombre') {
-          const isMasculine = catSlug === 'perfumes-hombre' || nameLower.includes('masculino') || nameLower.includes('pour homme') || nameLower.includes('for men') || isUnisex;
+          const isMasculine = catSlug === 'perfumes-hombre' || (Array.isArray(categories) && categories.some(c => c.slug === 'perfumes-hombre' && catIds.includes(c.id))) || nameLower.includes('masculino') || nameLower.includes('pour homme') || nameLower.includes('for men') || isUnisex;
           if (!isMasculine) return false;
         }
         if (activeGender === 'outlet') {
