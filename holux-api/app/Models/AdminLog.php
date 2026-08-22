@@ -17,11 +17,18 @@ class AdminLog
      * @param array $details
      * @return array
      */
-    public static function record(?string $user, string $action, string $table, array $details): array
+    public static function record(mixed $user, string $action, string $table, array $details): array
     {
+        $userEmail = 'admin@holux.com';
+        if (is_object($user)) {
+            $userEmail = $user->email ?? 'admin@holux.com';
+        } elseif (is_string($user) && !empty($user)) {
+            $userEmail = $user;
+        }
+
         $entry = [
             'id' => (string) \Illuminate\Support\Str::uuid(),
-            'user' => $user ?: 'admin@holux.com',
+            'user' => $userEmail,
             'action' => $action,
             'affected_table' => $table,
             'details' => $details,

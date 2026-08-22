@@ -323,7 +323,7 @@ class ProductCatalogController extends Controller
         $installments = (int) $request->input('installments');
         $dbInstallments = max(1, $installments);
         $updatedCount = 0;
-        $user = $request->user();
+        $user = $request->user()?->email ?? 'admin@holux.com';
 
         foreach ($ids as $id) {
             try {
