@@ -23,7 +23,8 @@ import {
   X,
   FileSpreadsheet,
   AlertTriangle,
-  CreditCard
+  CreditCard,
+  Eye
 } from 'lucide-react';
 import ConfirmationModal from './ConfirmationModal';
 
@@ -604,7 +605,13 @@ export default function ProductCatalogManager({
 
                       {/* Media Thumbnail */}
                       <td className="p-3.5">
-                        <div className="w-12 h-12 rounded-xl bg-gray-100 border border-gray-200 overflow-hidden flex items-center justify-center relative shadow-sm">
+                        <a
+                          href={`/#/producto/${prod.id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="w-12 h-12 rounded-xl bg-gray-100 border border-gray-200 overflow-hidden flex items-center justify-center relative shadow-sm hover:border-[#3C6E71] hover:ring-2 hover:ring-[#3C6E71]/20 transition-all block cursor-pointer group/thumb"
+                          title="Ver en la tienda (abre en nueva pestaña)"
+                        >
                           <img
                             src={prod.image_url || (prod.images && prod.images[0]) || 'https://images.unsplash.com/photo-1551028719-00167b16eac5?w=200'}
                             alt={prod.name}
@@ -612,19 +619,27 @@ export default function ProductCatalogManager({
                               e.target.onerror = null;
                               e.target.src = 'https://images.unsplash.com/photo-1551028719-00167b16eac5?w=200';
                             }}
-                            className="w-full h-full object-cover"
+                            className="w-full h-full object-cover group-hover/thumb:scale-105 transition-transform"
                           />
                           {prod.video_url && (
                             <span className="absolute bottom-0 right-0 bg-red-600 text-white px-1 rounded-tl text-[8px] font-bold" title="Tiene Video Demostrativo">
                               ▶
                             </span>
                           )}
-                        </div>
+                        </a>
                       </td>
 
                       {/* Name & Brand */}
                       <td className="p-3.5">
-                        <div className="font-bold text-gray-900 text-xs">{prod.name}</div>
+                        <a
+                          href={`/#/producto/${prod.id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-bold text-gray-900 text-xs hover:text-[#3C6E71] transition-colors cursor-pointer block"
+                          title="Ver en la tienda (abre en nueva pestaña)"
+                        >
+                          {prod.name}
+                        </a>
                         <div className="text-[10px] text-gray-400 font-mono-custom">{prod.brand || 'HOLUX'}</div>
                         {Array.isArray(prod.variants) && prod.variants.length > 0 && (
                           <div className="mt-1 flex items-center gap-1">
@@ -699,11 +714,22 @@ export default function ProductCatalogManager({
 
                       {/* ABM Actions */}
                       <td className="p-3.5 text-right space-x-1.5 whitespace-nowrap">
+                        {/* Ver en la Tienda */}
+                        <a
+                          href={`/#/producto/${prod.id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="p-1.5 bg-gray-100 hover:bg-[#3C6E71] hover:text-white text-gray-700 rounded-lg transition-colors cursor-pointer border border-gray-200 inline-flex items-center justify-center shadow-xs align-middle"
+                          title="Ver producto en la tienda (abre en nueva pestaña)"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                        </a>
+
                         {/* Editar */}
                         <button
                           type="button"
                           onClick={() => onEditProduct(prod)}
-                          className="px-2.5 py-1.5 bg-[#3C6E71] hover:bg-[#3C6E71]/90 text-white rounded-lg font-display text-[10px] font-bold tracking-wider inline-flex items-center gap-1 transition-all cursor-pointer shadow-sm"
+                          className="px-2.5 py-1.5 bg-[#3C6E71] hover:bg-[#3C6E71]/90 text-white rounded-lg font-display text-[10px] font-bold tracking-wider inline-flex items-center gap-1 transition-all cursor-pointer shadow-sm align-middle"
                           title="Editar producto"
                         >
                           <Edit2 className="w-3 h-3" />
@@ -714,7 +740,7 @@ export default function ProductCatalogManager({
                         <button
                           type="button"
                           onClick={() => onDuplicateProduct(prod)}
-                          className="px-2.5 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-display text-[10px] font-bold tracking-wider inline-flex items-center gap-1 transition-all cursor-pointer border border-gray-200"
+                          className="px-2.5 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-display text-[10px] font-bold tracking-wider inline-flex items-center gap-1 transition-all cursor-pointer border border-gray-200 align-middle"
                           title="Duplicar como nuevo producto"
                         >
                           <Copy className="w-3 h-3" />
@@ -725,7 +751,7 @@ export default function ProductCatalogManager({
                         <button
                           type="button"
                           onClick={() => onDeleteProductSingle(prod)}
-                          className="p-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition-colors cursor-pointer border border-red-200 inline-block"
+                          className="p-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition-colors cursor-pointer border border-red-200 inline-flex items-center justify-center align-middle"
                           title="Eliminar producto"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
