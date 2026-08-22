@@ -7,6 +7,7 @@ export default function ProductEditModal({ product, categories = [], onClose, on
   // Basic info
   const [name, setName] = useState(product?.name || '');
   const [brand, setBrand] = useState(product?.brand || 'HOLUX');
+  const [categoryId, setCategoryId] = useState(product?.category_id || (categories[0]?.id || ''));
   const [description, setDescription] = useState(product?.description || '');
   const [specs, setSpecs] = useState(() => {
     if (Array.isArray(product?.specs)) return product.specs.join('\n');
