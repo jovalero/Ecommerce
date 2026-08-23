@@ -152,6 +152,27 @@ export function useProductCatalog(token) {
     }
   };
 
+  const selectAllEntireCatalog = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch(`${API_BASE}/api/admin/productos?per_page=all`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+        }
+      });
+      if (res.ok) {
+        const json = await res.json();
+        const allIds = (json.data || []).map(p => p.id);
+        setSelectedIds(allIds);
+      }
+    } catch (e) {
+      console.error("Error selecting all catalog:", e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const clearSelection = () => setSelectedIds([]);
 
   const clearFilters = () => {
@@ -374,6 +395,7 @@ export function useProductCatalog(token) {
     handleSort,
     toggleSelectOne,
     toggleSelectAll,
+    selectAllEntireCatalog,
     clearSelection,
     clearFilters,
     executeBulkPrice,

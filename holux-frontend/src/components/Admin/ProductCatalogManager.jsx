@@ -58,6 +58,7 @@ export default function ProductCatalogManager({
     handleSort,
     toggleSelectOne,
     toggleSelectAll,
+    selectAllEntireCatalog,
     clearSelection,
     clearFilters,
     executeBulkPrice,
@@ -480,6 +481,36 @@ export default function ProductCatalogManager({
             </span>
           </div>
         </div>
+
+        {/* Global / Smart Selection Banner */}
+        {selectedIds.length > 0 && selectedIds.length < pagination.total && (
+          <div className="bg-amber-50 border-b border-amber-200 px-5 py-2.5 flex items-center justify-between text-xs text-amber-900 font-medium">
+            <span>
+              Tenés seleccionados <strong>{selectedIds.length}</strong> productos de esta página.
+            </span>
+            <button
+              type="button"
+              onClick={selectAllEntireCatalog}
+              className="text-amber-900 font-bold underline hover:text-black cursor-pointer font-sans"
+            >
+              Seleccionar los {pagination.total} productos de todo el catálogo
+            </button>
+          </div>
+        )}
+        {selectedIds.length >= pagination.total && pagination.total > 0 && (
+          <div className="bg-emerald-50 border-b border-emerald-200 px-5 py-2.5 flex items-center justify-between text-xs text-emerald-900 font-medium">
+            <span>
+              ✨ <strong>Los {pagination.total} productos de todo el catálogo están seleccionados.</strong>
+            </span>
+            <button
+              type="button"
+              onClick={clearSelection}
+              className="text-emerald-800 font-bold underline hover:text-black cursor-pointer font-sans"
+            >
+              Deseleccionar todos
+            </button>
+          </div>
+        )}
 
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
