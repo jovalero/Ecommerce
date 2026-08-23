@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Image, Link, Calendar, CheckCircle2, Eye, Save, Trash2, Plus, MoveUp, MoveDown, ShieldCheck, Sparkles, CreditCard, Megaphone, LayoutTemplate } from 'lucide-react';
+import { Image, Link, Calendar, CheckCircle2, Eye, Save, Trash2, Plus, MoveUp, MoveDown, ShieldCheck, Sparkles, CreditCard, Megaphone, LayoutTemplate, Layers } from 'lucide-react';
 import ConfirmationModal from './ConfirmationModal';
 
 export default function BannerEditor({
@@ -12,13 +12,78 @@ export default function BannerEditor({
   categoriesList = [],
   productsList = [],
   homeSectionTitles,
-  setHomeSectionTitles
+  setHomeSectionTitles,
+  gridPromoCards,
+  setGridPromoCards
 }) {
   const [editingIndex, setEditingIndex] = useState(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const formRef = useRef(null);
   const [savedMsg, setSavedMsg] = useState(false);
   const [newTickerText, setNewTickerText] = useState('');
+
+  // 3 Promotional Grid Cards State
+  const [promoCards, setPromoCards] = useState(() => {
+    if (gridPromoCards && gridPromoCards.length > 0) return gridPromoCards;
+    try {
+      const saved = localStorage.getItem('holux_grid_promo_cards');
+      return saved ? JSON.parse(saved) : [
+        {
+          title: "SKI",
+          span: "COLECCIÓN NIEVE Y ALTA MONTAÑA",
+          image: "https://images.unsplash.com/photo-1551632811-561732d1e306?w=800&auto=format&fit=crop&q=80",
+          link: "#/catalogo"
+        },
+        {
+          title: "TREKKING",
+          span: "EXPLORÁ NUEVOS SENDEROS",
+          image: "https://images.unsplash.com/photo-1501555088652-021faa106b9b?w=800&auto=format&fit=crop&q=80",
+          link: "#/catalogo"
+        },
+        {
+          title: "URBAN ACTIVE",
+          span: "DISEÑO VERSÁTIL PARA EL DÍA A DÍA",
+          image: "https://images.unsplash.com/photo-1520639888713-7851133b1ed0?w=800&auto=format&fit=crop&q=80",
+          link: "#/catalogo"
+        }
+      ];
+    } catch (e) {
+      return [
+        {
+          title: "SKI",
+          span: "COLECCIÓN NIEVE Y ALTA MONTAÑA",
+          image: "https://images.unsplash.com/photo-1551632811-561732d1e306?w=800&auto=format&fit=crop&q=80",
+          link: "#/catalogo"
+        },
+        {
+          title: "TREKKING",
+          span: "EXPLORÁ NUEVOS SENDEROS",
+          image: "https://images.unsplash.com/photo-1501555088652-021faa106b9b?w=800&auto=format&fit=crop&q=80",
+          link: "#/catalogo"
+        },
+        {
+          title: "URBAN ACTIVE",
+          span: "DISEÑO VERSÁTIL PARA EL DÍA A DÍA",
+          image: "https://images.unsplash.com/photo-1520639888713-7851133b1ed0?w=800&auto=format&fit=crop&q=80",
+          link: "#/catalogo"
+        }
+      ];
+    }
+  });
+
+  const handleUpdatePromoCard = (index, field, value) => {
+    const updated = promoCards.map((card, i) => {
+      if (i === index) {
+        return { ...card, [field]: value };
+      }
+      return card;
+    });
+    setPromoCards(updated);
+    if (setGridPromoCards) setGridPromoCards(updated);
+    try {
+      localStorage.setItem('holux_grid_promo_cards', JSON.stringify(updated));
+    } catch (e) {}
+  };
 
   // Section Headers State (Novedades & Destacados)
   const [novedadesTitle, setNovedadesTitle] = useState(() => {
@@ -181,6 +246,12 @@ export default function BannerEditor({
     try {
       localStorage.setItem('holux_home_section_titles', JSON.stringify(updatedTitles));
     } catch (err) {}
+
+    if (setGridPromoCards) setGridPromoCards(promoCards);
+    try {
+      localStorage.setItem('holux_grid_promo_cards', JSON.stringify(promoCards));
+    } catch (err) {}
+
     setSavedMsg(true);
     setTimeout(() => setSavedMsg(false), 3500);
   };
@@ -451,7 +522,143 @@ export default function BannerEditor({
         </div>
       </div>
 
-      {/* SECTION 4: BANNERS LIST */}
+      {/* SECTION 4: 3 TARJETAS PROMOCIONALES DESTACADAS (GRID DE PORTADA) */}
+      <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-100 pb-3">
+          <div className="flex items-center gap-2">
+            <Layers className="w-4 h-4 text-[#3C6E71]" />
+            <h3 className="font-display text-xs font-bold uppercase tracking-wider text-gray-900">
+              3 TARJETAS PROMOCIONALES DESTACADAS (GRID DE PORTADA)
+            </h3>
+          </div>
+          <span className="text-[10px] font-bold font-mono-custom bg-gray-100 text-gray-700 px-2.5 py-0.5 rounded-full self-start sm:self-auto">
+            3 COLUMNAS HOME
+          </span>
+        </div>
+
+        <p className="text-xs text-gray-500">
+          Modificá las imágenes, títulos y enlaces de las 3 tarjetas de colecciones o categorías en la página de inicio.
+        </p>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {promoCards.map((card, idx) => (
+            <div key={idx} className="bg-gray-50 p-4 border border-gray-200 rounded-2xl space-y-3 flex flex-col justify-between">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between border-b border-gray-200 pb-2">
+                  <span className="font-display text-xs font-bold text-gray-800 uppercase tracking-wider">
+                    TARJETA #{idx + 1}
+                  </span>
+                  <span className="text-[10px] font-mono-custom font-bold bg-[#3C6E71]/10 text-[#3C6E71] px-2 py-0.5 rounded">
+                    Columna {idx + 1}
+                  </span>
+                </div>
+
+                {/* Card Preview */}
+                <div className="relative w-full h-36 rounded-xl overflow-hidden bg-black border border-gray-200 shadow-inner group">
+                  <img src={card.image} alt={card.title} className="w-full h-full object-cover opacity-90 group-hover:scale-105 transition-all" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                  <div className="absolute bottom-3 left-3 text-left space-y-0.5">
+                    <span className="text-[9px] text-orange-200 font-bold uppercase tracking-widest block">
+                      {card.span || 'ETIQUETA'}
+                    </span>
+                    <h4 className="text-sm font-display font-bold text-white uppercase">
+                      {card.title || 'TÍTULO'}
+                    </h4>
+                  </div>
+                </div>
+
+                {/* Inputs */}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">
+                    TÍTULO PRINCIPAL
+                  </label>
+                  <input
+                    type="text"
+                    value={card.title}
+                    onChange={(e) => handleUpdatePromoCard(idx, 'title', e.target.value)}
+                    placeholder="Ej: PERFUMES HOMBRE"
+                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-bold text-gray-900 focus:border-[#3C6E71] outline-none"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">
+                    SUBTÍTULO / ETIQUETA
+                  </label>
+                  <input
+                    type="text"
+                    value={card.span}
+                    onChange={(e) => handleUpdatePromoCard(idx, 'span', e.target.value)}
+                    placeholder="Ej: COLECCIÓN EXCLUSIVA"
+                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs text-gray-800 focus:border-[#3C6E71] outline-none"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">
+                    IMAGEN
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={card.image}
+                      onChange={(e) => handleUpdatePromoCard(idx, 'image', e.target.value)}
+                      placeholder="URL de la imagen..."
+                      className="flex-grow px-3 py-1.5 bg-white border border-gray-200 rounded-xl text-xs font-mono-custom outline-none"
+                    />
+                    <input
+                      type="file"
+                      id={`promo-card-file-${idx}`}
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onload = (ev) => {
+                            if (ev.target?.result) handleUpdatePromoCard(idx, 'image', ev.target.result);
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                      className="hidden"
+                    />
+                    <label
+                      htmlFor={`promo-card-file-${idx}`}
+                      className="px-2.5 py-1.5 bg-[#1C2321] hover:bg-black text-white rounded-xl text-[10px] font-bold font-display cursor-pointer flex items-center gap-1 shrink-0"
+                    >
+                      <Image className="w-3.5 h-3.5" />
+                      <span>SUBIR</span>
+                    </label>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">
+                    LINK / REDIRECCIÓN
+                  </label>
+                  <select
+                    value={card.link?.startsWith('#/catalogo?categoria=') ? card.link.replace('#/catalogo?categoria=', '') : ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      handleUpdatePromoCard(idx, 'link', val ? `#/catalogo?categoria=${val}` : '#/catalogo');
+                    }}
+                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-bold text-gray-800 outline-none cursor-pointer"
+                  >
+                    <option value="">Todo el catálogo (#/catalogo)</option>
+                    {(categoriesList || []).map((cat) => (
+                      <option key={cat.id} value={cat.slug}>
+                        Categoría: {cat.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* SECTION 5: BANNERS LIST */}
       <div className="space-y-3">
         <div className="flex items-center justify-between px-1">
           <h3 className="font-display text-xs font-bold text-gray-700 uppercase tracking-wider">

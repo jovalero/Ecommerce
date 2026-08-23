@@ -407,6 +407,14 @@ export default function App() {
       };
     }
   });
+  const [gridPromoCards, setGridPromoCards] = useState(() => {
+    try {
+      const saved = localStorage.getItem('holux_grid_promo_cards');
+      return saved ? JSON.parse(saved) : PROMO_BANNERS;
+    } catch (e) {
+      return PROMO_BANNERS;
+    }
+  });
   const [selectedPrintOrder, setSelectedPrintOrder] = useState(null);
   const [selectedOrderDetail, setSelectedOrderDetail] = useState(null);
   const [adminOrderSearchQuery, setAdminOrderSearchQuery] = useState('');
@@ -4883,6 +4891,8 @@ export default function App() {
                 productsList={adminProductsList}
                 homeSectionTitles={homeSectionTitles}
                 setHomeSectionTitles={setHomeSectionTitles}
+                gridPromoCards={gridPromoCards}
+                setGridPromoCards={setGridPromoCards}
               />
             )}
 
@@ -6402,7 +6412,7 @@ export default function App() {
           <section className="bg-white py-14">
             {/* Desktop View (Side-by-side) */}
             <div className="hidden md:grid md:grid-cols-3 gap-8 w-full px-4 sm:px-8 lg:px-12">
-              {PROMO_BANNERS.map((banner, idx) => (
+              {(gridPromoCards || PROMO_BANNERS).map((banner, idx) => (
                 <div 
                   key={idx}
                   onClick={() => { window.location.hash = banner.link; }}
@@ -6430,7 +6440,7 @@ export default function App() {
 
             {/* Mobile View (Swipeable Carousel - Isolated Performance Component) */}
             <div className="block md:hidden max-w-7xl mx-auto px-4">
-              <MobilePromoCarousel banners={PROMO_BANNERS} />
+              <MobilePromoCarousel banners={gridPromoCards || PROMO_BANNERS} />
             </div>
           </section>
 
