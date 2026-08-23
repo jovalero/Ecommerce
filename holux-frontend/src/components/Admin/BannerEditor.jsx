@@ -26,6 +26,7 @@ export default function BannerEditor({ heroSlides = [], setHeroSlides, promoBann
   const [cta, setCta] = useState('');
   const [desktopImage, setDesktopImage] = useState('');
   const [mobileImage, setMobileImage] = useState('');
+  const [overlayOpacity, setOverlayOpacity] = useState(0);
   const [linkType, setLinkType] = useState('category'); // 'category' | 'product' | 'external'
   const [selectedLinkVal, setSelectedLinkVal] = useState('');
   const [isActive, setIsActive] = useState(true);
@@ -52,6 +53,7 @@ export default function BannerEditor({ heroSlides = [], setHeroSlides, promoBann
     setCta(slide.cta || '');
     setDesktopImage(slide.image || '');
     setMobileImage(slide.mobileImage || slide.image || '');
+    setOverlayOpacity(slide.overlayOpacity !== undefined ? Number(slide.overlayOpacity) : ((slide.title || slide.desc) ? 45 : 0));
     setIsActive(slide.isActive !== false);
   };
 
@@ -76,6 +78,7 @@ export default function BannerEditor({ heroSlides = [], setHeroSlides, promoBann
       cta,
       image: desktopImage,
       mobileImage,
+      overlayOpacity: Number(overlayOpacity),
       link: constructedLink,
       isActive
     };
@@ -531,6 +534,48 @@ export default function BannerEditor({ heroSlides = [], setHeroSlides, promoBann
                     <span>SUBIR</span>
                   </label>
                 </div>
+              </div>
+            </div>
+
+            {/* OVERLAY OPACITY / TRANSPARENCY SLIDER */}
+            <div className="space-y-2 bg-gray-50 p-4 border border-gray-200 rounded-xl">
+              <div className="flex items-center justify-between">
+                <label className="text-[10px] font-bold text-gray-700 uppercase tracking-wider block">
+                  CAPA OSCURA / TRANSPARENCIA DEL BANNER: <span className="text-[#3C6E71] font-mono-custom font-bold">{overlayOpacity}%</span>
+                </label>
+                <span className="text-[10px] text-gray-500 font-sans font-medium">
+                  {overlayOpacity === 0 ? '✨ 100% Nítido / Sin filtro oscuro' : `Filtro oscuro al ${overlayOpacity}%`}
+                </span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="90"
+                step="5"
+                value={overlayOpacity}
+                onChange={(e) => setOverlayOpacity(Number(e.target.value))}
+                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#3C6E71]"
+              />
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                {[
+                  { label: '0% (100% Nítido / Solo Imagen)', val: 0 },
+                  { label: '20% (Filtro Suave)', val: 20 },
+                  { label: '40% (Equilibrado)', val: 40 },
+                  { label: '60% (Contraste Alto)', val: 60 }
+                ].map((preset) => (
+                  <button
+                    key={preset.val}
+                    type="button"
+                    onClick={() => setOverlayOpacity(preset.val)}
+                    className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer border ${
+                      overlayOpacity === preset.val
+                        ? 'bg-[#3C6E71] text-white border-[#3C6E71] shadow-xs'
+                        : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-100'
+                    }`}
+                  >
+                    {preset.label}
+                  </button>
+                ))}
               </div>
             </div>
 

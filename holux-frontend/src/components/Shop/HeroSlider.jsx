@@ -124,6 +124,10 @@ export const HeroSlider = memo(function HeroSlider({
           }
         };
 
+        const overlayDarkness = slide.overlayOpacity !== undefined 
+          ? Number(slide.overlayOpacity) / 100 
+          : (hasText ? 0.45 : 0);
+
         return (
           <div
             key={idx}
@@ -144,15 +148,16 @@ export const HeroSlider = memo(function HeroSlider({
                 decoding="async"
                 loading="eager"
                 fetchPriority={idx === 0 ? "high" : "auto"}
-                className={`absolute inset-0 w-full h-full object-cover object-center ${
-                  hasText ? 'opacity-85' : 'opacity-100'
-                }`}
+                className="absolute inset-0 w-full h-full object-cover object-center opacity-100"
               />
             </picture>
 
-            {/* Black Overlay ONLY when there is text */}
-            {hasText && (
-              <div className="absolute inset-0 bg-black/55 via-black/35 to-black/60" />
+            {/* Black Overlay with customizable opacity */}
+            {overlayDarkness > 0 && (
+              <div
+                className="absolute inset-0 transition-opacity duration-500 pointer-events-none"
+                style={{ backgroundColor: `rgba(0, 0, 0, ${overlayDarkness})` }}
+              />
             )}
 
             {/* Text Content Area ONLY when there is text */}
