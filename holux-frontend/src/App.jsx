@@ -403,6 +403,7 @@ export default function App() {
   // Chat Widget State
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatEmail, setChatEmail] = useState('');
+  const [chatMessage, setChatMessage] = useState('');
   const [chatSuccess, setChatSuccess] = useState(false);
   const [chatLoading, setChatLoading] = useState(false);
 
@@ -8790,50 +8791,71 @@ export default function App() {
 
             {/* Widget Body */}
             <div className="p-4 space-y-4 text-xs">
-              <div className="bg-gray-50 p-3 rounded border border-gray-100 space-y-2 leading-relaxed text-gray-700">
-                <p className="font-semibold text-gray-800">¡Hola! Actualmente estamos fuera de horario de atención.</p>
-                <p>Por favor, escribinos a <a href="mailto:soporte@holux.com.ar" className="text-[#3C6E71] underline font-bold">soporte@holux.com.ar</a> detallando tu consulta y te responderemos apenas estemos de regreso.</p>
-                <p className="font-medium text-gray-500">¡Gracias por contactarte!</p>
+              <div className="bg-gray-50 p-3 rounded-xl border border-gray-100 space-y-2 leading-relaxed text-gray-700">
+                <p className="font-semibold text-gray-800">¡Hola! Dejanos tu consulta y te responderemos por correo.</p>
+                <p>Canal directo: <a href="mailto:holux20@gmail.com" className="text-[#3C6E71] underline font-bold">holux20@gmail.com</a></p>
+                <p className="font-medium text-gray-500 text-[11px]">¡Gracias por contactarte!</p>
               </div>
 
               {chatSuccess ? (
-                <div className="p-4 bg-emerald-50 border border-emerald-100 text-emerald-700 text-center rounded space-y-2 animate-pulse">
+                <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 text-center rounded-xl space-y-2">
                   <Check className="w-6 h-6 mx-auto text-emerald-600 stroke-[3]" />
-                  <p className="font-bold">¡Mensaje enviado!</p>
-                  <p className="text-[10px] text-emerald-600">Te responderemos a tu correo electrónico a la brevedad.</p>
+                  <p className="font-bold">¡Consulta enviada!</p>
+                  <p className="text-[11px] text-emerald-700">Tu mensaje fue dirigido a <strong>holux20@gmail.com</strong>. Te responderemos a la brevedad.</p>
                 </div>
               ) : (
                 <form 
                   onSubmit={(e) => {
                     e.preventDefault();
                     setChatLoading(true);
+                    
+                    const subject = encodeURIComponent(`Consulta Tienda Holux - ${chatEmail || 'Cliente'}`);
+                    const body = encodeURIComponent(`Email del cliente: ${chatEmail}\n\nConsulta / Mensaje:\n${chatMessage || 'Hola, quisiera hacer una consulta.'}\n\nEnviado desde el sitio web Holux.`);
+                    const mailtoUrl = `mailto:holux20@gmail.com?subject=${subject}&body=${body}`;
+
+                    // Open user email client
+                    window.location.href = mailtoUrl;
+
                     setTimeout(() => {
                       setChatLoading(false);
                       setChatSuccess(true);
                       setChatEmail('');
-                      setTimeout(() => setChatSuccess(false), 5000);
-                    }, 1200);
+                      setChatMessage('');
+                      setTimeout(() => setChatSuccess(false), 6000);
+                    }, 800);
                   }} 
                   className="space-y-3"
                 >
                   <div className="space-y-1">
-                    <label className="text-[9px] font-bold text-gray-500 tracking-wider block">CORREO ELECTRÓNICO</label>
+                    <label className="text-[9px] font-bold text-gray-500 tracking-wider block">TU CORREO ELECTRÓNICO</label>
                     <SmoothInput
                       type="email"
                       required
                       value={chatEmail}
                       onChange={(e) => setChatEmail(e.target.value)}
-                      placeholder="Ej: jose@example.com"
-                      className="w-full px-3 py-2 border border-gray-300 rounded text-xs focus:border-[#1C2321] focus:ring-0 outline-none bg-white text-gray-800"
+                      placeholder="Ej: tuemail@gmail.com"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs focus:border-[#3C6E71] focus:ring-0 outline-none bg-white text-gray-800"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-bold text-gray-500 tracking-wider block">MENSAJE O CONSULTA</label>
+                    <textarea
+                      required
+                      rows={3}
+                      value={chatMessage}
+                      onChange={(e) => setChatMessage(e.target.value)}
+                      placeholder="Escribí aquí tu duda o pedido..."
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs focus:border-[#3C6E71] focus:ring-0 outline-none bg-white text-gray-800 resize-none font-sans"
                     />
                   </div>
                   
                   <button
                     type="submit"
                     disabled={chatLoading}
-                    className="w-full py-2 bg-[#1C2321] text-white font-display text-xs font-bold tracking-wider rounded hover:bg-black transition-all cursor-pointer disabled:opacity-50"
+                    className="w-full py-2.5 bg-[#3C6E71] hover:bg-[#3C6E71]/90 text-white font-display text-xs font-bold tracking-wider rounded-lg transition-all cursor-pointer disabled:opacity-50 shadow-sm"
                   >
-                    {chatLoading ? 'ENVIANDO...' : 'SIGUIENTE'}
+                    {chatLoading ? 'ENVIANDO...' : 'ENVIAR MENSAJE'}
                   </button>
                 </form>
               )}
@@ -8841,7 +8863,7 @@ export default function App() {
 
             {/* Widget Footer */}
             <div className="p-2.5 border-t border-gray-100 text-center text-[9px] text-gray-400 font-mono-custom bg-gray-50">
-              Creado con HOLUX Support
+              Soporte Oficial Holux • holux20@gmail.com
             </div>
 
           </div>
