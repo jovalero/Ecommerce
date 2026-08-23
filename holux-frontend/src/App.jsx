@@ -48,6 +48,7 @@ import {
 
 import DashboardCharts from './components/Admin/DashboardCharts';
 import StoreSettings from './components/Admin/StoreSettings';
+import ShippingManager from './components/Admin/ShippingManager';
 import InvoicePrinter from './components/Admin/InvoicePrinter';
 import BannerEditor from './components/Admin/BannerEditor';
 import CouponManager from './components/Admin/CouponManager';
@@ -4965,6 +4966,7 @@ export default function App() {
             { id: 'customers', label: 'Clientes', icon: Users },
             { id: 'support', label: 'Soporte', icon: MessageSquare },
             { id: 'reviews', label: 'Reseñas', icon: MessageSquare },
+            { id: 'shipping', label: 'Envíos', icon: Truck },
             { id: 'settings', label: 'Ajustes', icon: Lock }
           ].map(item => {
             const Icon = item.icon;
@@ -5020,6 +5022,7 @@ export default function App() {
                   { id: 'customers', label: 'CLIENTES & VIP', icon: Users },
                   { id: 'support', label: 'SOPORTE & TICKETS', icon: MessageSquare },
                   { id: 'reviews', label: 'MODERAR RESEÑAS', icon: MessageSquare },
+                  { id: 'shipping', label: 'LOGÍSTICA Y ENVÍOS', icon: Truck },
                   { id: 'settings', label: 'CONFIGURACIÓN GENERAL', icon: Lock }
                 ].map(item => {
                   const Icon = item.icon;
@@ -5071,6 +5074,7 @@ export default function App() {
               { id: 'customers', label: 'CLIENTES & VIP', icon: Users },
               { id: 'support', label: 'SOPORTE & TICKETS', icon: MessageSquare },
               { id: 'reviews', label: 'MODERAR RESEÑAS', icon: MessageSquare },
+              { id: 'shipping', label: 'LOGÍSTICA Y ENVÍOS', icon: Truck },
               { id: 'settings', label: 'CONFIGURACIÓN GENERAL', icon: Lock }
             ].map(item => {
               const Icon = item.icon;
@@ -5147,6 +5151,10 @@ export default function App() {
 
             {adminTab === 'support' && (
               <SupportManager />
+            )}
+
+            {adminTab === 'shipping' && (
+              <ShippingManager API_BASE_URL={API_BASE_URL} token={token} />
             )}
 
             {adminTab === 'settings' && (

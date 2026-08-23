@@ -21,13 +21,15 @@ import {
   ChevronRight,
   TrendingUp,
   Download,
-  AlertCircle
+  AlertCircle,
+  Truck
 } from 'lucide-react';
 import { SmoothInput } from '../Common/SmoothInput';
 import DashboardCharts from './DashboardCharts';
 import BannerEditor from './BannerEditor';
 import CouponManager from './CouponManager';
 import SupportManager from './SupportManager';
+import ShippingManager from './ShippingManager';
 import StoreSettings from './StoreSettings';
 import ProductEditModal from './ProductEditModal';
 import CustomerEditModal from './CustomerEditModal';
@@ -162,6 +164,7 @@ export default function AdminDashboard({
                   { id: 'banners', label: 'Banners y Promociones', icon: Image },
                   { id: 'coupons', label: 'Cupones de Descuento', icon: Tag },
                   { id: 'support', label: 'Atención al Cliente', icon: MessageSquare },
+                  { id: 'shipping', label: 'Logística y Envíos', icon: Truck },
                   { id: 'settings', label: 'Ajustes del Sistema', icon: Settings }
                 ].map(tab => {
                   const Icon = tab.icon;
@@ -540,6 +543,9 @@ export default function AdminDashboard({
 
             {/* SUPPORT TAB */}
             {adminTab === 'support' && <SupportManager />}
+
+            {/* SHIPPING TAB */}
+            {adminTab === 'shipping' && <ShippingManager API_BASE_URL={API_BASE_URL} token={token} />}
 
             {/* SETTINGS TAB */}
             {adminTab === 'settings' && <StoreSettings />}

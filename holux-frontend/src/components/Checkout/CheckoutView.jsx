@@ -360,9 +360,125 @@ const CheckoutView = memo(({
     setIsAddressModalOpen(false);
   };
 
-  // Dynamic Shipping Rate Calculation (Set to $0 for testing)
+  // Dynamic Shipping Rates from Store Admin Settings
+  const [shippingRates, setShippingRates] = React.useState(() => {
+    try {
+      const saved = localStorage.getItem('holux_shipping_rates');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return {
+      all_free: false,
+      free_shipping_enabled: true,
+      free_shipping_threshold: 150000,
+      caba_cost: 5000,
+      caba_free: false,
+      caba_enabled: true,
+      caba_cp_min: 1000,
+      caba_cp_max: 1499,
+      gba_cost: 8000,
+      gba_free: false,
+      gba_enabled: true,
+      gba_cp_min: 1500,
+      gba_cp_max: 1999,
+      interior_cost: 15000,
+      interior_free: false,
+      interior_enabled: true,
+      interior_cp_min: 2000,
+      interior_cp_max: 7999,
+      patagonia_cost: 20000,
+      patagonia_free: false,
+      patagonia_enabled: true,
+      patagonia_cp_min: 8000,
+      patagonia_cp_max: 9999,
+      pickup_enabled: true,
+      pickup_address: 'Av. Corrientes 1234, CABA',
+      pickup_schedule: 'Lunes a Viernes de 10:00 a 18:00 hs'
+    };
+  });
+
+  // Listen to live shipping rate changes
+  React.useEffect(() => {
+    const handleRatesUpdate = () => {
+      try {
+        const saved = localStorage.getItem('holux_shipping_rates');
+        if (saved) setShippingRates(JSON.parse(saved));
+      } catch {}
+    };
+    window.addEventListener('holux_shipping_rates_updated', handleRatesUpdate);
+    window.addEventListener('storage', handleRatesUpdate);
+    return () => {
+      window.removeEventListener('holux_shipping_rates_updated', handleRatesUpdate);
+      window.removeEventListener('storage', handleRatesUpdate);
+    };
+  }, []);
+
+  // Dynamic Shipping Rate Calculation
   const calculateShipping = () => {
-    return { cost: 0, label: '¡GRATIS ($0 Envíos de Prueba!)' };
+    if (deliveryOption === 'pickup') {
+      return { cost: 0, label: 'Retiro en Sucursal ($0 Gratis)' };
+    }
+
+    if (shippingRates.all_free) {
+      return { cost: 0, label: '¡Envío Gratis! (Promoción Nacional)' };
+    }
+
+    if (shippingRates.free_shipping_enabled && subtotalAfterDiscount >= (shippingRates.free_shipping_threshold || 150000)) {
+      return { cost: 0, label: '¡Envío 100% Gratis! (Monto superado)' };
+    }
+
+    const cp = parseInt(String(shippingPostalCode || '').trim(), 10);
+    const cabaMin = Number(shippingRates.caba_cp_min ?? 1000);
+    const cabaMax = Number(shippingRates.caba_cp_max ?? 1499);
+    const gbaMin = Number(shippingRates.gba_cp_min ?? 1500);
+    const gbaMax = Number(shippingRates.gba_cp_max ?? 1999);
+    const patMin = Number(shippingRates.patagonia_cp_min ?? 8000);
+    const patMax = Number(shippingRates.patagonia_cp_max ?? 9999);
+    const intMin = Number(shippingRates.interior_cp_min ?? 2000);
+    const intMax = Number(shippingRates.interior_cp_max ?? 7999);
+
+    if (!isNaN(cp)) {
+      if (cp >= cabaMin && cp <= cabaMax) {
+        return shippingRates.caba_free
+          ? { cost: 0, label: '¡Envío Gratis! (CABA)' }
+          : { cost: Number(shippingRates.caba_cost ?? 5000), label: 'Envío a CABA' };
+      }
+      if (cp >= gbaMin && cp <= gbaMax) {
+        return shippingRates.gba_free
+          ? { cost: 0, label: '¡Envío Gratis! (GBA)' }
+          : { cost: Number(shippingRates.gba_cost ?? 8000), label: 'Envío a GBA' };
+      }
+      if (cp >= patMin && cp <= patMax) {
+        return shippingRates.patagonia_free
+          ? { cost: 0, label: '¡Envío Gratis! (Patagonia)' }
+          : { cost: Number(shippingRates.patagonia_cost ?? 20000), label: 'Envío a Patagonia' };
+      }
+      if (cp >= intMin && cp <= intMax) {
+        return shippingRates.interior_free
+          ? { cost: 0, label: '¡Envío Gratis! (Interior)' }
+          : { cost: Number(shippingRates.interior_cost ?? 15000), label: 'Envío al Interior' };
+      }
+    }
+
+    // Province Fallbacks
+    if (shippingProvince === 'CABA') {
+      return shippingRates.caba_free
+        ? { cost: 0, label: '¡Envío Gratis! (CABA)' }
+        : { cost: Number(shippingRates.caba_cost ?? 5000), label: 'Envío a CABA' };
+    }
+    if (shippingProvince === 'Buenos Aires') {
+      return shippingRates.gba_free
+        ? { cost: 0, label: '¡Envío Gratis! (GBA)' }
+        : { cost: Number(shippingRates.gba_cost ?? 8000), label: 'Envío a Buenos Aires' };
+    }
+    if (['Chubut', 'Neuquén', 'Río Negro', 'Santa Cruz', 'Tierra del Fuego'].includes(shippingProvince)) {
+      return shippingRates.patagonia_free
+        ? { cost: 0, label: '¡Envío Gratis! (Patagonia)' }
+        : { cost: Number(shippingRates.patagonia_cost ?? 20000), label: 'Envío a Patagonia' };
+    }
+
+    return shippingRates.interior_free
+      ? { cost: 0, label: '¡Envío Gratis! (Interior)' }
+      : { cost: Number(shippingRates.interior_cost ?? 15000), label: 'Envío a Domicilio' };
   };
 
   const shippingInfo = calculateShipping();

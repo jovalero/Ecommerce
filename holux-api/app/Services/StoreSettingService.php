@@ -116,23 +116,37 @@ class StoreSettingService
             'webhook_url' => rtrim($baseUrl, '/') . '/api/webhooks/mercadopago',
 
             // 3. Shipping & Postal Ranges
+            'all_free' => (bool) ($raw['all_free'] ?? false),
+            'free_shipping_enabled' => (bool) ($raw['free_shipping_enabled'] ?? true),
+            'free_shipping_threshold' => (float) ($raw['free_shipping_threshold'] ?? 150000),
+
             'caba_cost' => (float) ($raw['caba_cost'] ?? 5000),
+            'caba_free' => (bool) ($raw['caba_free'] ?? false),
+            'caba_enabled' => (bool) ($raw['caba_enabled'] ?? true),
             'caba_cp_min' => (int) ($raw['caba_cp_min'] ?? 1000),
             'caba_cp_max' => (int) ($raw['caba_cp_max'] ?? 1499),
 
             'gba_cost' => (float) ($raw['gba_cost'] ?? 8000),
+            'gba_free' => (bool) ($raw['gba_free'] ?? false),
+            'gba_enabled' => (bool) ($raw['gba_enabled'] ?? true),
             'gba_cp_min' => (int) ($raw['gba_cp_min'] ?? 1500),
             'gba_cp_max' => (int) ($raw['gba_cp_max'] ?? 1999),
 
             'interior_cost' => (float) ($raw['interior_cost'] ?? 15000),
+            'interior_free' => (bool) ($raw['interior_free'] ?? false),
+            'interior_enabled' => (bool) ($raw['interior_enabled'] ?? true),
             'interior_cp_min' => (int) ($raw['interior_cp_min'] ?? 2000),
             'interior_cp_max' => (int) ($raw['interior_cp_max'] ?? 7999),
 
             'patagonia_cost' => (float) ($raw['patagonia_cost'] ?? 20000),
+            'patagonia_free' => (bool) ($raw['patagonia_free'] ?? false),
+            'patagonia_enabled' => (bool) ($raw['patagonia_enabled'] ?? true),
             'patagonia_cp_min' => (int) ($raw['patagonia_cp_min'] ?? 8000),
             'patagonia_cp_max' => (int) ($raw['patagonia_cp_max'] ?? 9999),
 
-            'free_shipping_threshold' => (float) ($raw['free_shipping_threshold'] ?? 150000),
+            'pickup_enabled' => (bool) ($raw['pickup_enabled'] ?? true),
+            'pickup_address' => $raw['pickup_address'] ?? 'Av. Corrientes 1234, CABA',
+            'pickup_schedule' => $raw['pickup_schedule'] ?? 'Lunes a Viernes de 10:00 a 18:00 hs',
         ];
     }
 
@@ -258,23 +272,37 @@ class StoreSettingService
     {
         $raw = self::getRaw();
 
-        $raw['caba_cost'] = (float) ($data['caba_cost'] ?? 5000);
-        $raw['caba_cp_min'] = (int) ($data['caba_cp_min'] ?? 1000);
-        $raw['caba_cp_max'] = (int) ($data['caba_cp_max'] ?? 1499);
+        if (isset($data['all_free'])) $raw['all_free'] = (bool) $data['all_free'];
+        if (isset($data['free_shipping_enabled'])) $raw['free_shipping_enabled'] = (bool) $data['free_shipping_enabled'];
+        if (isset($data['free_shipping_threshold'])) $raw['free_shipping_threshold'] = (float) $data['free_shipping_threshold'];
 
-        $raw['gba_cost'] = (float) ($data['gba_cost'] ?? 8000);
-        $raw['gba_cp_min'] = (int) ($data['gba_cp_min'] ?? 1500);
-        $raw['gba_cp_max'] = (int) ($data['gba_cp_max'] ?? 1999);
+        if (isset($data['caba_cost'])) $raw['caba_cost'] = (float) $data['caba_cost'];
+        if (isset($data['caba_free'])) $raw['caba_free'] = (bool) $data['caba_free'];
+        if (isset($data['caba_enabled'])) $raw['caba_enabled'] = (bool) $data['caba_enabled'];
+        if (isset($data['caba_cp_min'])) $raw['caba_cp_min'] = (int) $data['caba_cp_min'];
+        if (isset($data['caba_cp_max'])) $raw['caba_cp_max'] = (int) $data['caba_cp_max'];
 
-        $raw['interior_cost'] = (float) ($data['interior_cost'] ?? 15000);
-        $raw['interior_cp_min'] = (int) ($data['interior_cp_min'] ?? 2000);
-        $raw['interior_cp_max'] = (int) ($data['interior_cp_max'] ?? 7999);
+        if (isset($data['gba_cost'])) $raw['gba_cost'] = (float) $data['gba_cost'];
+        if (isset($data['gba_free'])) $raw['gba_free'] = (bool) $data['gba_free'];
+        if (isset($data['gba_enabled'])) $raw['gba_enabled'] = (bool) $data['gba_enabled'];
+        if (isset($data['gba_cp_min'])) $raw['gba_cp_min'] = (int) $data['gba_cp_min'];
+        if (isset($data['gba_cp_max'])) $raw['gba_cp_max'] = (int) $data['gba_cp_max'];
 
-        $raw['patagonia_cost'] = (float) ($data['patagonia_cost'] ?? 20000);
-        $raw['patagonia_cp_min'] = (int) ($data['patagonia_cp_min'] ?? 8000);
-        $raw['patagonia_cp_max'] = (int) ($data['patagonia_cp_max'] ?? 9999);
+        if (isset($data['interior_cost'])) $raw['interior_cost'] = (float) $data['interior_cost'];
+        if (isset($data['interior_free'])) $raw['interior_free'] = (bool) $data['interior_free'];
+        if (isset($data['interior_enabled'])) $raw['interior_enabled'] = (bool) $data['interior_enabled'];
+        if (isset($data['interior_cp_min'])) $raw['interior_cp_min'] = (int) $data['interior_cp_min'];
+        if (isset($data['interior_cp_max'])) $raw['interior_cp_max'] = (int) $data['interior_cp_max'];
 
-        $raw['free_shipping_threshold'] = (float) ($data['free_shipping_threshold'] ?? 150000);
+        if (isset($data['patagonia_cost'])) $raw['patagonia_cost'] = (float) $data['patagonia_cost'];
+        if (isset($data['patagonia_free'])) $raw['patagonia_free'] = (bool) $data['patagonia_free'];
+        if (isset($data['patagonia_enabled'])) $raw['patagonia_enabled'] = (bool) $data['patagonia_enabled'];
+        if (isset($data['patagonia_cp_min'])) $raw['patagonia_cp_min'] = (int) $data['patagonia_cp_min'];
+        if (isset($data['patagonia_cp_max'])) $raw['patagonia_cp_max'] = (int) $data['patagonia_cp_max'];
+
+        if (isset($data['pickup_enabled'])) $raw['pickup_enabled'] = (bool) $data['pickup_enabled'];
+        if (isset($data['pickup_address'])) $raw['pickup_address'] = trim($data['pickup_address']);
+        if (isset($data['pickup_schedule'])) $raw['pickup_schedule'] = trim($data['pickup_schedule']);
 
         self::saveRaw($raw);
 

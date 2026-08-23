@@ -11,7 +11,8 @@ import {
   Users, 
   MessageSquare, 
   Star, 
-  Lock 
+  Lock,
+  Truck 
 } from 'lucide-react';
 
 const TAB_METADATA = {
@@ -24,6 +25,7 @@ const TAB_METADATA = {
   customers: { label: 'Clientes & VIP', icon: Users },
   support: { label: 'Soporte & Tickets', icon: MessageSquare },
   reviews: { label: 'Moderación de Reseñas', icon: Star },
+  shipping: { label: 'Logística y Envíos', icon: Truck },
   settings: { label: 'Configuración General', icon: Lock },
 };
 
