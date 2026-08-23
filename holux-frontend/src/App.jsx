@@ -2661,17 +2661,39 @@ export default function App() {
       ? `${shippingStreet}${shippingApartment ? ' Depto ' + shippingApartment : ''}, ${shippingCity}, ${shippingProvince} (CP: ${shippingPostalCode})`
       : 'Retiro en Sucursal Central Holux';
 
-    const subtotal = getCartTotal();
-    const tierPercent = userProfile?.benefits?.auto_discount_percent || (userProfile?.tier === 'super_vip' ? 10 : userProfile?.tier === 'vip' ? 5 : 0);
-    const tierDiscount = tierPercent > 0 ? Math.round((subtotal * tierPercent) / 100) : 0;
-    const transferDiscount = paymentMethod === 'transfer' ? Math.round(subtotal * 0.10) : 0;
-    let couponDiscount = 0;
-    if (appliedCoupon) {
-      couponDiscount = appliedCoupon.type === 'percentage'
-        ? Math.round((subtotal * appliedCoupon.value) / 100)
-        : Math.min(subtotal, appliedCoupon.value);
+    const subtotalAfterDiscounts = Math.max(0, subtotal - tierDiscount - transferDiscount - couponDiscount);
+
+    // Calculate Dynamic Shipping for order payload
+    let shippingCost = 0;
+    if (deliveryOption === 'home') {
+      try {
+        const rates = JSON.parse(localStorage.getItem('holux_shipping_rates') || '{}');
+        if (!rates.all_free) {
+          const isFreeThreshold = rates.free_shipping_enabled && subtotalAfterDiscounts >= (rates.free_shipping_threshold || 150000);
+          if (!isFreeThreshold) {
+            const cp = parseInt(String(shippingPostalCode || '').trim(), 10);
+            if (!isNaN(cp)) {
+              if (cp >= (rates.caba_cp_min || 1000) && cp <= (rates.caba_cp_max || 1499)) {
+                shippingCost = rates.caba_free ? 0 : Number(rates.caba_cost ?? 5000);
+              } else if (cp >= (rates.gba_cp_min || 1500) && cp <= (rates.gba_cp_max || 1999)) {
+                shippingCost = rates.gba_free ? 0 : Number(rates.gba_cost ?? 8000);
+              } else if (cp >= (rates.patagonia_cp_min || 8000) && cp <= (rates.patagonia_cp_max || 9999)) {
+                shippingCost = rates.patagonia_free ? 0 : Number(rates.patagonia_cost ?? 20000);
+              } else {
+                shippingCost = rates.interior_free ? 0 : Number(rates.interior_cost ?? 15000);
+              }
+            } else {
+              if (shippingProvince === 'CABA') shippingCost = rates.caba_free ? 0 : Number(rates.caba_cost ?? 5000);
+              else if (shippingProvince === 'Buenos Aires') shippingCost = rates.gba_free ? 0 : Number(rates.gba_cost ?? 8000);
+              else if (['Chubut', 'Neuquén', 'Río Negro', 'Santa Cruz', 'Tierra del Fuego'].includes(shippingProvince)) shippingCost = rates.patagonia_free ? 0 : Number(rates.patagonia_cost ?? 20000);
+              else shippingCost = rates.interior_free ? 0 : Number(rates.interior_cost ?? 15000);
+            }
+          }
+        }
+      } catch (e) {}
     }
-    const total = Math.max(0, subtotal - tierDiscount - transferDiscount - couponDiscount);
+
+    const total = subtotalAfterDiscounts + shippingCost;
 
     // --- MERCADO PAGO CHECKOUT PRO (REDIRECCIÓN Y PAGO CON CUENTA MP / DINERO EN CUENTA / MERCADO CRÉDITO) ---
     if (paymentMethod === 'mercadopago_checkout_pro') {
@@ -2684,13 +2706,22 @@ export default function App() {
         const lastName = nameParts.slice(1).join(' ') || '';
 
         const prefBody = {
-          items: cart.map(item => ({
-            id: String(item.id),
-            title: String(item.name || 'Producto Holux'),
-            quantity: Number(item.quantity || 1),
-            unit_price: Number(item.price),
-            currency_id: 'ARS'
-          })),
+          items: [
+            ...cart.map(item => ({
+              id: String(item.id),
+              title: String(item.name || 'Producto Holux'),
+              quantity: Number(item.quantity || 1),
+              unit_price: Number(item.price),
+              currency_id: 'ARS'
+            })),
+            ...(shippingCost > 0 ? [{
+              id: 'shipping-fee',
+              title: 'Costo de Envío a Domicilio',
+              quantity: 1,
+              unit_price: Number(shippingCost),
+              currency_id: 'ARS'
+            }] : [])
+          ],
           payer: {
             name: firstName,
             surname: lastName,
@@ -2734,6 +2765,7 @@ export default function App() {
       customer_dni: checkoutDni,
       shipping_address: fullAddress,
       shipping_method: deliveryOption === 'home' ? 'Entrega a Domicilio' : 'Retiro en Sucursal Central',
+      shipping_cost: shippingCost,
       payment_method: paymentMethod,
       installments: paymentMethod === 'card' ? paymentInstallments : 1,
       total_amount: Math.round(total),

@@ -368,7 +368,7 @@ const CheckoutView = memo(({
     } catch {}
     return {
       all_free: false,
-      free_shipping_enabled: true,
+      free_shipping_enabled: false,
       free_shipping_threshold: 150000,
       caba_cost: 5000,
       caba_free: false,
@@ -396,14 +396,41 @@ const CheckoutView = memo(({
     };
   });
 
-  // Listen to live shipping rate changes
+  // Fetch live shipping settings on mount and listen to changes
   React.useEffect(() => {
+    const fetchLatestRates = async () => {
+      try {
+        const saved = localStorage.getItem('holux_shipping_rates');
+        if (saved) {
+          setShippingRates(JSON.parse(saved));
+        }
+
+        const res = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}/api/settings`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.settings) {
+            setShippingRates(prev => {
+              const updated = {
+                ...prev,
+                ...data.settings
+              };
+              localStorage.setItem('holux_shipping_rates', JSON.stringify(updated));
+              return updated;
+            });
+          }
+        }
+      } catch (e) {}
+    };
+
+    fetchLatestRates();
+
     const handleRatesUpdate = () => {
       try {
         const saved = localStorage.getItem('holux_shipping_rates');
         if (saved) setShippingRates(JSON.parse(saved));
       } catch {}
     };
+
     window.addEventListener('holux_shipping_rates_updated', handleRatesUpdate);
     window.addEventListener('storage', handleRatesUpdate);
     return () => {

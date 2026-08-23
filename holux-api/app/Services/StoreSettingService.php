@@ -117,7 +117,7 @@ class StoreSettingService
 
             // 3. Shipping & Postal Ranges
             'all_free' => (bool) ($raw['all_free'] ?? false),
-            'free_shipping_enabled' => (bool) ($raw['free_shipping_enabled'] ?? true),
+            'free_shipping_enabled' => (bool) ($raw['free_shipping_enabled'] ?? false),
             'free_shipping_threshold' => (float) ($raw['free_shipping_threshold'] ?? 150000),
 
             'caba_cost' => (float) ($raw['caba_cost'] ?? 5000),

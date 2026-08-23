@@ -19,7 +19,7 @@ import {
 export default function ShippingManager({ API_BASE_URL, token }) {
   // General & Nationwide Shipping Flags
   const [allFree, setAllFree] = useState(false);
-  const [freeShippingEnabled, setFreeShippingEnabled] = useState(true);
+  const [freeShippingEnabled, setFreeShippingEnabled] = useState(false);
   const [freeShippingThreshold, setFreeShippingThreshold] = useState(150000);
 
   // Zone 1: CABA
