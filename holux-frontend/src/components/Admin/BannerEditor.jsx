@@ -452,8 +452,14 @@ export default function BannerEditor({ heroSlides = [], setHeroSlides, promoBann
                 <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">IMAGEN DESKTOP</label>
                 
                 {desktopImage && (
-                  <div className="w-full h-24 rounded-lg overflow-hidden bg-white border border-gray-200 mb-2">
+                  <div className="relative w-full h-24 rounded-lg overflow-hidden bg-white border border-gray-200 mb-2">
                     <img src={desktopImage} alt="Desktop Preview" className="w-full h-full object-cover" />
+                    {overlayOpacity > 0 && (
+                      <div 
+                        className="absolute inset-0 transition-opacity duration-300 pointer-events-none"
+                        style={{ backgroundColor: `rgba(0, 0, 0, ${overlayOpacity / 100})` }}
+                      />
+                    )}
                   </div>
                 )}
 
@@ -497,8 +503,14 @@ export default function BannerEditor({ heroSlides = [], setHeroSlides, promoBann
                 <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">IMAGEN MOBILE</label>
                 
                 {mobileImage && (
-                  <div className="w-full h-24 rounded-lg overflow-hidden bg-white border border-gray-200 mb-2">
+                  <div className="relative w-full h-24 rounded-lg overflow-hidden bg-white border border-gray-200 mb-2">
                     <img src={mobileImage} alt="Mobile Preview" className="w-full h-full object-cover" />
+                    {overlayOpacity > 0 && (
+                      <div 
+                        className="absolute inset-0 transition-opacity duration-300 pointer-events-none"
+                        style={{ backgroundColor: `rgba(0, 0, 0, ${overlayOpacity / 100})` }}
+                      />
+                    )}
                   </div>
                 )}
 
@@ -541,7 +553,7 @@ export default function BannerEditor({ heroSlides = [], setHeroSlides, promoBann
             <div className="space-y-2 bg-gray-50 p-4 border border-gray-200 rounded-xl">
               <div className="flex items-center justify-between">
                 <label className="text-[10px] font-bold text-gray-700 uppercase tracking-wider block">
-                  CAPA OSCURA / TRANSPARENCIA DEL BANNER: <span className="text-[#3C6E71] font-mono-custom font-bold">{overlayOpacity}%</span>
+                  CAPA OSCURA / FILTRO NEGRO DE CONTRASTE: <span className="text-[#3C6E71] font-mono-custom font-bold">{overlayOpacity}%</span>
                 </label>
                 <span className="text-[10px] text-gray-500 font-sans font-medium">
                   {overlayOpacity === 0 ? '✨ 100% Nítido / Sin filtro oscuro' : `Filtro oscuro al ${overlayOpacity}%`}
@@ -560,8 +572,8 @@ export default function BannerEditor({ heroSlides = [], setHeroSlides, promoBann
                 {[
                   { label: '0% (100% Nítido / Solo Imagen)', val: 0 },
                   { label: '20% (Filtro Suave)', val: 20 },
-                  { label: '40% (Equilibrado)', val: 40 },
-                  { label: '60% (Contraste Alto)', val: 60 }
+                  { label: '45% (Clásico / Contraste Texto)', val: 45 },
+                  { label: '65% (Oscuro / Alto Contraste)', val: 65 }
                 ].map((preset) => (
                   <button
                     key={preset.val}
