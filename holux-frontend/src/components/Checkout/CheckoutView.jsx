@@ -235,6 +235,33 @@ const CheckoutView = memo(({
   const [checkoutCouponInput, setCheckoutCouponInput] = React.useState('');
   const [checkoutCouponError, setCheckoutCouponError] = React.useState('');
 
+  // Dynamic Payment Methods Configuration from Admin Settings
+  const [paymentMethodsConfig] = React.useState(() => {
+    try {
+      const saved = localStorage.getItem('holux_payment_methods_config');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [
+      { id: 'transfer', name: 'TRANSFERENCIA BANCARIA', description: 'Pago directo mediante CBU / CVU o Alias bancario', badge: 'BANCO / CBU', icon: 'building', isEnabled: true },
+      { id: 'mercadopago_checkout_pro', name: 'PAGAR CON TU CUENTA DE MERCADO PAGO (CHECKOUT PRO)', description: 'Paga con Dinero en Cuenta MP, Mercado Crédito, QR, Rapipago o Pago Fácil. Redirección oficial 100% segura.', badge: 'OFICIAL MP', icon: 'mp', isEnabled: true },
+      { id: 'mercadopago', name: 'TARJETA DE CRÉDITO / DÉBITO (MERCADO PAGO BRICKS)', description: 'Formulario directo en la web con tokenización oficial PCI-DSS', badge: 'TARJETAS', icon: 'card', isEnabled: true }
+    ];
+  });
+
+  const activePaymentMethods = React.useMemo(() => {
+    return paymentMethodsConfig.filter(m => m.isEnabled !== false);
+  }, [paymentMethodsConfig]);
+
+  // Ensure default preselected method is the first active method
+  React.useEffect(() => {
+    if (activePaymentMethods.length > 0) {
+      const isCurrentlyActive = activePaymentMethods.some(m => m.id === paymentMethod);
+      if (!isCurrentlyActive) {
+        setPaymentMethod(activePaymentMethods[0].id);
+      }
+    }
+  }, [activePaymentMethods, paymentMethod, setPaymentMethod]);
+
   const subtotal = getCartTotal();
 
   // 1. Membership Tier Discount (VIP & SUPER VIP)
@@ -622,135 +649,163 @@ const CheckoutView = memo(({
               </div>
 
               <div className="space-y-3">
-                {/* Option 1: Transferencia Bancaria Directa */}
-                <button
-                  type="button"
-                  onClick={() => setPaymentMethod('transfer')}
-                  className={`w-full p-4 rounded-xl border text-left flex items-start justify-between transition-all cursor-pointer ${paymentMethod === 'transfer' ? 'border-[#3C6E71] bg-[#3C6E71]/5 shadow-sm ring-1 ring-[#3C6E71]/30' : 'border-gray-200 hover:border-gray-300'}`}
-                >
-                  <div className="flex items-start gap-3">
-                    <div className="p-2 bg-[#3C6E71] text-white rounded-lg font-bold text-xs flex items-center justify-center">
-                      <Building2 className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <span className="font-display text-xs font-bold text-gray-900 block uppercase">TRANSFERENCIA BANCARIA</span>
-                      <span className="text-[10px] text-gray-500">Pago directo mediante CBU / CVU o Alias bancario</span>
-                    </div>
+                {activePaymentMethods.length === 0 ? (
+                  <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 font-bold">
+                    No hay métodos de pago habilitados en este momento. Por favor contactá al soporte.
                   </div>
-                  <span className="text-[10px] font-bold bg-[#3C6E71]/15 text-[#3C6E71] px-2.5 py-1 rounded uppercase">BANCO / CBU</span>
-                </button>
+                ) : (
+                  activePaymentMethods.map((method) => {
+                    if (method.id === 'transfer') {
+                      return (
+                        <React.Fragment key="transfer">
+                          {/* Option 1: Transferencia Bancaria Directa */}
+                          <button
+                            type="button"
+                            onClick={() => setPaymentMethod('transfer')}
+                            className={`w-full p-4 rounded-xl border text-left flex items-start justify-between transition-all cursor-pointer ${paymentMethod === 'transfer' ? 'border-[#3C6E71] bg-[#3C6E71]/5 shadow-sm ring-1 ring-[#3C6E71]/30' : 'border-gray-200 hover:border-gray-300'}`}
+                          >
+                            <div className="flex items-start gap-3">
+                              <div className="p-2 bg-[#3C6E71] text-white rounded-lg font-bold text-xs flex items-center justify-center">
+                                <Building2 className="w-4 h-4" />
+                              </div>
+                              <div>
+                                <span className="font-display text-xs font-bold text-gray-900 block uppercase">{method.name || 'TRANSFERENCIA BANCARIA'}</span>
+                                <span className="text-[10px] text-gray-500">{method.description || 'Pago directo mediante CBU / CVU o Alias bancario'}</span>
+                              </div>
+                            </div>
+                            <span className="text-[10px] font-bold bg-[#3C6E71]/15 text-[#3C6E71] px-2.5 py-1 rounded uppercase">{method.badge || 'BANCO / CBU'}</span>
+                          </button>
 
-                {paymentMethod === 'transfer' && (
-                  <div className="p-4 bg-emerald-50/60 border border-emerald-200 rounded-xl space-y-4 text-xs text-emerald-900 font-sans">
-                    <div className="space-y-1">
-                      <p className="font-bold uppercase tracking-wider text-emerald-800">Datos Bancarios para Transferir:</p>
-                      <p className="font-mono-custom text-[11px] text-gray-800">CBU: 0170098520000001234567</p>
-                      <p className="font-mono-custom text-[11px] text-gray-800">Alias: HOLUX.OFICIAL.MP</p>
-                      <p className="text-[11px] text-emerald-800 font-bold">Total a Transferir: ${Math.round(subtotalAfterDiscount + shippingCost).toLocaleString('es-AR')}</p>
-                    </div>
+                          {paymentMethod === 'transfer' && (
+                            <div className="p-4 bg-emerald-50/60 border border-emerald-200 rounded-xl space-y-4 text-xs text-emerald-900 font-sans">
+                              <div className="space-y-1">
+                                <p className="font-bold uppercase tracking-wider text-emerald-800">Datos Bancarios para Transferir:</p>
+                                <p className="font-mono-custom text-[11px] text-gray-800">CBU: 0170098520000001234567</p>
+                                <p className="font-mono-custom text-[11px] text-gray-800">Alias: HOLUX.OFICIAL.MP</p>
+                                <p className="text-[11px] text-emerald-800 font-bold">Total a Transferir: ${Math.round(subtotalAfterDiscount + shippingCost).toLocaleString('es-AR')}</p>
+                              </div>
 
-                    {/* Mandatory Receipt Upload Box */}
-                    <div className="p-3 bg-white rounded-xl border border-emerald-300 space-y-2">
-                      <label className="text-[10px] font-bold text-gray-700 uppercase tracking-wider block">
-                        ADJUNTAR COMPROBANTE DE TRANSFERENCIA (OBLIGATORIO) *
-                      </label>
-                      <p className="text-[10px] text-gray-500">Formatos permitidos: JPG, PNG o PDF (Máximo 5MB)</p>
+                              {/* Mandatory Receipt Upload Box */}
+                              <div className="p-3 bg-white rounded-xl border border-emerald-300 space-y-2">
+                                <label className="text-[10px] font-bold text-gray-700 uppercase tracking-wider block">
+                                  ADJUNTAR COMPROBANTE DE TRANSFERENCIA (OBLIGATORIO) *
+                                </label>
+                                <p className="text-[10px] text-gray-500">Formatos permitidos: JPG, PNG o PDF (Máximo 5MB)</p>
 
-                      <div className="relative">
-                        <input
-                          type="file"
-                          accept="image/jpeg,image/png,image/jpg,application/pdf"
-                          onChange={handleTransferReceiptFileChange}
-                          className="w-full text-xs text-gray-700 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-emerald-600 file:text-white hover:file:bg-emerald-700 cursor-pointer"
-                        />
-                      </div>
+                                <div className="relative">
+                                  <input
+                                    type="file"
+                                    accept="image/jpeg,image/png,image/jpg,application/pdf"
+                                    onChange={handleTransferReceiptFileChange}
+                                    className="w-full text-xs text-gray-700 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-emerald-600 file:text-white hover:file:bg-emerald-700 cursor-pointer"
+                                  />
+                                </div>
 
-                      {transferReceiptName && (
-                        <div className="flex items-center justify-between p-2 bg-emerald-100/70 rounded-lg border border-emerald-200 text-emerald-900 font-mono-custom text-[11px]">
-                          <span className="truncate max-w-[200px]">📄 {transferReceiptName}</span>
-                          <span className="font-bold text-emerald-700 text-[10px] uppercase">¡CARGADO!</span>
-                        </div>
-                      )}
+                                {transferReceiptName && (
+                                  <div className="flex items-center justify-between p-2 bg-emerald-100/70 rounded-lg border border-emerald-200 text-emerald-900 font-mono-custom text-[11px]">
+                                    <span className="truncate max-w-[200px]">📄 {transferReceiptName}</span>
+                                    <span className="font-bold text-emerald-700 text-[10px] uppercase">¡CARGADO!</span>
+                                  </div>
+                                )}
 
-                      {transferReceiptError && (
-                        <p className="text-[11px] text-red-600 font-bold">{transferReceiptError}</p>
-                      )}
-                    </div>
-                  </div>
-                )}
+                                {transferReceiptError && (
+                                  <p className="text-[11px] text-red-600 font-bold">{transferReceiptError}</p>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </React.Fragment>
+                      );
+                    }
 
-                {/* Option 2: Mercado Pago Checkout Pro (Dinero en Cuenta / App / QR / Mercado Crédito / Rapipago) */}
-                <button
-                  type="button"
-                  onClick={() => setPaymentMethod('mercadopago_checkout_pro')}
-                  className={`w-full p-4 rounded-xl border text-left flex items-start justify-between transition-all cursor-pointer ${paymentMethod === 'mercadopago_checkout_pro' ? 'border-[#3C6E71] bg-[#3C6E71]/5 shadow-sm' : 'border-gray-200 hover:border-gray-300'}`}
-                >
-                  <div className="flex items-start gap-3">
-                    <div className="p-2 bg-[#009EE3] text-white rounded-lg font-bold font-mono-custom text-xs">
-                      MP
-                    </div>
-                    <div>
-                      <span className="font-display text-xs font-bold text-gray-900 block uppercase">PAGAR CON TU CUENTA DE MERCADO PAGO (CHECKOUT PRO)</span>
-                      <span className="text-[10px] text-gray-500">Paga con Dinero en Cuenta MP, Mercado Crédito, QR, Rapipago o Pago Fácil. Redirección oficial 100% segura.</span>
-                    </div>
-                  </div>
-                  <span className="text-[10px] font-bold bg-[#009EE3]/15 text-[#009EE3] px-2.5 py-1 rounded uppercase">OFICIAL MP</span>
-                </button>
+                    if (method.id === 'mercadopago_checkout_pro') {
+                      return (
+                        <React.Fragment key="mercadopago_checkout_pro">
+                          {/* Option 2: Mercado Pago Checkout Pro */}
+                          <button
+                            type="button"
+                            onClick={() => setPaymentMethod('mercadopago_checkout_pro')}
+                            className={`w-full p-4 rounded-xl border text-left flex items-start justify-between transition-all cursor-pointer ${paymentMethod === 'mercadopago_checkout_pro' ? 'border-[#3C6E71] bg-[#3C6E71]/5 shadow-sm' : 'border-gray-200 hover:border-gray-300'}`}
+                          >
+                            <div className="flex items-start gap-3">
+                              <div className="p-2 bg-[#009EE3] text-white rounded-lg font-bold font-mono-custom text-xs">
+                                MP
+                              </div>
+                              <div>
+                                <span className="font-display text-xs font-bold text-gray-900 block uppercase">{method.name || 'PAGAR CON TU CUENTA DE MERCADO PAGO (CHECKOUT PRO)'}</span>
+                                <span className="text-[10px] text-gray-500">{method.description || 'Paga con Dinero en Cuenta MP, Mercado Crédito, QR, Rapipago o Pago Fácil. Redirección oficial 100% segura.'}</span>
+                              </div>
+                            </div>
+                            <span className="text-[10px] font-bold bg-[#009EE3]/15 text-[#009EE3] px-2.5 py-1 rounded uppercase">{method.badge || 'OFICIAL MP'}</span>
+                          </button>
 
-                {paymentMethod === 'mercadopago_checkout_pro' && (
-                  <div className="p-4 bg-blue-50/70 border border-blue-200 rounded-xl space-y-2 font-sans text-xs text-blue-950">
-                    <div className="flex items-center justify-between font-bold text-blue-900 text-[11px] uppercase">
-                      <span>📱 REDIRECCIÓN A MERCADO PAGO</span>
-                      <span className="text-[9px] bg-blue-600 text-white px-2 py-0.5 rounded font-mono-custom">CHECKOUT PRO</span>
-                    </div>
-                    <p className="text-[11px] text-blue-900">
-                      Al hacer clic en <strong>"REALIZAR PEDIDO Y PAGAR CON MERCADO PAGO"</strong> serás redirigido al portal oficial de Mercado Pago para ingresar con tu cuenta o pagar en cuotas/efectivo.
-                    </p>
-                  </div>
-                )}
+                          {paymentMethod === 'mercadopago_checkout_pro' && (
+                            <div className="p-4 bg-blue-50/70 border border-blue-200 rounded-xl space-y-2 font-sans text-xs text-blue-950">
+                              <div className="flex items-center justify-between font-bold text-blue-900 text-[11px] uppercase">
+                                <span>📱 REDIRECCIÓN A MERCADO PAGO</span>
+                                <span className="text-[9px] bg-blue-600 text-white px-2 py-0.5 rounded font-mono-custom">CHECKOUT PRO</span>
+                              </div>
+                              <p className="text-[11px] text-blue-900">
+                                Al hacer clic en <strong>"REALIZAR PEDIDO Y PAGAR CON MERCADO PAGO"</strong> serás redirigido al portal oficial de Mercado Pago para ingresar con tu cuenta o pagar en cuotas/efectivo.
+                              </p>
+                            </div>
+                          )}
+                        </React.Fragment>
+                      );
+                    }
 
-                {/* Option 3: Mercado Pago Card Brick (Tarjeta de Crédito / Débito) */}
-                <button
-                  type="button"
-                  onClick={() => setPaymentMethod('mercadopago')}
-                  className={`w-full p-4 rounded-xl border text-left flex items-start justify-between transition-all cursor-pointer ${paymentMethod === 'mercadopago' ? 'border-[#3C6E71] bg-[#3C6E71]/5 shadow-sm' : 'border-gray-200 hover:border-gray-300'}`}
-                >
-                  <div className="flex items-start gap-3">
-                    <div className="p-2 bg-gray-800 text-white rounded-lg font-bold font-mono-custom text-xs">
-                      💳
-                    </div>
-                    <div>
-                      <span className="font-display text-xs font-bold text-gray-900 block uppercase">TARJETA DE CRÉDITO / DÉBITO (MERCADO PAGO BRICKS)</span>
-                      <span className="text-[10px] text-gray-500">Formulario directo en la web con tokenización oficial PCI-DSS</span>
-                    </div>
-                  </div>
-                  <span className="text-[10px] font-bold bg-gray-100 text-gray-700 px-2 py-0.5 rounded uppercase">TARJETAS</span>
-                </button>
+                    if (method.id === 'mercadopago') {
+                      return (
+                        <React.Fragment key="mercadopago">
+                          {/* Option 3: Mercado Pago Card Brick */}
+                          <button
+                            type="button"
+                            onClick={() => setPaymentMethod('mercadopago')}
+                            className={`w-full p-4 rounded-xl border text-left flex items-start justify-between transition-all cursor-pointer ${paymentMethod === 'mercadopago' ? 'border-[#3C6E71] bg-[#3C6E71]/5 shadow-sm' : 'border-gray-200 hover:border-gray-300'}`}
+                          >
+                            <div className="flex items-start gap-3">
+                              <div className="p-2 bg-gray-800 text-white rounded-lg font-bold font-mono-custom text-xs">
+                                💳
+                              </div>
+                              <div>
+                                <span className="font-display text-xs font-bold text-gray-900 block uppercase">{method.name || 'TARJETA DE CRÉDITO / DÉBITO (MERCADO PAGO BRICKS)'}</span>
+                                <span className="text-[10px] text-gray-500">{method.description || 'Formulario directo en la web con tokenización oficial PCI-DSS'}</span>
+                              </div>
+                            </div>
+                            <span className="text-[10px] font-bold bg-gray-100 text-gray-700 px-2 py-0.5 rounded uppercase">{method.badge || 'TARJETAS'}</span>
+                          </button>
 
-                {paymentMethod === 'mercadopago' && (
-                  <div className="p-4 bg-blue-50/60 border border-blue-200 rounded-xl space-y-3 font-sans text-xs text-blue-950">
-                    <div className="flex items-center justify-between border-b border-blue-200 pb-2">
-                      <span className="font-bold text-blue-900 flex items-center gap-1.5 uppercase text-[11px]">
-                        💳 MERCADO PAGO CARD PAYMENT BRICK V2
-                      </span>
-                      <span className="text-[9px] font-mono-custom bg-blue-600 text-white px-2 py-0.5 rounded font-bold">
-                        CHECKOUT SEGURO
-                      </span>
-                    </div>
+                          {paymentMethod === 'mercadopago' && (
+                            <div className="p-4 bg-blue-50/60 border border-blue-200 rounded-xl space-y-3 font-sans text-xs text-blue-950">
+                              <div className="flex items-center justify-between border-b border-blue-200 pb-2">
+                                <span className="font-bold text-blue-900 flex items-center gap-1.5 uppercase text-[11px]">
+                                  💳 MERCADO PAGO CARD PAYMENT BRICK V2
+                                </span>
+                                <span className="text-[9px] font-mono-custom bg-blue-600 text-white px-2 py-0.5 rounded font-bold">
+                                  CHECKOUT SEGURO
+                                </span>
+                              </div>
 
-                    <div id="cardPaymentBrick_container" className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm min-h-[140px] flex flex-col justify-center items-center">
-                      <div className="w-full space-y-3">
-                        <div className="p-3 bg-gray-50 rounded-lg border border-gray-200 flex items-center justify-between font-mono-custom text-[11px]">
-                          <span>Monto a cobrar:</span>
-                          <strong className="text-[#3C6E71] text-sm">${Math.round(subtotal).toLocaleString('es-AR')}</strong>
-                        </div>
-                        <div className="p-3 bg-emerald-50 rounded-lg border border-emerald-200 text-emerald-900 text-[10px] space-y-1">
-                          <p className="font-bold">✓ Conexión establecida con /process_order (Mercado Pago API v1)</p>
-                          <p className="text-gray-600">Tus datos están protegidos bajo normas PCI-DSS.</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                              <div id="cardPaymentBrick_container" className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm min-h-[140px] flex flex-col justify-center items-center">
+                                <div className="w-full space-y-3">
+                                  <div className="p-3 bg-gray-50 rounded-lg border border-gray-200 flex items-center justify-between font-mono-custom text-[11px]">
+                                    <span>Monto a cobrar:</span>
+                                    <strong className="text-[#3C6E71] text-sm">${Math.round(subtotal).toLocaleString('es-AR')}</strong>
+                                  </div>
+                                  <div className="p-3 bg-emerald-50 rounded-lg border border-emerald-200 text-emerald-900 text-[10px] space-y-1">
+                                    <p className="font-bold">✓ Conexión establecida con /process_order (Mercado Pago API v1)</p>
+                                    <p className="text-gray-600">Tus datos están protegidos bajo normas PCI-DSS.</p>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </React.Fragment>
+                      );
+                    }
+
+                    return null;
+                  })
                 )}
               </div>
             </div>

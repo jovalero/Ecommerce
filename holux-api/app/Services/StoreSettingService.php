@@ -111,6 +111,7 @@ class StoreSettingService
             'bank_alias' => $raw['bank_alias'] ?? '',
             'bank_holder' => $raw['bank_holder'] ?? '',
             'bank_cuit' => $raw['bank_cuit'] ?? '',
+            'payment_methods_config' => $raw['payment_methods_config'] ?? null,
 
             'webhook_url' => rtrim($baseUrl, '/') . '/api/webhooks/mercadopago',
 
@@ -227,6 +228,11 @@ class StoreSettingService
         if (isset($data['bank_alias'])) $raw['bank_alias'] = trim($data['bank_alias']);
         if (isset($data['bank_holder'])) $raw['bank_holder'] = trim($data['bank_holder']);
         if (isset($data['bank_cuit'])) $raw['bank_cuit'] = trim($data['bank_cuit']);
+        if (isset($data['payment_methods_config'])) {
+            $raw['payment_methods_config'] = is_array($data['payment_methods_config']) 
+                ? $data['payment_methods_config'] 
+                : json_decode($data['payment_methods_config'], true);
+        }
 
         self::saveRaw($raw);
 

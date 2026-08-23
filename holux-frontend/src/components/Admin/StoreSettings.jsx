@@ -12,8 +12,43 @@ import {
   Copy,
   History,
   Building2,
-  ExternalLink
+  ExternalLink,
+  ChevronUp,
+  ChevronDown,
+  ArrowUp,
+  ArrowDown,
+  Eye,
+  EyeOff,
+  CheckCircle2,
+  Sliders
 } from 'lucide-react';
+
+const DEFAULT_PAYMENT_METHODS = [
+  {
+    id: 'transfer',
+    name: 'TRANSFERENCIA BANCARIA',
+    description: 'Pago directo mediante CBU / CVU o Alias bancario',
+    badge: 'BANCO / CBU',
+    icon: 'building',
+    isEnabled: true
+  },
+  {
+    id: 'mercadopago_checkout_pro',
+    name: 'PAGAR CON TU CUENTA DE MERCADO PAGO (CHECKOUT PRO)',
+    description: 'Paga con Dinero en Cuenta MP, Mercado Crédito, QR, Rapipago o Pago Fácil. Redirección oficial 100% segura.',
+    badge: 'OFICIAL MP',
+    icon: 'mp',
+    isEnabled: true
+  },
+  {
+    id: 'mercadopago',
+    name: 'TARJETA DE CRÉDITO / DÉBITO (MERCADO PAGO BRICKS)',
+    description: 'Formulario directo en la web con tokenización oficial PCI-DSS',
+    badge: 'TARJETAS',
+    icon: 'card',
+    isEnabled: true
+  }
+];
 
 export default function StoreSettings({ API_BASE_URL, token }) {
   // 1. Tax & Fiscal State
@@ -41,6 +76,15 @@ export default function StoreSettings({ API_BASE_URL, token }) {
   const [maxInstallments, setMaxInstallments] = useState(6);
   const [webhookUrl, setWebhookUrl] = useState('');
   const [copiedWebhook, setCopiedWebhook] = useState(false);
+
+  // Payment Methods Order & Active Status State
+  const [paymentMethodsConfig, setPaymentMethodsConfig] = useState(() => {
+    try {
+      const saved = localStorage.getItem('holux_payment_methods_config');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return DEFAULT_PAYMENT_METHODS;
+  });
 
   // 3. Shipping Rates & Postal Code Ranges State
   const [cabaCost, setCabaCost] = useState(5000);
@@ -111,6 +155,12 @@ export default function StoreSettings({ API_BASE_URL, token }) {
         setBankCuit(s.bank_cuit ?? '30-71829304-9');
         setWebhookUrl(s.webhook_url ?? `${API_BASE_URL}/api/webhooks/mercadopago`);
 
+        // Payment Methods Config
+        if (s.payment_methods_config && Array.isArray(s.payment_methods_config) && s.payment_methods_config.length > 0) {
+          setPaymentMethodsConfig(s.payment_methods_config);
+          localStorage.setItem('holux_payment_methods_config', JSON.stringify(s.payment_methods_config));
+        }
+
         // 3. Shipping
         setCabaCost(s.caba_cost ?? 5000);
         setCabaCpMin(s.caba_cp_min ?? 1000);
@@ -146,12 +196,32 @@ export default function StoreSettings({ API_BASE_URL, token }) {
     fetchSettings();
   }, [token]);
 
-  // Handle Copy Webhook URL
-  const handleCopyWebhook = () => {
-    if (!webhookUrl) return;
-    navigator.clipboard.writeText(webhookUrl);
-    setCopiedWebhook(true);
-    setTimeout(() => setCopiedWebhook(false), 2500);
+  // Payment Methods Toggle & Reorder Handlers
+  const handleTogglePaymentMethod = (id) => {
+    const updated = paymentMethodsConfig.map(m => {
+      if (m.id === id) {
+        const activeCount = paymentMethodsConfig.filter(x => x.isEnabled).length;
+        if (m.isEnabled && activeCount <= 1) {
+          setErrorMsg('Debe permanecer al menos un método de pago activo para los clientes.');
+          setTimeout(() => setErrorMsg(null), 4000);
+          return m;
+        }
+        return { ...m, isEnabled: !m.isEnabled };
+      }
+      return m;
+    });
+    setPaymentMethodsConfig(updated);
+    localStorage.setItem('holux_payment_methods_config', JSON.stringify(updated));
+  };
+
+  const handleMovePaymentMethod = (index, direction) => {
+    const newIndex = index + direction;
+    if (newIndex < 0 || newIndex >= paymentMethodsConfig.length) return;
+    const updated = [...paymentMethodsConfig];
+    const [moved] = updated.splice(index, 1);
+    updated.splice(newIndex, 0, moved);
+    setPaymentMethodsConfig(updated);
+    localStorage.setItem('holux_payment_methods_config', JSON.stringify(updated));
   };
 
   // Unified Save Handler (Single Button at bottom)
@@ -207,6 +277,7 @@ export default function StoreSettings({ API_BASE_URL, token }) {
         bank_alias: bankAlias,
         bank_holder: bankHolder,
         bank_cuit: bankCuit,
+        payment_methods_config: paymentMethodsConfig,
 
         // Shipping
         caba_cost: parseFloat(cabaCost),
@@ -633,6 +704,145 @@ export default function StoreSettings({ API_BASE_URL, token }) {
             <p className="text-[10px] text-blue-700 font-sans">
               Configurá esta URL en la sección <em>Webhooks / Notificaciones IPN</em> de tu aplicación de Mercado Pago para acreditar pagos automáticamente.
             </p>
+          </div>
+
+          {/* ========================================================================= */}
+          {/* GESTIÓN Y ORDEN DE MÉTODOS DE PAGO EN EL CHECKOUT */}
+          {/* ========================================================================= */}
+          <div className="space-y-4 pt-4 border-t border-gray-100">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <h4 className="font-display text-xs font-bold text-gray-900 uppercase tracking-wider flex items-center gap-1.5">
+                  <Sliders className="w-3.5 h-3.5 text-[#3C6E71]" />
+                  <span>ORDEN Y VISIBILIDAD DE MÉTODOS DE PAGO EN CHECKOUT</span>
+                </h4>
+                <p className="text-[11px] text-gray-500 mt-0.5">
+                  Elegí qué métodos aparecen en tu tienda, activalos o desactivalos y definí el orden (el #1 aparece primero y por defecto).
+                </p>
+              </div>
+              <span className="text-[10px] font-mono-custom font-bold bg-[#3C6E71]/10 text-[#3C6E71] px-2.5 py-1 rounded-full shrink-0">
+                {paymentMethodsConfig.filter(m => m.isEnabled).length} de {paymentMethodsConfig.length} activos
+              </span>
+            </div>
+
+            <div className="space-y-2.5">
+              {paymentMethodsConfig.map((method, index) => {
+                const isFirst = index === 0;
+                const isLast = index === paymentMethodsConfig.length - 1;
+                return (
+                  <div
+                    key={method.id}
+                    className={`p-3.5 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                      method.isEnabled
+                        ? isFirst
+                          ? 'bg-[#3C6E71]/5 border-[#3C6E71]/40 shadow-xs'
+                          : 'bg-white border-gray-200 shadow-xs'
+                        : 'bg-gray-50/80 border-gray-200 opacity-60'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      {/* Position Badge */}
+                      <span className={`w-7 h-7 rounded-xl flex items-center justify-center font-mono-custom text-xs font-bold shrink-0 ${
+                        method.isEnabled
+                          ? isFirst
+                            ? 'bg-[#3C6E71] text-white shadow-xs'
+                            : 'bg-gray-200 text-gray-800'
+                          : 'bg-gray-100 text-gray-400'
+                      }`}>
+                        #{index + 1}
+                      </span>
+
+                      {/* Icon */}
+                      <div className="p-2 bg-gray-100 text-gray-700 rounded-xl shrink-0">
+                        {method.id === 'transfer' ? (
+                          <Building2 className="w-4 h-4 text-[#3C6E71]" />
+                        ) : method.id === 'mercadopago_checkout_pro' ? (
+                          <span className="text-xs font-black text-[#009EE3]">MP</span>
+                        ) : (
+                          <CreditCard className="w-4 h-4 text-gray-800" />
+                        )}
+                      </div>
+
+                      {/* Name & Badge */}
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-display text-xs font-bold text-gray-900 uppercase truncate">
+                            {method.name}
+                          </span>
+                          {isFirst && method.isEnabled && (
+                            <span className="text-[9px] font-bold font-mono-custom bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full uppercase">
+                              ★ PRIMERO / POR DEFECTO
+                            </span>
+                          )}
+                          <span className="text-[9px] font-bold bg-gray-100 text-gray-600 px-2 py-0.5 rounded uppercase">
+                            {method.badge}
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-gray-500 truncate mt-0.5">
+                          {method.description}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Actions: Reorder & Toggle */}
+                    <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+                      {/* Up button */}
+                      <button
+                        type="button"
+                        disabled={isFirst}
+                        onClick={() => handleMovePaymentMethod(index, -1)}
+                        className={`p-1.5 rounded-lg border transition-all cursor-pointer ${
+                          isFirst
+                            ? 'opacity-30 cursor-not-allowed text-gray-400 border-gray-200'
+                            : 'hover:bg-gray-100 text-gray-700 border-gray-300 active:scale-95'
+                        }`}
+                        title="Subir posición (aparece antes)"
+                      >
+                        <ChevronUp className="w-4 h-4" />
+                      </button>
+
+                      {/* Down button */}
+                      <button
+                        type="button"
+                        disabled={isLast}
+                        onClick={() => handleMovePaymentMethod(index, 1)}
+                        className={`p-1.5 rounded-lg border transition-all cursor-pointer ${
+                          isLast
+                            ? 'opacity-30 cursor-not-allowed text-gray-400 border-gray-200'
+                            : 'hover:bg-gray-100 text-gray-700 border-gray-300 active:scale-95'
+                        }`}
+                        title="Bajar posición (aparece después)"
+                      >
+                        <ChevronDown className="w-4 h-4" />
+                      </button>
+
+                      {/* Toggle Active Button */}
+                      <button
+                        type="button"
+                        onClick={() => handleTogglePaymentMethod(method.id)}
+                        className={`px-3 py-1.5 rounded-xl font-display text-[11px] font-bold tracking-wider uppercase transition-all cursor-pointer flex items-center gap-1.5 border shadow-2xs ${
+                          method.isEnabled
+                            ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-700'
+                            : 'bg-gray-200 hover:bg-gray-300 text-gray-600 border-gray-300'
+                        }`}
+                      >
+                        {method.isEnabled ? (
+                          <>
+                            <Eye className="w-3.5 h-3.5" />
+                            <span>ACTIVO</span>
+                          </>
+                        ) : (
+                          <>
+                            <EyeOff className="w-3.5 h-3.5" />
+                            <span>DESACTIVADO</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
           {/* Bank Transfer Details Block */}
