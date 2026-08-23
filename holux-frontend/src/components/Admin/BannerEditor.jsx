@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Image, Link, Calendar, CheckCircle2, Eye, Save, Trash2, Plus, MoveUp, MoveDown, ShieldCheck, Sparkles, CreditCard, Megaphone } from 'lucide-react';
 import ConfirmationModal from './ConfirmationModal';
 
 export default function BannerEditor({ heroSlides = [], setHeroSlides, promoBanner, setPromoBanner, tickerPhrases = [], setTickerPhrases, categoriesList = [], productsList = [] }) {
   const [editingIndex, setEditingIndex] = useState(null);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const formRef = useRef(null);
   const [savedMsg, setSavedMsg] = useState(false);
   const [newTickerText, setNewTickerText] = useState('');
 
@@ -55,6 +57,10 @@ export default function BannerEditor({ heroSlides = [], setHeroSlides, promoBann
     setMobileImage(slide.mobileImage || slide.image || '');
     setOverlayOpacity(slide.overlayOpacity !== undefined ? Number(slide.overlayOpacity) : ((slide.title || slide.desc) ? 45 : 0));
     setIsActive(slide.isActive !== false);
+    setIsFormOpen(true);
+    setTimeout(() => {
+      formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 50);
   };
 
   const handleSaveBannerForm = (e) => {
@@ -94,6 +100,7 @@ export default function BannerEditor({ heroSlides = [], setHeroSlides, promoBann
       localStorage.setItem('holux_hero_slides', JSON.stringify(updated));
     } catch (err) {}
     setEditingIndex(null);
+    setIsFormOpen(false);
     setSavedMsg(true);
     setTimeout(() => setSavedMsg(false), 3000);
   };
@@ -173,6 +180,11 @@ export default function BannerEditor({ heroSlides = [], setHeroSlides, promoBann
               setCta('');
               setDesktopImage('');
               setMobileImage('');
+              setOverlayOpacity(0);
+              setIsFormOpen(true);
+              setTimeout(() => {
+                formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }, 50);
             }}
             className="px-4 py-2 bg-[#3C6E71] hover:bg-[#2c5355] text-white font-display text-xs font-bold tracking-wider rounded-xl shadow-xs flex items-center gap-2 cursor-pointer transition-all"
           >
@@ -361,15 +373,15 @@ export default function BannerEditor({ heroSlides = [], setHeroSlides, promoBann
       </div>
 
       {/* EDIT MODAL / FORM */}
-      {(editingIndex !== null || title === 'NUEVA COLECCIÓN') && (
-        <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-md space-y-4">
+      {isFormOpen && (
+        <div ref={formRef} className="bg-white border border-gray-200 rounded-2xl p-6 shadow-md space-y-4">
           <div className="flex items-center justify-between border-b border-gray-100 pb-3">
             <h3 className="font-display text-sm font-bold tracking-wider text-gray-900 uppercase">
               {editingIndex !== null ? `EDITANDO BANNER #${editingIndex + 1}` : 'NUEVO BANNER PROMOCIONAL'}
             </h3>
             <button
               type="button"
-              onClick={() => { setEditingIndex(null); setTitle(''); }}
+              onClick={() => { setIsFormOpen(false); setEditingIndex(null); }}
               className="text-gray-400 hover:text-gray-600 text-xs font-bold cursor-pointer"
             >
               ✕ Cerrar
@@ -668,7 +680,7 @@ export default function BannerEditor({ heroSlides = [], setHeroSlides, promoBann
               </button>
               <button
                 type="button"
-                onClick={() => { setEditingIndex(null); setTitle(''); }}
+                onClick={() => { setIsFormOpen(false); setEditingIndex(null); }}
                 className="px-4 py-2.5 border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-xl text-xs font-bold cursor-pointer transition-colors"
               >
                 CANCELAR
