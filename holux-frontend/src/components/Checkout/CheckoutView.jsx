@@ -1121,31 +1121,33 @@ const CheckoutView = memo(({
                   </div>
                 )}
 
-                <div className="flex items-start justify-between">
-                  <span>Gastos de Envío:</span>
-                  <span className={`font-bold text-right font-mono-custom ${shippingCost === 0 ? 'text-emerald-600 uppercase font-sans' : 'text-gray-900'}`}>
-                    {shippingInfo.label}
+                {/* Gastos de Envío */}
+                <div className="flex items-center justify-between pt-1">
+                  <div className="text-left">
+                    <span className="font-medium text-gray-700 block">Gastos de Envío:</span>
+                    <span className="text-[10px] text-gray-500 font-sans font-normal">
+                      {shippingInfo.label}
+                    </span>
+                  </div>
+                  <span className={`font-mono-custom font-bold text-sm ${shippingCost === 0 ? 'text-emerald-600 uppercase font-sans' : 'text-gray-900'}`}>
+                    {shippingCost === 0 ? '¡GRATIS!' : `+$${shippingCost.toLocaleString('es-AR')}`}
                   </span>
                 </div>
 
-                {/* Ley de Transparencia Fiscal Argentina (Ley N° 27.743 - IVA 21%) */}
-                <div className="bg-gray-50 p-3 rounded-xl border border-gray-200/80 space-y-1.5 text-[11px] text-gray-500 font-mono-custom">
-                  <div className="flex justify-between">
-                    <span>Precio Neto (Sin Impuestos):</span>
-                    <span className="font-bold text-gray-700">${netAmount.toLocaleString('es-AR')}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>IVA Discriminado (21%):</span>
-                    <span className="font-bold text-gray-700">${vatAmount.toLocaleString('es-AR')}</span>
-                  </div>
-                  <p className="text-[9px] text-gray-400 font-sans leading-tight pt-0.5">
-                    📜 Régimen de Transparencia Fiscal al Consumidor Final (Ley N° 27.743)
-                  </p>
+                {/* Ley de Transparencia Fiscal Argentina (IVA 21% Ya Incluido en los Precios) */}
+                <div className="bg-gray-50/90 px-3 py-2 rounded-xl border border-gray-200/70 flex items-center justify-between text-[11px] text-gray-500 font-mono-custom">
+                  <span className="text-gray-600 font-sans flex items-center gap-1">
+                    <span>🧾 IVA 21% Incluido:</span>
+                  </span>
+                  <span className="font-bold text-gray-700">${vatAmount.toLocaleString('es-AR')}</span>
                 </div>
 
                 <div className="border-t border-gray-200 pt-3 flex items-baseline justify-between text-gray-900">
-                  <span className="font-display text-sm font-bold uppercase">TOTAL FINAL</span>
-                  <span className="font-mono-custom text-xl font-bold text-[#3C6E71]">
+                  <div>
+                    <span className="font-display text-sm font-black uppercase block">TOTAL FINAL</span>
+                    <span className="text-[10px] text-gray-400 font-sans font-normal">Impuestos y flete incluidos</span>
+                  </div>
+                  <span className="font-mono-custom text-2xl font-black text-[#3C6E71]">
                     ARS ${finalTotal.toLocaleString('es-AR')}
                   </span>
                 </div>
