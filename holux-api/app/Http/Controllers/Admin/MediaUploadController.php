@@ -55,6 +55,39 @@ class MediaUploadController extends Controller
 
             if ($request->filled('base64')) {
                 $base64Str = $request->input('base64');
+                if (preg_match('/^data:image\/(\w+);base64,/', $base64Str, $type)) {
+                    $base64Data = substr($base64Str, strpos($base64Str, ',') + 1);
+                    $ext = strtolower($type[1]);
+                    if ($ext === 'jpeg') $ext = 'jpg';
+                    if (!in_array($ext, ['jpg', 'png', 'webp', 'gif'])) {
+                        $ext = 'jpg';
+                    }
+                    $base64Decoded = base64_decode($base64Data);
+                    if ($base64Decoded !== false) {
+                        $fullPath = "{$fileName}.{$ext}";
+                        $mimeType = "image/{$ext}";
+
+                        // 1. Try Supabase
+                        try {
+                            $publicUrl = $supabase->uploadStorageFile($bucket, $fullPath, $base64Decoded, $mimeType);
+                            return response()->json([
+                                'url' => $publicUrl,
+                                'storage' => 'supabase_cdn',
+                                'message' => 'Archivo subido exitosamente a Supabase Storage CDN.'
+                            ]);
+                        } catch (\Throwable $e) {
+                            Log::warning("Supabase base64 upload failed, saving to local public disk: " . $e->getMessage());
+                            \Illuminate\Support\Facades\Storage::disk('public')->put("uploads/{$fullPath}", $base64Decoded);
+                            $publicUrl = asset('storage/uploads/' . $fullPath);
+                            return response()->json([
+                                'url' => $publicUrl,
+                                'storage' => 'local_cdn',
+                                'message' => 'Archivo subido a almacenamiento local.'
+                            ]);
+                        }
+                    }
+                }
+
                 return response()->json([
                     'url' => $base64Str,
                     'storage' => 'data_uri',

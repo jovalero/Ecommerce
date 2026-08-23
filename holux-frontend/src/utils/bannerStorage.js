@@ -117,14 +117,14 @@ export function compressImageFile(file, maxWidth = 1920, maxHeight = 1080, quali
 export async function uploadOrCompressBanner(file, API_BASE_URL, token) {
   if (!file) return '';
 
-  // 1. Try uploading to backend API if available
-  if (API_BASE_URL) {
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('bucket', 'banners');
+  // 1. High-quality Canvas compression first (< 200KB)
+  const compressedDataUrl = await compressImageFile(file);
 
+  // 2. Try uploading to backend API if available to get permanent CDN URL
+  if (API_BASE_URL && compressedDataUrl) {
+    try {
       const headers = {
+        'Content-Type': 'application/json',
         'Accept': 'application/json'
       };
       if (token) headers['Authorization'] = `Bearer ${token}`;
@@ -137,7 +137,10 @@ export async function uploadOrCompressBanner(file, API_BASE_URL, token) {
       const res = await fetch(endpoint, {
         method: 'POST',
         headers,
-        body: formData
+        body: JSON.stringify({
+          base64: compressedDataUrl,
+          bucket: 'banners'
+        })
       });
 
       if (res.ok) {
@@ -147,12 +150,12 @@ export async function uploadOrCompressBanner(file, API_BASE_URL, token) {
         }
       }
     } catch (err) {
-      console.warn('Backend media upload failed, falling back to local compression:', err);
+      console.warn('Backend media upload failed, using compressed image:', err);
     }
   }
 
-  // 2. High-quality Canvas compression fallback
-  return await compressImageFile(file);
+  // 3. Fallback to optimized compressed Data URL
+  return compressedDataUrl;
 }
 
 /**
