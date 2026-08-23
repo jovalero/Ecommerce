@@ -445,6 +445,26 @@ const CheckoutView = memo(({
       return { cost: 0, label: 'Retiro en Sucursal ($0 Gratis)' };
     }
 
+    // 1. VIP & SUPER VIP Member Shipping Benefits
+    const isSuperVipUser = userProfile?.tier === 'super_vip' || userProfile?.is_super_vip;
+    const isVipUser = isSuperVipUser || userProfile?.tier === 'vip' || userProfile?.is_vip;
+
+    if (isSuperVipUser && (userProfile?.benefits?.shipping_benefit === 'always_free' || userProfile?.benefits?.shipping_benefit === undefined || userProfile?.benefits?.shipping_cost === 0)) {
+      return { cost: 0, label: '¡Envío 100% Gratis! (👑 Super VIP)' };
+    }
+
+    if (userProfile?.benefits?.shipping_benefit === 'always_free') {
+      return { cost: 0, label: `¡Envío 100% Gratis! (${userProfile?.benefits?.badge || '⭐ VIP'})` };
+    }
+
+    if (userProfile?.benefits?.shipping_benefit === 'free_above_amount') {
+      const minVipAmount = Number(userProfile?.benefits?.shipping_free_min_amount || 40000);
+      if (subtotalAfterDiscount >= minVipAmount) {
+        return { cost: 0, label: `¡Envío Gratis! (${userProfile?.benefits?.badge || '⭐ VIP'} por compra mayor a $${minVipAmount.toLocaleString('es-AR')})` };
+      }
+    }
+
+    // 2. Global Promotional Rules
     if (shippingRates.all_free) {
       return { cost: 0, label: '¡Envío Gratis! (Promoción Nacional)' };
     }
@@ -453,6 +473,7 @@ const CheckoutView = memo(({
       return { cost: 0, label: '¡Envío 100% Gratis! (Monto superado)' };
     }
 
+    // 3. Zone & CP Base Calculation
     const cp = parseInt(String(shippingPostalCode || '').trim(), 10);
     const cabaMin = Number(shippingRates.caba_cp_min ?? 1000);
     const cabaMax = Number(shippingRates.caba_cp_max ?? 1499);
@@ -463,49 +484,60 @@ const CheckoutView = memo(({
     const intMin = Number(shippingRates.interior_cp_min ?? 2000);
     const intMax = Number(shippingRates.interior_cp_max ?? 7999);
 
+    let baseRate = null;
+
     if (!isNaN(cp)) {
       if (cp >= cabaMin && cp <= cabaMax) {
-        return shippingRates.caba_free
+        baseRate = shippingRates.caba_free
           ? { cost: 0, label: '¡Envío Gratis! (CABA)' }
           : { cost: Number(shippingRates.caba_cost ?? 5000), label: 'Envío a CABA' };
-      }
-      if (cp >= gbaMin && cp <= gbaMax) {
-        return shippingRates.gba_free
+      } else if (cp >= gbaMin && cp <= gbaMax) {
+        baseRate = shippingRates.gba_free
           ? { cost: 0, label: '¡Envío Gratis! (GBA)' }
           : { cost: Number(shippingRates.gba_cost ?? 8000), label: 'Envío a GBA' };
-      }
-      if (cp >= patMin && cp <= patMax) {
-        return shippingRates.patagonia_free
+      } else if (cp >= patMin && cp <= patMax) {
+        baseRate = shippingRates.patagonia_free
           ? { cost: 0, label: '¡Envío Gratis! (Patagonia)' }
           : { cost: Number(shippingRates.patagonia_cost ?? 20000), label: 'Envío a Patagonia' };
-      }
-      if (cp >= intMin && cp <= intMax) {
-        return shippingRates.interior_free
+      } else if (cp >= intMin && cp <= intMax) {
+        baseRate = shippingRates.interior_free
           ? { cost: 0, label: '¡Envío Gratis! (Interior)' }
           : { cost: Number(shippingRates.interior_cost ?? 15000), label: 'Envío al Interior' };
       }
     }
 
     // Province Fallbacks
-    if (shippingProvince === 'CABA') {
-      return shippingRates.caba_free
-        ? { cost: 0, label: '¡Envío Gratis! (CABA)' }
-        : { cost: Number(shippingRates.caba_cost ?? 5000), label: 'Envío a CABA' };
-    }
-    if (shippingProvince === 'Buenos Aires') {
-      return shippingRates.gba_free
-        ? { cost: 0, label: '¡Envío Gratis! (GBA)' }
-        : { cost: Number(shippingRates.gba_cost ?? 8000), label: 'Envío a Buenos Aires' };
-    }
-    if (['Chubut', 'Neuquén', 'Río Negro', 'Santa Cruz', 'Tierra del Fuego'].includes(shippingProvince)) {
-      return shippingRates.patagonia_free
-        ? { cost: 0, label: '¡Envío Gratis! (Patagonia)' }
-        : { cost: Number(shippingRates.patagonia_cost ?? 20000), label: 'Envío a Patagonia' };
+    if (!baseRate) {
+      if (shippingProvince === 'CABA') {
+        baseRate = shippingRates.caba_free
+          ? { cost: 0, label: '¡Envío Gratis! (CABA)' }
+          : { cost: Number(shippingRates.caba_cost ?? 5000), label: 'Envío a CABA' };
+      } else if (shippingProvince === 'Buenos Aires') {
+        baseRate = shippingRates.gba_free
+          ? { cost: 0, label: '¡Envío Gratis! (GBA)' }
+          : { cost: Number(shippingRates.gba_cost ?? 8000), label: 'Envío a Buenos Aires' };
+      } else if (['Chubut', 'Neuquén', 'Río Negro', 'Santa Cruz', 'Tierra del Fuego'].includes(shippingProvince)) {
+        baseRate = shippingRates.patagonia_free
+          ? { cost: 0, label: '¡Envío Gratis! (Patagonia)' }
+          : { cost: Number(shippingRates.patagonia_cost ?? 20000), label: 'Envío a Patagonia' };
+      } else {
+        baseRate = shippingRates.interior_free
+          ? { cost: 0, label: '¡Envío Gratis! (Interior)' }
+          : { cost: Number(shippingRates.interior_cost ?? 15000), label: 'Envío a Domicilio' };
+      }
     }
 
-    return shippingRates.interior_free
-      ? { cost: 0, label: '¡Envío Gratis! (Interior)' }
-      : { cost: Number(shippingRates.interior_cost ?? 15000), label: 'Envío a Domicilio' };
+    // 4. Check VIP Percent Discount on Shipping
+    if (userProfile?.benefits?.shipping_benefit === 'percent_discount' && baseRate.cost > 0) {
+      const pct = Number(userProfile?.benefits?.shipping_discount_percent || 50);
+      const discountedCost = Math.round(baseRate.cost * (1 - (pct / 100)));
+      return {
+        cost: discountedCost,
+        label: `${baseRate.label} (${pct}% OFF ${userProfile?.benefits?.badge || '⭐ VIP'})`
+      };
+    }
+
+    return baseRate;
   };
 
   const shippingInfo = calculateShipping();

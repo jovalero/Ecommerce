@@ -2666,31 +2666,45 @@ export default function App() {
     // Calculate Dynamic Shipping for order payload
     let shippingCost = 0;
     if (deliveryOption === 'home') {
-      try {
-        const rates = JSON.parse(localStorage.getItem('holux_shipping_rates') || '{}');
-        if (!rates.all_free) {
-          const isFreeThreshold = rates.free_shipping_enabled && subtotalAfterDiscounts >= (rates.free_shipping_threshold || 150000);
-          if (!isFreeThreshold) {
-            const cp = parseInt(String(shippingPostalCode || '').trim(), 10);
-            if (!isNaN(cp)) {
-              if (cp >= (rates.caba_cp_min || 1000) && cp <= (rates.caba_cp_max || 1499)) {
-                shippingCost = rates.caba_free ? 0 : Number(rates.caba_cost ?? 5000);
-              } else if (cp >= (rates.gba_cp_min || 1500) && cp <= (rates.gba_cp_max || 1999)) {
-                shippingCost = rates.gba_free ? 0 : Number(rates.gba_cost ?? 8000);
-              } else if (cp >= (rates.patagonia_cp_min || 8000) && cp <= (rates.patagonia_cp_max || 9999)) {
-                shippingCost = rates.patagonia_free ? 0 : Number(rates.patagonia_cost ?? 20000);
+      const isSuperVipUser = userProfile?.tier === 'super_vip' || userProfile?.is_super_vip;
+      const isVipAlwaysFree = isSuperVipUser || userProfile?.benefits?.shipping_benefit === 'always_free' || userProfile?.benefits?.shipping_cost === 0;
+      const isVipFreeMin = userProfile?.benefits?.shipping_benefit === 'free_above_amount' && subtotalAfterDiscounts >= Number(userProfile?.benefits?.shipping_free_min_amount || 40000);
+
+      if (!isVipAlwaysFree && !isVipFreeMin) {
+        try {
+          const rates = JSON.parse(localStorage.getItem('holux_shipping_rates') || '{}');
+          if (!rates.all_free) {
+            const isFreeThreshold = rates.free_shipping_enabled && subtotalAfterDiscounts >= (rates.free_shipping_threshold || 150000);
+            if (!isFreeThreshold) {
+              let baseCost = 15000;
+              const cp = parseInt(String(shippingPostalCode || '').trim(), 10);
+              if (!isNaN(cp)) {
+                if (cp >= (rates.caba_cp_min || 1000) && cp <= (rates.caba_cp_max || 1499)) {
+                  baseCost = rates.caba_free ? 0 : Number(rates.caba_cost ?? 5000);
+                } else if (cp >= (rates.gba_cp_min || 1500) && cp <= (rates.gba_cp_max || 1999)) {
+                  baseCost = rates.gba_free ? 0 : Number(rates.gba_cost ?? 8000);
+                } else if (cp >= (rates.patagonia_cp_min || 8000) && cp <= (rates.patagonia_cp_max || 9999)) {
+                  baseCost = rates.patagonia_free ? 0 : Number(rates.patagonia_cost ?? 20000);
+                } else {
+                  baseCost = rates.interior_free ? 0 : Number(rates.interior_cost ?? 15000);
+                }
               } else {
-                shippingCost = rates.interior_free ? 0 : Number(rates.interior_cost ?? 15000);
+                if (shippingProvince === 'CABA') baseCost = rates.caba_free ? 0 : Number(rates.caba_cost ?? 5000);
+                else if (shippingProvince === 'Buenos Aires') baseCost = rates.gba_free ? 0 : Number(rates.gba_cost ?? 8000);
+                else if (['Chubut', 'Neuquén', 'Río Negro', 'Santa Cruz', 'Tierra del Fuego'].includes(shippingProvince)) baseCost = rates.patagonia_free ? 0 : Number(rates.patagonia_cost ?? 20000);
+                else baseCost = rates.interior_free ? 0 : Number(rates.interior_cost ?? 15000);
               }
-            } else {
-              if (shippingProvince === 'CABA') shippingCost = rates.caba_free ? 0 : Number(rates.caba_cost ?? 5000);
-              else if (shippingProvince === 'Buenos Aires') shippingCost = rates.gba_free ? 0 : Number(rates.gba_cost ?? 8000);
-              else if (['Chubut', 'Neuquén', 'Río Negro', 'Santa Cruz', 'Tierra del Fuego'].includes(shippingProvince)) shippingCost = rates.patagonia_free ? 0 : Number(rates.patagonia_cost ?? 20000);
-              else shippingCost = rates.interior_free ? 0 : Number(rates.interior_cost ?? 15000);
+
+              if (userProfile?.benefits?.shipping_benefit === 'percent_discount' && baseCost > 0) {
+                const pct = Number(userProfile?.benefits?.shipping_discount_percent || 50);
+                shippingCost = Math.round(baseCost * (1 - (pct / 100)));
+              } else {
+                shippingCost = baseCost;
+              }
             }
           }
-        }
-      } catch (e) {}
+        } catch (e) {}
+      }
     }
 
     const total = subtotalAfterDiscounts + shippingCost;
