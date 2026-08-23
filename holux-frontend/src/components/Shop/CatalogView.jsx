@@ -14,6 +14,36 @@ import {
 } from 'lucide-react';
 import ProductCard from './ProductCard';
 
+const TOP_PERFUME_BRANDS = [
+  'Antonio Banderas',
+  'Carolina Herrera',
+  'Dior',
+  'Paco Rabanne',
+  'Versace',
+  'Chanel',
+  'Giorgio Armani',
+  'Tom Ford',
+  'Jean Paul Gaultier',
+  'Yves Saint Laurent',
+  'Calvin Klein',
+  'Dolce & Gabbana',
+  'Givenchy',
+  'Hugo Boss',
+  'Lancôme',
+  'Lattafa',
+  'Montblanc',
+  'Ralph Lauren',
+  'Armaf',
+  'Afnan',
+  'Creed',
+  'Azzaro',
+  'Bvlgari',
+  'Guerlain',
+  'Narciso Rodriguez',
+  'Prada',
+  'Valentino'
+];
+
 export default function CatalogView({
   API_BASE_URL,
   token,
@@ -34,6 +64,8 @@ export default function CatalogView({
   const [selectedCollections, setSelectedCollections] = useState(() => 
     initialCollection ? [initialCollection] : []
   );
+  const [selectedBrands, setSelectedBrands] = useState([]);
+  const [showAllBrands, setShowAllBrands] = useState(false);
   const [selectedSizes, setSelectedSizes] = useState([]);
   const [priceRange, setPriceRange] = useState({ min: 0, max: 200000 });
   const [userPriceMax, setUserPriceMax] = useState(200000);
@@ -58,6 +90,7 @@ export default function CatalogView({
   const [accordionOpen, setAccordionOpen] = useState({
     categories: true,
     collections: true,
+    brands: true,
     sizes: true,
     price: true,
     stock: true
@@ -206,6 +239,9 @@ export default function CatalogView({
       if (selectedCollections.length > 0) {
         params.append('collections', selectedCollections.join(','));
       }
+      if (selectedBrands.length > 0) {
+        params.append('brands', selectedBrands.join(','));
+      }
       if (selectedSizes.length > 0) {
         params.append('sizes', selectedSizes.join(','));
       }
@@ -255,6 +291,7 @@ export default function CatalogView({
   }, [
     selectedCategories, 
     selectedCollections, 
+    selectedBrands,
     selectedSizes, 
     userPriceMax, 
     inStockOnly, 
@@ -279,6 +316,14 @@ export default function CatalogView({
     );
   };
 
+  // Handle Brand Toggle
+  const handleToggleBrand = (brand) => {
+    setPage(1);
+    setSelectedBrands(prev =>
+      prev.includes(brand) ? prev.filter(b => b !== brand) : [...prev, brand]
+    );
+  };
+
   // Handle Size Chip Toggle
   const handleToggleSize = (size) => {
     setPage(1);
@@ -291,6 +336,7 @@ export default function CatalogView({
   const handleClearFilters = () => {
     setSelectedCategories([]);
     setSelectedCollections([]);
+    setSelectedBrands([]);
     setSelectedSizes([]);
     setUserPriceMax(priceRange.max || 150000);
     setInStockOnly(false);
@@ -301,6 +347,7 @@ export default function CatalogView({
   const hasActiveFilters = 
     selectedCategories.length > 0 || 
     selectedCollections.length > 0 || 
+    selectedBrands.length > 0 || 
     selectedSizes.length > 0 || 
     userPriceMax < (priceRange.max || 150000) || 
     inStockOnly;
@@ -516,6 +563,15 @@ export default function CatalogView({
                 </span>
               ))}
 
+              {selectedBrands.map(br => (
+                <span key={br} className="inline-flex items-center gap-1.5 px-3 py-1 bg-teal-50 text-[#3C6E71] border border-[#3C6E71]/30 rounded-full font-bold text-[11px]">
+                  Marca: {br}
+                  <button type="button" onClick={() => handleToggleBrand(br)} className="hover:text-red-500 cursor-pointer ml-0.5">
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              ))}
+
               {selectedSizes.map(sz => (
                 <span key={sz} className="inline-flex items-center gap-1.5 px-3 py-1 bg-gray-100 text-gray-800 border border-gray-200 rounded-full font-bold text-[11px]">
                   Talle: {sz}
@@ -661,7 +717,56 @@ export default function CatalogView({
                 )}
               </div>
 
-              {/* 3. TALLE / VARIANTES */}
+              {/* 3. MARCAS */}
+              <div className="border-b border-gray-100 pb-5">
+                <button
+                  type="button"
+                  onClick={() => toggleAccordion('brands')}
+                  className="w-full flex items-center justify-between text-xs font-bold uppercase tracking-wider text-gray-900 font-display cursor-pointer hover:text-[#3C6E71] transition-colors select-none"
+                >
+                  <span>Marcas</span>
+                  {accordionOpen.brands ? <ChevronUp className="w-3.5 h-3.5 text-gray-400" /> : <ChevronDown className="w-3.5 h-3.5 text-gray-400" />}
+                </button>
+
+                {accordionOpen.brands && (
+                  <div className="mt-3.5 space-y-2 text-xs font-sans">
+                    <div className="space-y-2">
+                      {(showAllBrands ? TOP_PERFUME_BRANDS : TOP_PERFUME_BRANDS.slice(0, 5)).map(brand => {
+                        const isChecked = selectedBrands.includes(brand);
+                        return (
+                          <label
+                            key={brand}
+                            className="flex items-center gap-2.5 cursor-pointer text-gray-700 hover:text-black py-0.5 select-none transition-colors"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => handleToggleBrand(brand)}
+                              className="w-4 h-4 rounded text-[#3C6E71] focus:ring-[#3C6E71] cursor-pointer accent-[#3C6E71]"
+                            />
+                            <span className={isChecked ? 'font-bold text-[#3C6E71]' : 'font-normal'}>
+                              {brand}
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </div>
+
+                    {TOP_PERFUME_BRANDS.length > 5 && (
+                      <button
+                        type="button"
+                        onClick={() => setShowAllBrands(!showAllBrands)}
+                        className="text-[11px] font-bold text-[#3C6E71] hover:text-[#2b5153] flex items-center gap-1 transition-colors cursor-pointer pt-1.5 select-none"
+                      >
+                        <span>{showAllBrands ? 'Ver menos' : 'Ver más marcas'}</span>
+                        {showAllBrands ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* 4. TALLE / VARIANTES */}
               <div className="border-b border-gray-100 pb-5">
                 <button
                   type="button"
@@ -927,6 +1032,34 @@ export default function CatalogView({
                     </label>
                   ))}
                 </div>
+              </div>
+
+              {/* Marcas mobile */}
+              <div className="space-y-2 text-xs">
+                <span className="font-bold text-gray-900 font-display uppercase">Marcas</span>
+                <div className="space-y-1.5">
+                  {(showAllBrands ? TOP_PERFUME_BRANDS : TOP_PERFUME_BRANDS.slice(0, 5)).map(brand => (
+                    <label key={brand} className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectedBrands.includes(brand)}
+                        onChange={() => handleToggleBrand(brand)}
+                        className="rounded text-[#3C6E71] accent-[#3C6E71]"
+                      />
+                      <span>{brand}</span>
+                    </label>
+                  ))}
+                </div>
+                {TOP_PERFUME_BRANDS.length > 5 && (
+                  <button
+                    type="button"
+                    onClick={() => setShowAllBrands(!showAllBrands)}
+                    className="text-[11px] font-bold text-[#3C6E71] flex items-center gap-1 cursor-pointer pt-1"
+                  >
+                    <span>{showAllBrands ? 'Ver menos' : 'Ver más marcas'}</span>
+                    {showAllBrands ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                  </button>
+                )}
               </div>
 
               {/* Talles mobile */}

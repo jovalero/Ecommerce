@@ -81,12 +81,19 @@ class ProductController extends Controller
         if (!empty($sizesParam)) {
             $selectedSizes = is_array($sizesParam) ? $sizesParam : explode(',', $sizesParam);
         }
-        $selectedSizes = array_filter(array_map('trim', array_map('strtoupper', $selectedSizes)));
+        // Parse brands
+        $brandsParam = $request->query('brands') ?: $request->query('brand');
+        $selectedBrands = [];
+        if (!empty($brandsParam)) {
+            $selectedBrands = is_array($brandsParam) ? $brandsParam : explode(',', $brandsParam);
+        }
+        $selectedBrands = array_filter(array_map('trim', array_map('strtolower', $selectedBrands)));
 
         // 4. Combined Filtering (AND)
         $filtered = array_filter($allProducts, function ($p) use (
             $categorySlugs,
             $collections,
+            $selectedBrands,
             $selectedSizes,
             $minPrice,
             $maxPrice,
@@ -163,6 +170,20 @@ class ProductController extends Controller
                     }
                 }
                 if (!$collectionMatch) {
+                    return false;
+                }
+            }
+
+            // B.2) Brands filter
+            if (!empty($selectedBrands)) {
+                $brandMatched = false;
+                foreach ($selectedBrands as $b) {
+                    if (str_contains($pBrand, $b) || str_contains($pNameLower, $b)) {
+                        $brandMatched = true;
+                        break;
+                    }
+                }
+                if (!$brandMatched) {
                     return false;
                 }
             }
