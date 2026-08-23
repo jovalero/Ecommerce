@@ -156,6 +156,7 @@ class ProductCatalogController extends Controller
      */
     public function bulkPrice(Request $request, SupabaseService $supabase): JsonResponse
     {
+        @set_time_limit(300);
         $user = $request->user()?->email ?? 'admin@holux.com';
 
         // Mode A: Individual custom prices array [{ id, price, offer_price }, ...]
@@ -272,6 +273,7 @@ class ProductCatalogController extends Controller
      */
     public function bulkCategory(Request $request, SupabaseService $supabase): JsonResponse
     {
+        @set_time_limit(300);
         $request->validate([
             'ids' => ['required', 'array', 'min:1'],
             'ids.*' => ['required', 'string'],
@@ -286,12 +288,25 @@ class ProductCatalogController extends Controller
         $categoryName = $category['name'] ?? 'Nueva Categoría';
 
         $updatedCount = 0;
-        foreach ($ids as $id) {
+        $chunks = array_chunk($ids, 50);
+
+        foreach ($chunks as $chunk) {
             try {
-                $supabase->update('products', $id, ['category_id' => $categoryId], true);
-                $updatedCount++;
+                $idList = implode(',', $chunk);
+                $supabase->updateWhere('products', [
+                    'id' => "in.({$idList})"
+                ], ['category_id' => $categoryId], true);
+                $updatedCount += count($chunk);
             } catch (\Throwable $e) {
-                Log::error("Bulk category update failed for product {$id}: " . $e->getMessage());
+                // Fallback to individual
+                foreach ($chunk as $id) {
+                    try {
+                        $supabase->update('products', $id, ['category_id' => $categoryId], true);
+                        $updatedCount++;
+                    } catch (\Throwable $ex) {
+                        Log::error("Bulk category individual fallback failed for {$id}: " . $ex->getMessage());
+                    }
+                }
             }
         }
 
@@ -313,6 +328,7 @@ class ProductCatalogController extends Controller
      */
     public function bulkInstallments(Request $request, SupabaseService $supabase): JsonResponse
     {
+        @set_time_limit(300);
         $request->validate([
             'ids' => ['required', 'array', 'min:1'],
             'ids.*' => ['required', 'string'],
@@ -322,17 +338,30 @@ class ProductCatalogController extends Controller
         $ids = $request->input('ids');
         $installments = (int) $request->input('installments');
         $dbInstallments = max(1, $installments);
-        $updatedCount = 0;
         $user = $request->user()?->email ?? 'admin@holux.com';
 
-        foreach ($ids as $id) {
+        $updatedCount = 0;
+        $chunks = array_chunk($ids, 50);
+
+        foreach ($chunks as $chunk) {
             try {
-                $supabase->update('products', $id, [
-                    'installments' => $dbInstallments,
-                ], true);
-                $updatedCount++;
+                $idList = implode(',', $chunk);
+                $supabase->updateWhere('products', [
+                    'id' => "in.({$idList})"
+                ], ['installments' => $dbInstallments], true);
+                $updatedCount += count($chunk);
             } catch (\Throwable $e) {
-                Log::error("Bulk installments update failed for product {$id}: " . $e->getMessage());
+                // Fallback to individual update if batch filter fails
+                foreach ($chunk as $id) {
+                    try {
+                        $supabase->update('products', $id, [
+                            'installments' => $dbInstallments,
+                        ], true);
+                        $updatedCount++;
+                    } catch (\Throwable $ex) {
+                        Log::error("Bulk installments update failed for product {$id}: " . $ex->getMessage());
+                    }
+                }
             }
         }
 
@@ -343,7 +372,7 @@ class ProductCatalogController extends Controller
         ]);
 
         $label = $installments <= 1 
-            ? "Se desactivaron las cuotas en {$updatedCount} productos (Sin cuotas fijas)."
+            ? "Se desactivaron las cuotas fijas en {$updatedCount} productos."
             : "Se asignaron {$installments} cuotas fijas a {$updatedCount} productos.";
 
         return response()->json([
@@ -358,6 +387,7 @@ class ProductCatalogController extends Controller
      */
     public function bulkDelete(Request $request, SupabaseService $supabase): JsonResponse
     {
+        @set_time_limit(300);
         $request->validate([
             'ids' => ['required', 'array', 'min:1'],
             'ids.*' => ['required', 'string'],

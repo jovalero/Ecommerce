@@ -163,6 +163,17 @@ class SupabaseService
     }
 
     /**
+     * Update records matching query parameters (e.g. ['id' => 'in.(id1,id2,id3...)']).
+     */
+    public function updateWhere(string $table, array $query, array $data, bool $useServiceKey = false): array
+    {
+        return $this->request('PATCH', $table, [
+            'query' => $query,
+            'json' => $data,
+        ], $useServiceKey);
+    }
+
+    /**
      * Delete a record in a table by ID.
      *
      * @param string $table
@@ -174,6 +185,16 @@ class SupabaseService
     {
         return $this->request('DELETE', $table, [
             'query' => ['id' => 'eq.' . $id]
+        ], $useServiceKey);
+    }
+
+    /**
+     * Delete records matching query parameters.
+     */
+    public function deleteWhere(string $table, array $query, bool $useServiceKey = false): array
+    {
+        return $this->request('DELETE', $table, [
+            'query' => $query
         ], $useServiceKey);
     }
 
