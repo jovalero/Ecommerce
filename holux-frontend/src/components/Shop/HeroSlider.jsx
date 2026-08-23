@@ -99,7 +99,7 @@ export const HeroSlider = memo(function HeroSlider({
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
-      className="group relative overflow-hidden bg-black text-[#F2EFE9] w-full h-[360px] sm:h-[460px] md:h-[520px] lg:h-[580px] xl:h-[620px] flex items-center border-b border-[#3C6E71]/15 select-none cursor-default"
+      className="group relative overflow-hidden bg-black text-[#F2EFE9] h-[550px] sm:h-[650px] md:h-[calc(100vh-140px)] md:min-h-[650px] flex items-center border-b border-[#3C6E71]/15 select-none cursor-default"
     >
       {/* Slide images with smooth GPU-accelerated crossfade transitions */}
       {slides.map((slide, idx) => {
