@@ -1,30 +1,15 @@
 import React, { useState, useEffect, useRef, memo } from 'react';
 import { ChevronRight } from 'lucide-react';
+import { initialStoreData } from '../../config/initialStoreData';
 
-const DEFAULT_SLIDES = [
+const DEFAULT_SLIDES = initialStoreData?.hero_slides || [
   {
-    span: "EQUIPAMIENTO PROFESIONAL DE MONTAÑA",
-    title: "HACIA LO ALTO",
-    highlight: "SIN LÍMITES",
-    desc: "Diseñamos indumentaria y equipo técnico de alto rendimiento para resistir las condiciones climáticas más extremas de la cordillera.",
-    cta: "VER EQUIPAMIENTO",
-    image: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=1600&q=80"
-  },
-  {
-    span: "EXPEDICIONES Y AVENTURA",
-    title: "EQUÍPATE PARA",
-    highlight: "CADA DESAFÍO",
-    desc: "Descubre nuestra línea de carpas de alta resistencia, bolsas de dormir térmicas y accesorios técnicos homologados para trekking y camping.",
-    cta: "EXPLORAR CARPAS",
-    image: "https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?auto=format&fit=crop&w=1600&q=80"
-  },
-  {
-    span: "COLECCIÓN CALZADO Y ABRIGO",
-    title: "RESISTENCIA EN",
-    highlight: "CADA PASO",
-    desc: "Botas técnicas con agarre de alta tracción y camperas cortavientos Fitz Roy diseñadas con aislamiento de nivel profesional.",
-    cta: "VER CALZADO",
-    image: "https://images.unsplash.com/photo-1551632811-561732d1e306?auto=format&fit=crop&w=1600&q=80"
+    span: "FRAGANCIAS EXCLUSIVAS Y DE AUTOR",
+    title: "PERFUMES DE LUJO",
+    highlight: "100% ORIGINALES",
+    desc: "Descubrí nuestra exclusiva selección de perfumería internacional importada de primeras marcas para hombre y mujer.",
+    cta: "VER PERFUMERÍA",
+    image: "https://images.unsplash.com/photo-1541643600914-78b084683601?auto=format&fit=crop&w=1600&q=80"
   }
 ];
 

@@ -396,7 +396,7 @@ export default function BannerEditor({
           <button
             type="button"
             onClick={async () => {
-              const compressDataUrl = (dataUrl, maxWidth = 1920, maxHeight = 1080, quality = 0.75) => {
+              const compressDataUrl = (dataUrl, maxWidth = 1200, maxHeight = 500, quality = 0.55) => {
                 return new Promise((resolve) => {
                   if (!dataUrl || typeof dataUrl !== 'string' || !dataUrl.startsWith('data:image')) return resolve(dataUrl);
                   const img = new window.Image();
@@ -427,12 +427,12 @@ export default function BannerEditor({
               let rawGrid = JSON.parse(localStorage.getItem('holux_grid_promo_cards') || '[]');
 
               for (let i = 0; i < rawHero.length; i++) {
-                if (rawHero[i].image) rawHero[i].image = await compressDataUrl(rawHero[i].image);
-                if (rawHero[i].mobileImage) rawHero[i].mobileImage = await compressDataUrl(rawHero[i].mobileImage, 800, 800);
+                if (rawHero[i].image) rawHero[i].image = await compressDataUrl(rawHero[i].image, 1200, 500, 0.55);
+                if (rawHero[i].mobileImage) rawHero[i].mobileImage = await compressDataUrl(rawHero[i].mobileImage, 600, 600, 0.55);
               }
 
               for (let i = 0; i < rawGrid.length; i++) {
-                if (rawGrid[i].image) rawGrid[i].image = await compressDataUrl(rawGrid[i].image, 800, 800);
+                if (rawGrid[i].image) rawGrid[i].image = await compressDataUrl(rawGrid[i].image, 600, 600, 0.55);
               }
 
               const payload = JSON.stringify({

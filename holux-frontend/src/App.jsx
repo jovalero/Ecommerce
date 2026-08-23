@@ -70,6 +70,7 @@ import Footer from './components/Shop/Footer';
 import MobileMenuDrawer from './components/Navigation/MobileMenuDrawer';
 import { useProductCatalog } from './hooks/useProductCatalog';
 import { loadPersistedBannerData } from './utils/bannerStorage';
+import { initialStoreData } from './config/initialStoreData';
 
 // Configuration
 const API_BASE_URL = (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'))
@@ -165,7 +166,7 @@ const parseOrderItems = (order) => {
 };
 
 // Promotional Banners configuration (customizable for home page sections)
-const PROMO_BANNERS = [
+const PROMO_BANNERS = initialStoreData?.grid_cards || [
   {
     title: "FRAGANCIAS HOMBRE",
     span: "ELEGANCIA Y CARÁCTER",
@@ -375,7 +376,7 @@ export default function App() {
   const [activeCategory, setActiveCategory] = useState(null);
   
   // Hero Carousel Slides data
-  const slides = [
+  const slides = initialStoreData?.hero_slides || [
     {
       span: "FRAGANCIAS EXCLUSIVAS Y DE AUTOR",
       title: "PERFUMES DE LUJO",
@@ -452,14 +453,14 @@ export default function App() {
   const [homeSectionTitles, setHomeSectionTitles] = useState(() => {
     try {
       const saved = localStorage.getItem('holux_home_section_titles');
-      return saved ? JSON.parse(saved) : {
+      return saved ? JSON.parse(saved) : (initialStoreData?.section_titles || {
         novedadesTitle: 'NOVEDADES EN PERFUMERÍA',
         novedadesSubtitle: 'Descubrí los últimos lanzamientos y fragancias exclusivas',
         destacadosTitle: 'FRAGANCIAS DESTACADAS',
         destacadosSubtitle: 'Una selección especial recomendada por nuestros expertos'
-      };
+      });
     } catch (e) {
-      return {
+      return initialStoreData?.section_titles || {
         novedadesTitle: 'NOVEDADES EN PERFUMERÍA',
         novedadesSubtitle: 'Descubrí los últimos lanzamientos y fragancias exclusivas',
         destacadosTitle: 'FRAGANCIAS DESTACADAS',
@@ -470,12 +471,12 @@ export default function App() {
   const [gridPromoCards, setGridPromoCards] = useState(() => {
     try {
       const saved = localStorage.getItem('holux_grid_promo_cards');
-      return saved ? JSON.parse(saved) : PROMO_BANNERS;
+      return saved ? JSON.parse(saved) : (initialStoreData?.grid_cards || PROMO_BANNERS);
     } catch (e) {
-      return PROMO_BANNERS;
+      return initialStoreData?.grid_cards || PROMO_BANNERS;
     }
   });
-  const defaultHeaderNavItems = [
+  const defaultHeaderNavItems = initialStoreData?.header_nav || [
     { id: 'cat_dropdown', type: 'dropdown', label: 'CATEGORÍAS', isVisible: true, isDropdown: true, link: '#/catalogo' },
     { id: 'cat_perfumes-hombre', type: 'category', label: 'PERFUMES HOMBRE', slug: 'perfumes-hombre', link: '#/catalogo?categoria=perfumes-hombre', isVisible: true },
     { id: 'cat_perfumes-mujer', type: 'category', label: 'PERFUMES MUJER', slug: 'perfumes-mujer', link: '#/catalogo?categoria=perfumes-mujer', isVisible: true },
@@ -949,7 +950,7 @@ export default function App() {
   const [adminReviewsList, setAdminReviewsList] = useState([]);
 
   // Ticker Phrases State (Cuotas, Promos, Envíos)
-  const defaultTickerPhrases = [
+  const defaultTickerPhrases = initialStoreData?.ticker || [
     '| ENVÍO GRATIS EN COMPRAS MAYORES A $150.000',
     '| ¡HASTA 6 CUOTAS SIN INTERÉS!',
     '| GARANTÍA OFICIAL HOLUX EN TODAS TUS EXPEDICIONES',
@@ -1013,7 +1014,7 @@ export default function App() {
   };
 
   // Middle Promo Installment Banner State (6 cuotas)
-  const defaultPromoBanner = {
+  const defaultPromoBanner = initialStoreData?.promo_banner || {
     tag: 'PROMOCIÓN DE TEMPORADA',
     title: '6 CUOTAS SIN INTERÉS EN TODO EL CATÁLOGO',
     description: 'Equípate hoy mismo y paga en cómodas cuotas fijas sin interés. Realizamos envíos de forma rápida a todo el territorio nacional.',
