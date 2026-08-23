@@ -39,6 +39,7 @@ Route::middleware('throttle:api')->group(function () {
     Route::get('/products', [ProductController::class, 'index']);
     Route::get('/products/{id}', [ProductController::class, 'show']);
     Route::get('/products/{id}/reviews', [ReviewController::class, 'index']); // Approved reviews
+    Route::get('/settings', [\App\Http\Controllers\Admin\SettingController::class, 'index']); // Public store & shipping settings
 
     // Sensitive payment and order creation endpoints (Protected with strict rate-limiting)
     Route::middleware('throttle:15,1')->group(function () {
