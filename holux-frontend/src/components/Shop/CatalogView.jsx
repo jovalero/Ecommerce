@@ -475,11 +475,8 @@ export default function CatalogView({
                 );
               })}
 
-              {/* Collections & Special Sections */}
+              {/* Special Sections */}
               {[
-                { key: 'mujer', label: 'Mujer' },
-                { key: 'hombre', label: 'Hombre' },
-                { key: 'niños', label: 'Niños' },
                 { key: 'outlet', label: 'Outlet 🔥' }
               ].map(col => {
                 const isSelected = selectedCollections.includes(col.key);
@@ -495,9 +492,7 @@ export default function CatalogView({
                     className={`shrink-0 px-3.5 py-1.5 rounded-full font-display font-bold uppercase tracking-wider transition-all cursor-pointer border text-xs ${
                       isSelected
                         ? 'bg-[#B85C38] text-white border-[#B85C38] shadow-xs'
-                        : col.key === 'outlet'
-                        ? 'bg-orange-50 text-[#B85C38] border-orange-200 hover:bg-orange-100'
-                        : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-100 hover:text-black'
+                        : 'bg-orange-50 text-[#B85C38] border-orange-200 hover:bg-orange-100'
                     }`}
                   >
                     {col.label}
