@@ -5280,36 +5280,41 @@ export default function App() {
                     </div>
 
                     {/* Status Tabs with Live Counters */}
-                    <div className="overflow-x-auto pb-1 flex items-center gap-1.5 flex-nowrap text-xs font-mono-custom pt-2 border-t border-gray-100">
+                    <div className="overflow-x-auto pb-1 flex items-center gap-2 flex-nowrap text-xs font-mono-custom pt-2 border-t border-gray-100">
                       {[
-                        { id: 'all', label: 'TODOS', count: countAll, color: 'bg-gray-100 text-gray-800' },
-                        { id: 'pending_review', label: '🟠 EN REVISIÓN (TRANSF.)', count: countReview, color: 'bg-amber-100 text-amber-900' },
-                        { id: 'paid', label: '🟢 PAGADOS', count: countPaid, color: 'bg-emerald-100 text-emerald-900' },
-                        { id: 'preparing', label: '📦 EN PREPARACIÓN', count: countPreparing, color: 'bg-blue-100 text-blue-900' },
-                        { id: 'shipped', label: '🚚 DESPACHADOS', count: countShipped, color: 'bg-purple-100 text-purple-900' },
-                        { id: 'delivered', label: '✅ ENTREGADOS', count: countDelivered, color: 'bg-emerald-200 text-emerald-950' },
-                        { id: 'pending_payment', label: '🟡 PEND. PAGO', count: countPending, color: 'bg-yellow-100 text-yellow-900' },
-                        { id: 'rejected', label: '🔴 RECHAZADOS', count: countRejected, color: 'bg-red-100 text-red-900' },
-                        { id: 'cancelled', label: '⚪ CANCELADOS', count: countCancelled, color: 'bg-gray-200 text-gray-700' }
-                      ].map(f => (
-                        <button
-                          key={f.id}
-                          type="button"
-                          onClick={() => setAdminOrderStatusFilter(f.id)}
-                          className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
-                            adminOrderStatusFilter === f.id
-                              ? 'bg-[#1C2321] text-white shadow-xs'
-                              : 'bg-gray-50 border border-gray-200 text-gray-700 hover:bg-gray-100'
-                          }`}
-                        >
-                          <span>{f.label}</span>
-                          <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-bold ${
-                            adminOrderStatusFilter === f.id ? 'bg-[#3C6E71] text-white' : f.color
-                          }`}>
-                            {f.count}
-                          </span>
-                        </button>
-                      ))}
+                        { id: 'all', label: 'TODOS', count: countAll },
+                        { id: 'pending_review', label: 'EN REVISIÓN (TRANSF.)', count: countReview },
+                        { id: 'paid', label: 'PAGADOS', count: countPaid },
+                        { id: 'preparing', label: 'EN PREPARACIÓN', count: countPreparing },
+                        { id: 'shipped', label: 'DESPACHADOS', count: countShipped },
+                        { id: 'delivered', label: 'ENTREGADOS', count: countDelivered },
+                        { id: 'pending_payment', label: 'PEND. PAGO', count: countPending },
+                        { id: 'rejected', label: 'RECHAZADOS', count: countRejected },
+                        { id: 'cancelled', label: 'CANCELADOS', count: countCancelled }
+                      ].map(f => {
+                        const isSelected = adminOrderStatusFilter === f.id;
+                        return (
+                          <button
+                            key={f.id}
+                            type="button"
+                            onClick={() => setAdminOrderStatusFilter(f.id)}
+                            className={`px-3 py-1.5 rounded-xl text-[11px] font-bold font-display tracking-wider transition-all cursor-pointer flex items-center gap-2 shrink-0 border ${
+                              isSelected
+                                ? 'bg-[#3C6E71] text-white border-[#3C6E71] shadow-xs'
+                                : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+                            }`}
+                          >
+                            <span>{f.label}</span>
+                            <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-mono-custom font-bold ${
+                              isSelected
+                                ? 'bg-white/20 text-white'
+                                : 'bg-[#3C6E71]/10 text-[#3C6E71]'
+                            }`}>
+                              {f.count}
+                            </span>
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
 

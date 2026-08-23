@@ -355,7 +355,7 @@ export default function ShippingManager({ API_BASE_URL, token }) {
         {/* ========================================================================= */}
         <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm space-y-5">
           <div className="flex items-center gap-2.5 text-gray-900 border-b border-gray-100 pb-3">
-            <div className="p-2 bg-emerald-100 text-emerald-800 rounded-xl">
+            <div className="p-2 bg-[#3C6E71]/10 text-[#3C6E71] rounded-xl">
               <Gift className="w-4 h-4" />
             </div>
             <div>
@@ -371,7 +371,7 @@ export default function ShippingManager({ API_BASE_URL, token }) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {/* Promo 1: Envío Gratis a Todo el País Toggle */}
             <div className={`p-4 rounded-2xl border transition-all ${
-              allFree ? 'bg-emerald-50 border-emerald-300 shadow-xs' : 'bg-gray-50 border-gray-200'
+              allFree ? 'bg-[#3C6E71]/5 border-[#3C6E71]/30 shadow-xs' : 'bg-gray-50 border-gray-200'
             }`}>
               <div className="flex items-start justify-between gap-3">
                 <div className="space-y-1">
@@ -379,7 +379,7 @@ export default function ShippingManager({ API_BASE_URL, token }) {
                     <span className="font-display text-xs font-bold text-gray-900 uppercase">
                       ENVÍO 100% GRATIS A TODO EL PAÍS
                     </span>
-                    <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded text-[9px] font-bold font-mono-custom">
+                    <span className="px-2 py-0.5 bg-[#3C6E71]/10 text-[#3C6E71] rounded text-[9px] font-bold font-mono-custom">
                       PROMO GLOBAL
                     </span>
                   </div>
@@ -393,7 +393,7 @@ export default function ShippingManager({ API_BASE_URL, token }) {
                   onClick={() => setAllFree(!allFree)}
                   className={`px-3 py-1.5 rounded-xl font-display text-[10px] font-bold tracking-wider uppercase transition-all cursor-pointer shrink-0 border ${
                     allFree
-                      ? 'bg-emerald-600 text-white border-emerald-700 shadow-xs'
+                      ? 'bg-[#3C6E71] text-white border-[#3C6E71] shadow-xs'
                       : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'
                   }`}
                 >
@@ -404,7 +404,7 @@ export default function ShippingManager({ API_BASE_URL, token }) {
 
             {/* Promo 2: Monto Mínimo de Compra para Envío Gratis */}
             <div className={`p-4 rounded-2xl border transition-all ${
-              freeShippingEnabled ? 'bg-blue-50/60 border-blue-200 shadow-xs' : 'bg-gray-50 border-gray-200 opacity-70'
+              freeShippingEnabled ? 'bg-[#3C6E71]/5 border-[#3C6E71]/30 shadow-xs' : 'bg-gray-50 border-gray-200 opacity-70'
             }`}>
               <div className="space-y-3">
                 <div className="flex items-center justify-between gap-2">
@@ -419,7 +419,7 @@ export default function ShippingManager({ API_BASE_URL, token }) {
                     onClick={() => setFreeShippingEnabled(!freeShippingEnabled)}
                     className={`px-2.5 py-1 rounded-lg font-display text-[9px] font-bold uppercase transition-all cursor-pointer border ${
                       freeShippingEnabled
-                        ? 'bg-blue-600 text-white border-blue-700'
+                        ? 'bg-[#3C6E71] text-white border-[#3C6E71]'
                         : 'bg-white text-gray-600 border-gray-300'
                     }`}
                   >
@@ -436,7 +436,7 @@ export default function ShippingManager({ API_BASE_URL, token }) {
                     disabled={!freeShippingEnabled}
                     value={freeShippingThreshold}
                     onChange={(e) => setFreeShippingThreshold(e.target.value)}
-                    className="w-full pl-7 pr-3 py-2 bg-white border border-gray-300 rounded-xl text-xs font-mono-custom font-bold text-gray-900 outline-none focus:border-blue-600 disabled:bg-gray-100"
+                    className="w-full pl-7 pr-3 py-2 bg-white border border-gray-300 rounded-xl text-xs font-mono-custom font-bold text-gray-900 outline-none focus:border-[#3C6E71] disabled:bg-gray-100"
                     placeholder="150000"
                   />
                 </div>
@@ -451,7 +451,7 @@ export default function ShippingManager({ API_BASE_URL, token }) {
         <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-100 pb-3">
             <div className="flex items-center gap-2.5 text-gray-900">
-              <div className="p-2 bg-blue-100 text-blue-800 rounded-xl">
+              <div className="p-2 bg-[#3C6E71]/10 text-[#3C6E71] rounded-xl">
                 <MapPin className="w-4 h-4" />
               </div>
               <div>
@@ -469,7 +469,7 @@ export default function ShippingManager({ API_BASE_URL, token }) {
             
             {/* ZONA 1: CABA */}
             <div className={`p-4 rounded-2xl border transition-all space-y-3 flex flex-col justify-between ${
-              cabaFree ? 'bg-emerald-50/50 border-emerald-300' : 'bg-gray-50 border-gray-200'
+              cabaFree ? 'bg-[#3C6E71]/5 border-[#3C6E71]/30' : 'bg-gray-50 border-gray-200'
             }`}>
               <div className="space-y-3">
                 <div className="flex items-center justify-between border-b border-gray-200 pb-2">
@@ -477,7 +477,7 @@ export default function ShippingManager({ API_BASE_URL, token }) {
                     <span>🏙️</span>
                     <span>CABA</span>
                   </div>
-                  <span className="text-[9px] font-mono-custom font-bold bg-blue-100 text-blue-800 px-2 py-0.5 rounded">
+                  <span className="text-[9px] font-mono-custom font-bold bg-[#3C6E71]/10 text-[#3C6E71] px-2 py-0.5 rounded">
                     ZONA 1
                   </span>
                 </div>
@@ -489,7 +489,7 @@ export default function ShippingManager({ API_BASE_URL, token }) {
                     type="button"
                     onClick={() => setCabaFree(!cabaFree)}
                     className={`px-2.5 py-1 rounded-lg text-[9px] font-bold font-mono-custom uppercase transition-all cursor-pointer border ${
-                      cabaFree ? 'bg-emerald-600 text-white border-emerald-700' : 'bg-white text-gray-700 border-gray-300'
+                      cabaFree ? 'bg-[#3C6E71] text-white border-[#3C6E71]' : 'bg-white text-gray-700 border-gray-300'
                     }`}
                   >
                     {cabaFree ? '🎁 100% GRATIS' : '💵 CON TARIFA'}
@@ -547,7 +547,7 @@ export default function ShippingManager({ API_BASE_URL, token }) {
 
             {/* ZONA 2: GBA */}
             <div className={`p-4 rounded-2xl border transition-all space-y-3 flex flex-col justify-between ${
-              gbaFree ? 'bg-emerald-50/50 border-emerald-300' : 'bg-gray-50 border-gray-200'
+              gbaFree ? 'bg-[#3C6E71]/5 border-[#3C6E71]/30' : 'bg-gray-50 border-gray-200'
             }`}>
               <div className="space-y-3">
                 <div className="flex items-center justify-between border-b border-gray-200 pb-2">
@@ -555,7 +555,7 @@ export default function ShippingManager({ API_BASE_URL, token }) {
                     <span>🛣️</span>
                     <span>GBA / AMBA</span>
                   </div>
-                  <span className="text-[9px] font-mono-custom font-bold bg-blue-100 text-blue-800 px-2 py-0.5 rounded">
+                  <span className="text-[9px] font-mono-custom font-bold bg-[#3C6E71]/10 text-[#3C6E71] px-2 py-0.5 rounded">
                     ZONA 2
                   </span>
                 </div>
@@ -567,7 +567,7 @@ export default function ShippingManager({ API_BASE_URL, token }) {
                     type="button"
                     onClick={() => setGbaFree(!gbaFree)}
                     className={`px-2.5 py-1 rounded-lg text-[9px] font-bold font-mono-custom uppercase transition-all cursor-pointer border ${
-                      gbaFree ? 'bg-emerald-600 text-white border-emerald-700' : 'bg-white text-gray-700 border-gray-300'
+                      gbaFree ? 'bg-[#3C6E71] text-white border-[#3C6E71]' : 'bg-white text-gray-700 border-gray-300'
                     }`}
                   >
                     {gbaFree ? '🎁 100% GRATIS' : '💵 CON TARIFA'}
@@ -625,7 +625,7 @@ export default function ShippingManager({ API_BASE_URL, token }) {
 
             {/* ZONA 3: INTERIOR DEL PAÍS */}
             <div className={`p-4 rounded-2xl border transition-all space-y-3 flex flex-col justify-between ${
-              interiorFree ? 'bg-emerald-50/50 border-emerald-300' : 'bg-gray-50 border-gray-200'
+              interiorFree ? 'bg-[#3C6E71]/5 border-[#3C6E71]/30' : 'bg-gray-50 border-gray-200'
             }`}>
               <div className="space-y-3">
                 <div className="flex items-center justify-between border-b border-gray-200 pb-2">
@@ -633,7 +633,7 @@ export default function ShippingManager({ API_BASE_URL, token }) {
                     <span>🌾</span>
                     <span>INTERIOR</span>
                   </div>
-                  <span className="text-[9px] font-mono-custom font-bold bg-blue-100 text-blue-800 px-2 py-0.5 rounded">
+                  <span className="text-[9px] font-mono-custom font-bold bg-[#3C6E71]/10 text-[#3C6E71] px-2 py-0.5 rounded">
                     ZONA 3
                   </span>
                 </div>
@@ -645,7 +645,7 @@ export default function ShippingManager({ API_BASE_URL, token }) {
                     type="button"
                     onClick={() => setInteriorFree(!interiorFree)}
                     className={`px-2.5 py-1 rounded-lg text-[9px] font-bold font-mono-custom uppercase transition-all cursor-pointer border ${
-                      interiorFree ? 'bg-emerald-600 text-white border-emerald-700' : 'bg-white text-gray-700 border-gray-300'
+                      interiorFree ? 'bg-[#3C6E71] text-white border-[#3C6E71]' : 'bg-white text-gray-700 border-gray-300'
                     }`}
                   >
                     {interiorFree ? '🎁 100% GRATIS' : '💵 CON TARIFA'}
@@ -703,7 +703,7 @@ export default function ShippingManager({ API_BASE_URL, token }) {
 
             {/* ZONA 4: PATAGONIA */}
             <div className={`p-4 rounded-2xl border transition-all space-y-3 flex flex-col justify-between ${
-              patagoniaFree ? 'bg-emerald-50/50 border-emerald-300' : 'bg-gray-50 border-gray-200'
+              patagoniaFree ? 'bg-[#3C6E71]/5 border-[#3C6E71]/30' : 'bg-gray-50 border-gray-200'
             }`}>
               <div className="space-y-3">
                 <div className="flex items-center justify-between border-b border-gray-200 pb-2">
@@ -711,7 +711,7 @@ export default function ShippingManager({ API_BASE_URL, token }) {
                     <span>🏔️</span>
                     <span>PATAGONIA</span>
                   </div>
-                  <span className="text-[9px] font-mono-custom font-bold bg-blue-100 text-blue-800 px-2 py-0.5 rounded">
+                  <span className="text-[9px] font-mono-custom font-bold bg-[#3C6E71]/10 text-[#3C6E71] px-2 py-0.5 rounded">
                     ZONA 4
                   </span>
                 </div>
@@ -723,7 +723,7 @@ export default function ShippingManager({ API_BASE_URL, token }) {
                     type="button"
                     onClick={() => setPatagoniaFree(!patagoniaFree)}
                     className={`px-2.5 py-1 rounded-lg text-[9px] font-bold font-mono-custom uppercase transition-all cursor-pointer border ${
-                      patagoniaFree ? 'bg-emerald-600 text-white border-emerald-700' : 'bg-white text-gray-700 border-gray-300'
+                      patagoniaFree ? 'bg-[#3C6E71] text-white border-[#3C6E71]' : 'bg-white text-gray-700 border-gray-300'
                     }`}
                   >
                     {patagoniaFree ? '🎁 100% GRATIS' : '💵 CON TARIFA'}
@@ -787,7 +787,7 @@ export default function ShippingManager({ API_BASE_URL, token }) {
         <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm space-y-4">
           <div className="flex items-center justify-between border-b border-gray-100 pb-3">
             <div className="flex items-center gap-2.5 text-gray-900">
-              <div className="p-2 bg-purple-100 text-purple-800 rounded-xl">
+              <div className="p-2 bg-[#3C6E71]/10 text-[#3C6E71] rounded-xl">
                 <Building2 className="w-4 h-4" />
               </div>
               <div>
@@ -805,7 +805,7 @@ export default function ShippingManager({ API_BASE_URL, token }) {
               onClick={() => setPickupEnabled(!pickupEnabled)}
               className={`px-3 py-1.5 rounded-xl font-display text-[10px] font-bold tracking-wider uppercase transition-all cursor-pointer border ${
                 pickupEnabled
-                  ? 'bg-purple-600 text-white border-purple-700 shadow-xs'
+                  ? 'bg-[#3C6E71] text-white border-[#3C6E71] shadow-xs'
                   : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'
               }`}
             >
