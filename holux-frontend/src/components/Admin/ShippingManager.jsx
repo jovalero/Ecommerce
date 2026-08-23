@@ -847,17 +847,24 @@ export default function ShippingManager({ API_BASE_URL, token }) {
         {/* ========================================================================= */}
         {/* BLOQUE 4: SIMULADOR DE ENVÍOS EN VIVO */}
         {/* ========================================================================= */}
-        <div className="bg-gradient-to-br from-gray-900 to-gray-800 text-white rounded-2xl p-6 shadow-md space-y-4">
-          <div className="flex items-center gap-2 border-b border-gray-700 pb-3">
-            <Search className="w-4 h-4 text-emerald-400" />
-            <h3 className="font-display text-xs font-bold uppercase tracking-wider text-emerald-400">
-              SIMULADOR DE ENVÍOS EN TIEMPO REAL (PRUEBA TU CONFIGURACIÓN)
-            </h3>
+        <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm space-y-5">
+          <div className="flex items-center gap-2.5 text-gray-900 border-b border-gray-100 pb-3">
+            <div className="p-2 bg-emerald-100 text-[#3C6E71] rounded-xl">
+              <Search className="w-4 h-4" />
+            </div>
+            <div>
+              <h3 className="font-display text-sm font-bold tracking-wider uppercase">
+                4. SIMULADOR DE ENVÍOS EN TIEMPO REAL (PRUEBA TU CONFIGURACIÓN)
+              </h3>
+              <p className="text-[11px] text-gray-500">
+                Ingresá un Código Postal y monto para comprobar la zona detectada y la tarifa que verá el cliente.
+              </p>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="space-y-1">
-              <label className="text-[10px] font-bold text-gray-300 uppercase tracking-wider block">
+              <label className="text-[10px] font-bold text-gray-700 uppercase tracking-wider block">
                 PROBAR CÓDIGO POSTAL (CP):
               </label>
               <input
@@ -865,35 +872,35 @@ export default function ShippingManager({ API_BASE_URL, token }) {
                 value={testCp}
                 onChange={(e) => setTestCp(e.target.value)}
                 placeholder="Ej: 1425, 2000, 9410"
-                className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-xl text-xs font-mono-custom font-bold text-white outline-none focus:border-emerald-400"
+                className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-xs font-mono-custom font-bold text-gray-900 outline-none focus:bg-white focus:border-[#3C6E71] transition-all"
               />
             </div>
 
             <div className="space-y-1">
-              <label className="text-[10px] font-bold text-gray-300 uppercase tracking-wider block">
+              <label className="text-[10px] font-bold text-gray-700 uppercase tracking-wider block">
                 MONTO DE COMPRA DEL CARRITO:
               </label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-mono-custom">$</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-mono-custom font-bold">$</span>
                 <input
                   type="number"
                   value={testAmount}
                   onChange={(e) => setTestAmount(Number(e.target.value))}
                   placeholder="50000"
-                  className="w-full pl-7 pr-3 py-2 bg-gray-800 border border-gray-700 rounded-xl text-xs font-mono-custom font-bold text-white outline-none focus:border-emerald-400"
+                  className="w-full pl-7 pr-3.5 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-xs font-mono-custom font-bold text-gray-900 outline-none focus:bg-white focus:border-[#3C6E71] transition-all"
                 />
               </div>
             </div>
 
             {/* Simulated Output Card */}
-            <div className="p-3 bg-black/40 border border-gray-700 rounded-xl flex items-center justify-between">
+            <div className="p-3.5 bg-[#3C6E71]/5 border border-[#3C6E71]/20 rounded-xl flex items-center justify-between">
               <div>
-                <span className="text-[9px] text-gray-400 uppercase font-mono-custom block">ZONA DETECTADA:</span>
-                <strong className="text-xs text-white uppercase block">{simulation.zone}</strong>
+                <span className="text-[9px] text-gray-500 uppercase font-mono-custom font-bold block">ZONA DETECTADA:</span>
+                <strong className="text-xs text-gray-900 uppercase block">{simulation.zone}</strong>
               </div>
               <div className="text-right">
-                <span className="text-[9px] text-gray-400 uppercase font-mono-custom block">TARIFA AL CLIENTE:</span>
-                <span className={`text-xs font-mono-custom font-bold ${simulation.cost === 0 ? 'text-emerald-400 font-sans' : 'text-white'}`}>
+                <span className="text-[9px] text-gray-500 uppercase font-mono-custom font-bold block">TARIFA AL CLIENTE:</span>
+                <span className={`text-xs font-mono-custom font-bold ${simulation.cost === 0 ? 'text-emerald-700 font-sans' : 'text-gray-900'}`}>
                   {simulation.label}
                 </span>
               </div>
