@@ -72,7 +72,9 @@ import { useProductCatalog } from './hooks/useProductCatalog';
 import { loadPersistedBannerData } from './utils/bannerStorage';
 
 // Configuration
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (typeof window !== 'undefined' && window.location.hostname === 'localhost' ? 'http://localhost:8000' : 'https://holux-api.onrender.com');
+const API_BASE_URL = (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'))
+  ? 'http://localhost:8000'
+  : (import.meta.env.VITE_API_BASE_URL || 'https://holux-api.onrender.com');
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://fmbhcfsrsfkglmvgbnlm.supabase.co';
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_aAzQcAqCATpYDGBVRNJRQQ_1CKarnEb';
 

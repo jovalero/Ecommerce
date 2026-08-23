@@ -30,10 +30,30 @@ export const ProductCard = memo(function ProductCard({
     discount = Math.round(((originalPrice - price) / originalPrice) * 100);
   }
 
+  const getProductImageFallback = (name = '') => {
+    const cleanName = String(name).toLowerCase();
+    if (cleanName.includes('dior') || cleanName.includes('sauvage') || cleanName.includes('fahrenheit')) {
+      return 'https://images.unsplash.com/photo-1592945403244-b3fbafd7f539?w=600&auto=format&fit=crop&q=80';
+    }
+    if (cleanName.includes('chanel') || cleanName.includes('bleu') || cleanName.includes('coco')) {
+      return 'https://images.unsplash.com/photo-1523293182086-7651a899d37f?w=600&auto=format&fit=crop&q=80';
+    }
+    if (cleanName.includes('baccarat') || cleanName.includes('rouge') || cleanName.includes('kurkdjian') || cleanName.includes('xerjoff')) {
+      return 'https://images.unsplash.com/photo-1588405748880-12d1d2a59f75?w=600&auto=format&fit=crop&q=80';
+    }
+    if (cleanName.includes('lattafa') || cleanName.includes('alhambra') || cleanName.includes('afnan') || cleanName.includes('wataniah') || cleanName.includes('asad')) {
+      return 'https://images.unsplash.com/photo-1594035910387-fea47794261f?w=600&auto=format&fit=crop&q=80';
+    }
+    if (cleanName.includes('mujer') || cleanName.includes('chloe') || cleanName.includes('marina') || cleanName.includes('bourbon') || cleanName.includes('jadore')) {
+      return 'https://images.unsplash.com/photo-1547887537-6158d64c35b3?w=600&auto=format&fit=crop&q=80';
+    }
+    return 'https://images.unsplash.com/photo-1541643600914-78b084683601?w=600&auto=format&fit=crop&q=80';
+  };
+
   const netPrice = Math.round(effectivePrice * 0.79);
   const stock = Number(product.stock) || 0;
   const isOutOfStock = stock <= 0;
-  const imageUrl = product.image_url || (Array.isArray(product.images) && product.images[0]) || '/holuxlogo.png';
+  const imageUrl = product.image_url || (Array.isArray(product.images) && product.images[0]) || (typeof product.images === 'string' && product.images.startsWith('http') ? product.images : null) || product.image || getProductImageFallback(product.name);
 
   return (
     <div className="group bg-white border border-gray-200/90 rounded-xl sm:rounded-2xl overflow-hidden flex flex-col justify-between hover:shadow-xl hover:border-gray-300 transition-all duration-300 relative text-left h-full">
@@ -88,9 +108,9 @@ export const ProductCard = memo(function ProductCard({
           alt={product.name}
           onError={(e) => {
             e.target.onerror = null;
-            e.target.src = '/holuxlogo.png';
+            e.target.src = getProductImageFallback(product.name);
           }}
-          className={`absolute inset-0 w-full h-full ${imageUrl.includes('holuxlogo.png') ? 'object-contain p-8 brightness-0' : 'object-cover'} group-hover:scale-105 transition-all duration-500`}
+          className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-all duration-500"
         />
 
         {/* Badge de Reseñas */}

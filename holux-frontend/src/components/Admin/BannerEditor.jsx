@@ -394,6 +394,67 @@ export default function BannerEditor({
 
         <div className="flex items-center gap-3">
           <button
+            type="button"
+            onClick={async () => {
+              const compressDataUrl = (dataUrl, maxWidth = 1920, maxHeight = 1080, quality = 0.75) => {
+                return new Promise((resolve) => {
+                  if (!dataUrl || typeof dataUrl !== 'string' || !dataUrl.startsWith('data:image')) return resolve(dataUrl);
+                  const img = new window.Image();
+                  img.onload = () => {
+                    let width = img.width;
+                    let height = img.height;
+                    if (width > maxWidth) {
+                      height = Math.round((height * maxWidth) / width);
+                      width = maxWidth;
+                    }
+                    if (height > maxHeight) {
+                      width = Math.round((width * maxHeight) / height);
+                      height = maxHeight;
+                    }
+                    const canvas = document.createElement('canvas');
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    resolve(canvas.toDataURL('image/jpeg', quality));
+                  };
+                  img.onerror = () => resolve(dataUrl);
+                  img.src = dataUrl;
+                });
+              };
+
+              let rawHero = JSON.parse(localStorage.getItem('holux_hero_slides') || '[]');
+              let rawGrid = JSON.parse(localStorage.getItem('holux_grid_promo_cards') || '[]');
+
+              for (let i = 0; i < rawHero.length; i++) {
+                if (rawHero[i].image) rawHero[i].image = await compressDataUrl(rawHero[i].image);
+                if (rawHero[i].mobileImage) rawHero[i].mobileImage = await compressDataUrl(rawHero[i].mobileImage, 800, 800);
+              }
+
+              for (let i = 0; i < rawGrid.length; i++) {
+                if (rawGrid[i].image) rawGrid[i].image = await compressDataUrl(rawGrid[i].image, 800, 800);
+              }
+
+              const payload = JSON.stringify({
+                hero_slides: rawHero,
+                grid_cards: rawGrid,
+                promo_banner: JSON.parse(localStorage.getItem('holux_promo_banner') || '{}'),
+                section_titles: JSON.parse(localStorage.getItem('holux_home_section_titles') || '{}'),
+                ticker: JSON.parse(localStorage.getItem('holux_ticker_phrases') || '[]'),
+                header_nav: JSON.parse(localStorage.getItem('holux_header_nav_items') || '[]')
+              });
+
+              navigator.clipboard.writeText(payload);
+              alert('¡Diseño optimizado y copiado con éxito! Pegalo en el chat de Antigravity.');
+            }}
+            className="px-4 py-2 bg-[#3C6E71] hover:bg-[#284B63] text-white font-display text-xs font-bold tracking-wider rounded-xl shadow-xs flex items-center gap-2 cursor-pointer transition-all"
+            title="Copia la configuración exacta de tus banners locales para subirla a Vercel"
+          >
+            <Sparkles className="w-4 h-4 text-amber-300" />
+            <span>COPIAR DISEÑO PARA VERCEL</span>
+          </button>
+
+          <button
             onClick={handleSaveAllGlobal}
             className="px-4 py-2 bg-[#1C2321] hover:bg-black text-white font-display text-xs font-bold tracking-wider rounded-xl shadow-xs flex items-center gap-2 cursor-pointer transition-all"
           >
