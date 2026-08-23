@@ -185,52 +185,126 @@ const PROMO_BANNERS = [
 
 const MobilePromoCarousel = React.memo(function MobilePromoCarousel({ banners = PROMO_BANNERS }) {
   const [currentSlide, setCurrentSlide] = useState(0);
+  const touchStartXRef = useRef(0);
+  const touchEndXRef = useRef(0);
+  const isDraggingRef = useRef(false);
+
+  const handlePrev = () => {
+    setCurrentSlide(prev => (prev - 1 + banners.length) % banners.length);
+  };
+
+  const handleNext = () => {
+    setCurrentSlide(prev => (prev + 1) % banners.length);
+  };
+
+  const handleTouchStart = (e) => {
+    touchStartXRef.current = e.touches[0].clientX;
+    touchEndXRef.current = e.touches[0].clientX;
+  };
+
+  const handleTouchMove = (e) => {
+    touchEndXRef.current = e.touches[0].clientX;
+  };
+
+  const handleTouchEnd = () => {
+    const diffX = touchStartXRef.current - touchEndXRef.current;
+    if (Math.abs(diffX) > 40) {
+      if (diffX > 0) {
+        handleNext();
+      } else {
+        handlePrev();
+      }
+    }
+  };
+
+  // Mouse Drag Support for tablet browsers / testing
+  const handleMouseDown = (e) => {
+    touchStartXRef.current = e.clientX;
+    touchEndXRef.current = e.clientX;
+    isDraggingRef.current = true;
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isDraggingRef.current) return;
+    touchEndXRef.current = e.clientX;
+  };
+
+  const handleMouseUp = () => {
+    if (!isDraggingRef.current) return;
+    isDraggingRef.current = false;
+    const diffX = touchStartXRef.current - touchEndXRef.current;
+    if (Math.abs(diffX) > 40) {
+      if (diffX > 0) {
+        handleNext();
+      } else {
+        handlePrev();
+      }
+    }
+  };
 
   return (
-    <div className="relative h-96 w-full rounded-lg overflow-hidden border border-gray-200 shadow-md">
-      {banners.map((banner, idx) => (
-        <div 
-          key={idx}
-          onClick={() => { window.location.hash = banner.link; }}
-          className={`absolute inset-0 transition-opacity duration-1000 ease-in-out cursor-pointer ${idx === currentSlide ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
-        >
-          <img 
-            src={banner.image} 
-            alt={banner.title} 
-            loading="lazy"
-            decoding="async"
-            className="w-full h-full object-cover"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
-          <div className="absolute bottom-8 left-6 text-left space-y-1">
-            <span className="text-[9px] text-orange-200 font-bold uppercase tracking-widest font-sans block">
-              {banner.span}
-            </span>
-            <h3 className="text-lg font-display font-black tracking-wider text-white uppercase">
-              {banner.title}
-            </h3>
+    <div 
+      className="relative h-96 sm:h-[450px] w-full max-w-xl mx-auto rounded-2xl overflow-hidden border border-gray-200 shadow-lg select-none touch-pan-y cursor-grab active:cursor-grabbing"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+    >
+      {/* Horizontal Sliding Track */}
+      <div 
+        className="flex w-full h-full transition-transform duration-500 ease-out"
+        style={{ transform: `translateX(-${currentSlide * 100}%)` }}
+      >
+        {banners.map((banner, idx) => (
+          <div 
+            key={idx}
+            onClick={() => { window.location.hash = banner.link; }}
+            className="relative w-full h-full shrink-0 cursor-pointer overflow-hidden"
+          >
+            <img 
+              src={banner.image} 
+              alt={banner.title} 
+              loading="lazy"
+              decoding="async"
+              className="w-full h-full object-cover pointer-events-none"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/35 to-transparent" />
+            <div className="absolute bottom-10 left-6 text-left space-y-1.5 pointer-events-none pr-6">
+              <span className="text-[10px] sm:text-xs text-orange-200 font-bold uppercase tracking-widest font-sans block drop-shadow">
+                {banner.span}
+              </span>
+              <h3 className="text-xl sm:text-2xl font-display font-black tracking-wider text-white uppercase drop-shadow-md">
+                {banner.title}
+              </h3>
+            </div>
           </div>
-        </div>
-      ))}
+        ))}
+      </div>
       
       {/* Control Arrows */}
       <button
+        type="button"
         onClick={(e) => {
           e.stopPropagation();
-          setCurrentSlide(prev => (prev - 1 + banners.length) % banners.length);
+          handlePrev();
         }}
-        className="absolute left-3 top-1/2 transform -translate-y-1/2 p-2 bg-black/40 hover:bg-[#3C6E71] text-white rounded-full z-10 cursor-pointer transition-colors"
+        className="absolute left-3 top-1/2 transform -translate-y-1/2 p-2.5 bg-black/60 hover:bg-[#3C6E71] text-white rounded-full z-10 cursor-pointer transition-all shadow-lg active:scale-90"
+        aria-label="Anterior"
       >
-        <ChevronLeft className="w-4 h-4" />
+        <ChevronLeft className="w-5 h-5" />
       </button>
       <button
+        type="button"
         onClick={(e) => {
           e.stopPropagation();
-          setCurrentSlide(prev => (prev + 1) % banners.length);
+          handleNext();
         }}
-        className="absolute right-3 top-1/2 transform -translate-y-1/2 p-2 bg-black/40 hover:bg-[#3C6E71] text-white rounded-full z-10 cursor-pointer transition-colors"
+        className="absolute right-3 top-1/2 transform -translate-y-1/2 p-2.5 bg-[#3C6E71] hover:bg-[#2b5153] text-white rounded-full z-10 cursor-pointer transition-all shadow-lg active:scale-90 ring-2 ring-white/40"
+        aria-label="Siguiente"
       >
-        <ChevronRight className="w-4 h-4" />
+        <ChevronRight className="w-5 h-5" />
       </button>
 
       {/* Dot Indicators */}
@@ -238,11 +312,13 @@ const MobilePromoCarousel = React.memo(function MobilePromoCarousel({ banners = 
         {banners.map((_, idx) => (
           <button
             key={idx}
+            type="button"
             onClick={(e) => {
               e.stopPropagation();
               setCurrentSlide(idx);
             }}
-            className={`h-2 rounded-full transition-all cursor-pointer ${idx === currentSlide ? 'bg-[#3C6E71] w-4' : 'bg-white/50 w-2'}`}
+            className={`h-2.5 rounded-full transition-all cursor-pointer ${idx === currentSlide ? 'bg-[#3C6E71] w-6 shadow-sm' : 'bg-white/50 w-2.5'}`}
+            aria-label={`Ir a tarjeta ${idx + 1}`}
           />
         ))}
       </div>
@@ -6440,10 +6516,10 @@ export default function App() {
             </div>
           </section>
 
-          {/* --- PROMOTIONAL GRID BANNER (3 COLUMNS DESKTOP / CAROUSEL MOBILE) --- */}
+          {/* --- PROMOTIONAL GRID BANNER (3 COLUMNS DESKTOP / SWIPEABLE CAROUSEL MOBILE & TABLET) --- */}
           <section className="bg-white py-14">
-            {/* Desktop View (Side-by-side) */}
-            <div className="hidden md:grid md:grid-cols-3 gap-8 w-full px-4 sm:px-8 lg:px-12">
+            {/* Desktop View (Side-by-side >= 1024px) */}
+            <div className="hidden lg:grid lg:grid-cols-3 gap-8 w-full px-4 sm:px-8 lg:px-12">
               {(gridPromoCards || PROMO_BANNERS).map((banner, idx) => (
                 <div 
                   key={idx}
@@ -6470,8 +6546,8 @@ export default function App() {
               ))}
             </div>
 
-            {/* Mobile View (Swipeable Carousel - Isolated Performance Component) */}
-            <div className="block md:hidden max-w-7xl mx-auto px-4">
+            {/* Mobile & Tablet View (Swipeable Carousel with Touch Gestures) */}
+            <div className="block lg:hidden max-w-7xl mx-auto px-4">
               <MobilePromoCarousel banners={gridPromoCards || PROMO_BANNERS} />
             </div>
           </section>
