@@ -115,10 +115,10 @@ export default function MobileMenuDrawer({
             <ChevronRight className="w-4 h-4 text-[#3C6E71]" />
           </button>
 
-          {/* Categorías de Montaña */}
+          {/* Categorías de Productos */}
           <div className="space-y-1">
             <span className="text-[10px] font-bold text-[#3C6E71] uppercase tracking-widest px-3 block">
-              CATEGORÍAS DE MONTAÑA
+              CATEGORÍAS DE PRODUCTOS
             </span>
             <div className="space-y-0.5">
               {categories.map(cat => (
@@ -138,67 +138,19 @@ export default function MobileMenuDrawer({
             </div>
           </div>
 
-          {/* Géneros y Secciones Especiales */}
-          <div className="border-t border-[#3C6E71]/20 pt-3 space-y-1">
-            <span className="text-[10px] font-bold text-[#3C6E71] uppercase tracking-widest px-3 block">
-              GÉNERO & COLECCIONES
-            </span>
-            <div className="grid grid-cols-2 gap-1.5 pt-1">
-              <button
-                onClick={() => { 
-                  window.location.hash = '#/catalogo?genero=mujer'; 
-                  if (setCurrentView) setCurrentView('category');
-                  onClose(); 
-                }}
-                className="text-center font-display font-bold text-xs tracking-wider py-2 px-3 rounded-lg bg-white/5 hover:bg-[#3C6E71]/20 text-gray-200 hover:text-white border border-white/5 cursor-pointer"
-              >
-                MUJER
-              </button>
-              <button
-                onClick={() => { 
-                  window.location.hash = '#/catalogo?genero=hombre'; 
-                  if (setCurrentView) setCurrentView('category');
-                  onClose(); 
-                }}
-                className="text-center font-display font-bold text-xs tracking-wider py-2 px-3 rounded-lg bg-white/5 hover:bg-[#3C6E71]/20 text-gray-200 hover:text-white border border-white/5 cursor-pointer"
-              >
-                HOMBRE
-              </button>
-              <button
-                onClick={() => { 
-                  window.location.hash = '#/catalogo?genero=niños'; 
-                  if (setCurrentView) setCurrentView('category');
-                  onClose(); 
-                }}
-                className="text-center font-display font-bold text-xs tracking-wider py-2 px-3 rounded-lg bg-white/5 hover:bg-[#3C6E71]/20 text-gray-200 hover:text-white border border-white/5 cursor-pointer"
-              >
-                NIÑOS
-              </button>
-              <button
-                onClick={() => { 
-                  window.location.hash = '#/catalogo?categoria=accesorios'; 
-                  if (setCurrentView) setCurrentView('category');
-                  onClose(); 
-                }}
-                className="text-center font-display font-bold text-xs tracking-wider py-2 px-3 rounded-lg bg-white/5 hover:bg-[#3C6E71]/20 text-gray-200 hover:text-white border border-white/5 cursor-pointer"
-              >
-                ACCESORIOS
-              </button>
-            </div>
-
-            <div className="pt-2">
-              <button
-                onClick={() => { 
-                  window.location.hash = '#/catalogo?genero=outlet'; 
-                  if (setCurrentView) setCurrentView('category');
-                  onClose(); 
-                }}
-                className="w-full text-left font-display font-bold text-xs tracking-wider py-2 px-3 rounded-lg bg-orange-500/15 text-orange-400 border border-orange-500/30 flex items-center justify-between cursor-pointer"
-              >
-                <span>OUTLET & OFERTAS</span>
-                <span className="text-[10px] bg-[#B85C38] text-white px-2 py-0.5 rounded font-bold">HOT 🔥</span>
-              </button>
-            </div>
+          {/* Secciones Especiales */}
+          <div className="border-t border-[#3C6E71]/20 pt-2">
+            <button
+              onClick={() => { 
+                window.location.hash = '#/catalogo?genero=outlet'; 
+                if (setCurrentView) setCurrentView('category');
+                onClose(); 
+              }}
+              className="w-full text-left font-display font-bold text-xs tracking-wider py-2 px-3 rounded-lg bg-orange-500/15 text-orange-400 border border-orange-500/30 flex items-center justify-between cursor-pointer"
+            >
+              <span>OUTLET & OFERTAS</span>
+              <span className="text-[10px] bg-[#B85C38] text-white px-2 py-0.5 rounded font-bold">HOT 🔥</span>
+            </button>
           </div>
 
           {/* Centro de Ayuda & Enlaces Legales */}
