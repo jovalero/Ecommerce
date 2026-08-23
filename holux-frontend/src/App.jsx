@@ -4740,6 +4740,37 @@ export default function App() {
                       const netAmount = Math.round(finalTotal / 1.21);
                       const vatAmount = finalTotal - netAmount;
 
+                      const shippingRatesLocal = (() => {
+                        try {
+                          return JSON.parse(localStorage.getItem('holux_shipping_rates') || '{}');
+                        } catch {
+                          return {};
+                        }
+                      })();
+
+                      const isSuperVipUser = userProfile?.tier === 'super_vip' || userProfile?.is_super_vip;
+                      const isVipAlwaysFree = isSuperVipUser || userProfile?.benefits?.shipping_benefit === 'always_free' || userProfile?.benefits?.shipping_cost === 0;
+                      const isVipFreeMin = userProfile?.benefits?.shipping_benefit === 'free_above_amount' && finalTotal >= Number(userProfile?.benefits?.shipping_free_min_amount || 40000);
+                      const isNationwideFree = Boolean(shippingRatesLocal.all_free);
+                      const isFreeThreshold = Boolean(shippingRatesLocal.free_shipping_enabled) && finalTotal >= Number(shippingRatesLocal.free_shipping_threshold || 150000);
+
+                      let shippingLabelCart = 'A calcular en el checkout';
+                      let isShippingFree = false;
+
+                      if (isVipAlwaysFree) {
+                        shippingLabelCart = isSuperVipUser ? '¡Gratis! (👑 Super VIP)' : '¡Gratis! (⭐ VIP)';
+                        isShippingFree = true;
+                      } else if (isVipFreeMin) {
+                        shippingLabelCart = '¡Gratis! (⭐ VIP)';
+                        isShippingFree = true;
+                      } else if (isNationwideFree) {
+                        shippingLabelCart = '¡Gratis! (Promoción Nacional)';
+                        isShippingFree = true;
+                      } else if (isFreeThreshold) {
+                        shippingLabelCart = '¡Gratis! (Monto superado)';
+                        isShippingFree = true;
+                      }
+
                       return (
                         <div className="space-y-2 text-xs font-sans">
                           <div className="flex items-center justify-between text-gray-500">
@@ -4758,7 +4789,9 @@ export default function App() {
                           )}
                           <div className="flex items-center justify-between text-gray-500">
                             <span>Envío</span>
-                            <span className="font-mono-custom font-bold text-emerald-600">Gratis</span>
+                            <span className={`font-mono-custom font-bold ${isShippingFree ? 'text-emerald-600' : 'text-gray-500 text-[11px]'}`}>
+                              {shippingLabelCart}
+                            </span>
                           </div>
                           <div className="flex items-center justify-between text-gray-900 pt-2 border-t border-gray-200">
                             <span className="font-display text-sm font-black tracking-wider uppercase">Total</span>
@@ -7776,6 +7809,37 @@ export default function App() {
                         const netAmount = Math.round(finalTotal / 1.21);
                         const vatAmount = finalTotal - netAmount;
 
+                        const shippingRatesLocal = (() => {
+                          try {
+                            return JSON.parse(localStorage.getItem('holux_shipping_rates') || '{}');
+                          } catch {
+                            return {};
+                          }
+                        })();
+
+                        const isSuperVipUser = userProfile?.tier === 'super_vip' || userProfile?.is_super_vip;
+                        const isVipAlwaysFree = isSuperVipUser || userProfile?.benefits?.shipping_benefit === 'always_free' || userProfile?.benefits?.shipping_cost === 0;
+                        const isVipFreeMin = userProfile?.benefits?.shipping_benefit === 'free_above_amount' && finalTotal >= Number(userProfile?.benefits?.shipping_free_min_amount || 40000);
+                        const isNationwideFree = Boolean(shippingRatesLocal.all_free);
+                        const isFreeThreshold = Boolean(shippingRatesLocal.free_shipping_enabled) && finalTotal >= Number(shippingRatesLocal.free_shipping_threshold || 150000);
+
+                        let shippingLabelCart = 'A calcular en el checkout';
+                        let isShippingFree = false;
+
+                        if (isVipAlwaysFree) {
+                          shippingLabelCart = isSuperVipUser ? '¡Gratis! (👑 Super VIP)' : '¡Gratis! (⭐ VIP)';
+                          isShippingFree = true;
+                        } else if (isVipFreeMin) {
+                          shippingLabelCart = '¡Gratis! (⭐ VIP)';
+                          isShippingFree = true;
+                        } else if (isNationwideFree) {
+                          shippingLabelCart = '¡Gratis! (Promoción Nacional)';
+                          isShippingFree = true;
+                        } else if (isFreeThreshold) {
+                          shippingLabelCart = '¡Gratis! (Monto superado)';
+                          isShippingFree = true;
+                        }
+
                         return (
                           <div className="space-y-2 text-xs font-sans">
                             <div className="flex items-center justify-between text-gray-500">
@@ -7807,8 +7871,8 @@ export default function App() {
 
                             <div className="flex items-center justify-between text-gray-500">
                               <span>Envío</span>
-                              <span className="font-mono-custom font-bold text-emerald-600">
-                                {userProfile?.tier === 'super_vip' || userProfile?.is_super_vip ? 'Gratis (100% Bonificado)' : 'Gratis'}
+                              <span className={`font-mono-custom font-bold ${isShippingFree ? 'text-emerald-600' : 'text-gray-500 text-[11px]'}`}>
+                                {shippingLabelCart}
                               </span>
                             </div>
                             <div className="flex items-center justify-between text-gray-900 pt-2 border-t border-gray-200">
