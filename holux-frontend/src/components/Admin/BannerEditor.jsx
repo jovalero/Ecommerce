@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Image, Link, Calendar, CheckCircle2, Eye, Save, Trash2, Plus, MoveUp, MoveDown, ShieldCheck, Sparkles, CreditCard, Megaphone, LayoutTemplate, Layers, Compass } from 'lucide-react';
+import { Image, Link, Calendar, CheckCircle2, Eye, Save, Trash2, Plus, MoveUp, MoveDown, ShieldCheck, Sparkles, CreditCard, Megaphone, LayoutTemplate, Layers, Compass, Monitor, Smartphone, Tablet, ChevronRight, Grid, User } from 'lucide-react';
 import ConfirmationModal from './ConfirmationModal';
 import { persistBannerData, uploadOrCompressBanner } from '../../utils/bannerStorage';
 
@@ -27,12 +27,14 @@ export default function BannerEditor({
   const [savedMsg, setSavedMsg] = useState(false);
   const [newTickerText, setNewTickerText] = useState('');
 
+  const [previewDevice, setPreviewDevice] = useState('desktop');
+
   // Default Navigation Items
   const defaultNavItems = [
-    { id: 'cat_dropdown', type: 'dropdown', label: 'CATEGORÍAS', isVisible: true, isDropdown: true, link: '#/catalogo' },
-    { id: 'cat_perfumes-hombre', type: 'category', label: 'PERFUMES HOMBRE', slug: 'perfumes-hombre', link: '#/catalogo?categoria=perfumes-hombre', isVisible: true },
-    { id: 'cat_perfumes-mujer', type: 'category', label: 'PERFUMES MUJER', slug: 'perfumes-mujer', link: '#/catalogo?categoria=perfumes-mujer', isVisible: true },
-    { id: 'outlet', type: 'special', label: 'OUTLET', link: '#/catalogo?genero=outlet', isVisible: true, isButton: true }
+    { id: 'cat_dropdown', type: 'dropdown', label: 'CATEGORÍAS', isVisible: true, isDropdown: true, link: '#/catalogo', device: 'all' },
+    { id: 'cat_perfumes-hombre', type: 'category', label: 'PERFUMES HOMBRE', slug: 'perfumes-hombre', link: '#/catalogo?categoria=perfumes-hombre', isVisible: true, device: 'all' },
+    { id: 'cat_perfumes-mujer', type: 'category', label: 'PERFUMES MUJER', slug: 'perfumes-mujer', link: '#/catalogo?categoria=perfumes-mujer', isVisible: true, device: 'all' },
+    { id: 'outlet', type: 'special', label: 'OUTLET', link: '#/catalogo?genero=outlet', isVisible: true, isButton: true, device: 'all' }
   ];
 
   // Navigation Items State (Header Navbar Customizer)
@@ -421,44 +423,173 @@ export default function BannerEditor({
           </div>
         </div>
 
-        <p className="text-xs text-gray-500">
-          Personalizá qué botones y categorías aparecen en el menú superior de la tienda y su orden exacto con las flechas de posición.
-        </p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <p className="text-xs text-gray-500">
+            Personalizá los botones del menú superior y del menú móvil. Podés cambiar el orden con las flechas, ocultar o mostrar enlaces, y previsualizar cómo se ve en cada pantalla.
+          </p>
 
-        {/* Live Miniature Mockup of the Navbar */}
-        <div className="bg-[#1C2321] p-3 rounded-xl flex items-center justify-between overflow-x-auto shadow-inner border border-white/5">
-          <div className="flex items-center gap-2 shrink-0">
-            <div className="w-4 h-4 bg-white/20 rounded-full flex items-center justify-center text-[8px] text-white font-bold">H</div>
-            <span className="font-display text-[11px] font-bold text-white tracking-widest">HOLUX</span>
-          </div>
-          <div className="flex items-center gap-3 shrink-0 px-4">
-            {navigationItems.filter(i => i.isVisible !== false).map((item, idx) => (
-              <span
-                key={idx}
-                className={`font-display text-[10px] font-bold tracking-wider ${
-                  item.isButton || item.type === 'special'
-                    ? 'px-2 py-0.5 border border-[#3C6E71] text-[#3C6E71] rounded'
-                    : item.isDropdown || item.type === 'dropdown'
-                    ? 'text-[#F2EFE9] flex items-center gap-0.5'
-                    : 'text-gray-300'
-                }`}
-              >
-                {item.label}
-                {(item.isDropdown || item.type === 'dropdown') && ' ▾'}
-              </span>
-            ))}
-          </div>
-          <div className="text-[9px] text-gray-400 font-mono-custom shrink-0">
-            (VISTA PREVIA EN VIVO)
+          {/* Device Preview Switcher Tabs */}
+          <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-xl shrink-0 border border-gray-200">
+            <button
+              type="button"
+              onClick={() => setPreviewDevice('desktop')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold font-display flex items-center gap-1.5 transition-all cursor-pointer ${
+                previewDevice === 'desktop' ? 'bg-white text-gray-900 shadow-xs' : 'text-gray-500 hover:text-gray-900'
+              }`}
+            >
+              <Monitor className="w-3.5 h-3.5 text-[#3C6E71]" />
+              <span>Computadora</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setPreviewDevice('tablet')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold font-display flex items-center gap-1.5 transition-all cursor-pointer ${
+                previewDevice === 'tablet' ? 'bg-white text-gray-900 shadow-xs' : 'text-gray-500 hover:text-gray-900'
+              }`}
+            >
+              <Tablet className="w-3.5 h-3.5 text-[#3C6E71]" />
+              <span>Tablet</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setPreviewDevice('mobile')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold font-display flex items-center gap-1.5 transition-all cursor-pointer ${
+                previewDevice === 'mobile' ? 'bg-white text-gray-900 shadow-xs' : 'text-gray-500 hover:text-gray-900'
+              }`}
+            >
+              <Smartphone className="w-3.5 h-3.5 text-[#3C6E71]" />
+              <span>Móvil (Drawer)</span>
+            </button>
           </div>
         </div>
 
+        {/* Live Device Previews */}
+        {previewDevice === 'desktop' && (
+          <div className="bg-[#1C2321] p-3.5 rounded-2xl flex items-center justify-between overflow-x-auto shadow-inner border border-white/10 transition-all">
+            <div className="flex items-center gap-2 shrink-0">
+              <div className="w-5 h-5 bg-white/20 rounded-full flex items-center justify-center text-[9px] text-white font-bold">H</div>
+              <span className="font-display text-xs font-bold text-white tracking-widest">HOLUX</span>
+            </div>
+            <div className="flex items-center gap-4 shrink-0 px-4">
+              {navigationItems.filter(i => i.isVisible !== false && i.device !== 'mobile').map((item, idx) => (
+                <span
+                  key={idx}
+                  className={`font-display text-[11px] font-bold tracking-wider ${
+                    item.isButton || item.type === 'special'
+                      ? 'px-2.5 py-0.5 border border-[#3C6E71] text-[#3C6E71] rounded'
+                      : item.isDropdown || item.type === 'dropdown'
+                      ? 'text-[#F2EFE9] flex items-center gap-0.5'
+                      : 'text-gray-300'
+                  }`}
+                >
+                  {item.label}
+                  {(item.isDropdown || item.type === 'dropdown') && ' ▾'}
+                </span>
+              ))}
+            </div>
+            <div className="text-[10px] text-emerald-400 font-mono-custom shrink-0 flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              DESKTOP
+            </div>
+          </div>
+        )}
+
+        {previewDevice === 'tablet' && (
+          <div className="max-w-2xl mx-auto bg-[#1C2321] p-3 rounded-2xl flex items-center justify-between shadow-inner border border-white/10 transition-all">
+            <div className="flex items-center gap-2 shrink-0">
+              <div className="w-5 h-5 bg-white/20 rounded-full flex items-center justify-center text-[9px] text-white font-bold">H</div>
+              <span className="font-display text-xs font-bold text-white tracking-widest">HOLUX</span>
+            </div>
+            <div className="flex items-center gap-3 shrink-0 px-2">
+              {navigationItems.filter(i => i.isVisible !== false && i.device !== 'mobile').slice(0, 4).map((item, idx) => (
+                <span
+                  key={idx}
+                  className={`font-display text-[10px] font-bold tracking-wider ${
+                    item.isButton || item.type === 'special'
+                      ? 'px-2 py-0.5 border border-[#3C6E71] text-[#3C6E71] rounded'
+                      : item.isDropdown || item.type === 'dropdown'
+                      ? 'text-[#F2EFE9] flex items-center gap-0.5'
+                      : 'text-gray-300'
+                  }`}
+                >
+                  {item.label}
+                </span>
+              ))}
+            </div>
+            <div className="text-[10px] text-amber-400 font-mono-custom shrink-0 flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+              TABLET
+            </div>
+          </div>
+        )}
+
+        {previewDevice === 'mobile' && (
+          <div className="flex flex-col items-center justify-center py-2">
+            {/* Smartphone Mockup Frame */}
+            <div className="w-full max-w-[320px] bg-[#1C2321] text-white rounded-3xl p-4 shadow-2xl border-4 border-gray-800 space-y-3 font-sans transition-all">
+              {/* Phone Top Notch */}
+              <div className="w-24 h-4 bg-gray-800 rounded-full mx-auto -mt-2 mb-2" />
+              
+              {/* Header Drawer in Phone */}
+              <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
+                <div className="flex items-center gap-2">
+                  <div className="w-5 h-5 bg-white/20 rounded-full flex items-center justify-center text-[9px] text-white font-bold">H</div>
+                  <span className="font-display text-xs font-bold tracking-wider">HOLUX</span>
+                </div>
+                <div className="text-[10px] bg-[#3C6E71]/20 text-[#3C6E71] px-2 py-0.5 rounded font-bold">
+                  MÓVIL
+                </div>
+              </div>
+
+              {/* Catalogo general link */}
+              <div className="py-2 px-3 rounded-xl bg-white/10 text-white flex items-center justify-between text-xs font-bold">
+                <span className="flex items-center gap-1.5">
+                  <Grid className="w-3.5 h-3.5 text-[#3C6E71]" />
+                  <span>TODO EL CATÁLOGO</span>
+                </span>
+                <ChevronRight className="w-3.5 h-3.5 text-[#3C6E71]" />
+              </div>
+
+              {/* Dynamic Items list */}
+              <div className="space-y-1 pt-1">
+                <span className="text-[9px] font-bold text-[#3C6E71] uppercase tracking-widest block px-1">
+                  MENÚ Y CATEGORÍAS
+                </span>
+                <div className="space-y-1">
+                  {navigationItems.filter(i => i.isVisible !== false && i.device !== 'desktop' && !i.isButton && i.type !== 'special').map((item, idx) => (
+                    <div
+                      key={idx}
+                      className="py-1.5 px-3 rounded-lg bg-white/5 text-gray-200 flex items-center justify-between text-xs font-bold"
+                    >
+                      <span>{item.label}</span>
+                      <ChevronRight className="w-3 h-3 text-gray-500" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Outlet button if visible */}
+              {navigationItems.some(i => (i.isButton || i.type === 'special') && i.isVisible !== false && i.device !== 'desktop') && (
+                <div className="pt-1">
+                  <div className="py-2 px-3 rounded-xl bg-orange-500/15 text-orange-400 border border-orange-500/30 flex items-center justify-between text-xs font-bold">
+                    <span>{navigationItems.find(i => (i.isButton || i.type === 'special'))?.label || 'OUTLET'}</span>
+                    <span className="text-[9px] bg-[#B85C38] text-white px-1.5 py-0.5 rounded font-bold">HOT 🔥</span>
+                  </div>
+                </div>
+              )}
+            </div>
+            <span className="text-[10px] text-gray-400 font-mono-custom mt-2">
+              (VISTA PREVIA DEL MENÚ LATERAL MÓVIL)
+            </span>
+          </div>
+        )}
+
         {/* List of Navigation Items to Reorder & Edit */}
-        <div className="space-y-2">
+        <div className="space-y-2.5">
           {navigationItems.map((item, idx) => (
             <div
               key={item.id || idx}
-              className={`p-3.5 rounded-xl border flex flex-col md:flex-row md:items-center justify-between gap-3 transition-all ${
+              className={`p-3.5 rounded-xl border flex flex-col xl:flex-row xl:items-center justify-between gap-3 transition-all ${
                 item.isVisible === false ? 'bg-gray-100 border-gray-200 opacity-60' : 'bg-gray-50 border-gray-200'
               }`}
             >
@@ -504,8 +635,8 @@ export default function BannerEditor({
                 </button>
               </div>
 
-              {/* Middle Inputs: Label, Link, Type */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 flex-grow">
+              {/* Middle Inputs: Label, Link, Type, Device */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 flex-grow">
                 <div>
                   <label className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">ETIQUETA / TEXTO</label>
                   <input
@@ -555,6 +686,19 @@ export default function BannerEditor({
                     <option value="link">Enlace Normal</option>
                     <option value="dropdown">Desplegable (Categorías ▾)</option>
                     <option value="button">Botón Destacado (Estilo Outlet)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">DISPOSITIVOS</label>
+                  <select
+                    value={item.device || 'all'}
+                    onChange={(e) => handleUpdateNavItemField(idx, 'device', e.target.value)}
+                    className="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-800 outline-none focus:border-[#3C6E71] cursor-pointer"
+                  >
+                    <option value="all">📱 💻 Todos los dispositivos</option>
+                    <option value="desktop">💻 Solo Computadora</option>
+                    <option value="mobile">📱 Solo Móvil / Tablet</option>
                   </select>
                 </div>
               </div>

@@ -17,6 +17,7 @@ export default function MobileMenuDrawer({
   token,
   userProfile,
   categories = [],
+  headerNavItems = [],
   setCurrentView,
   setIsAuthModalOpen,
   setAuthMode,
@@ -115,43 +116,68 @@ export default function MobileMenuDrawer({
             <ChevronRight className="w-4 h-4 text-[#3C6E71]" />
           </button>
 
-          {/* Categorías de Productos */}
+          {/* Categorías y Enlaces de Navegación Configurados */}
           <div className="space-y-1">
             <span className="text-[10px] font-bold text-[#3C6E71] uppercase tracking-widest px-3 block">
-              CATEGORÍAS DE PRODUCTOS
+              MENÚ Y CATEGORÍAS
             </span>
             <div className="space-y-0.5">
-              {categories.map(cat => (
-                <button
-                  key={cat.id}
-                  onClick={() => { 
-                    window.location.hash = `#/catalogo?categoria=${cat.slug}`; 
-                    if (setCurrentView) setCurrentView('category');
-                    onClose(); 
-                  }}
-                  className="w-full text-left font-display font-bold text-xs tracking-wider py-2 px-3 rounded-lg hover:bg-[#3C6E71]/20 text-gray-200 hover:text-white flex items-center justify-between transition-colors cursor-pointer"
-                >
-                  <span>{cat.name.toUpperCase()}</span>
-                  <ChevronRight className="w-3.5 h-3.5 text-gray-500" />
-                </button>
-              ))}
+              {(headerNavItems && headerNavItems.length > 0
+                ? headerNavItems.filter(item => item.isVisible !== false && item.device !== 'desktop' && !item.isButton && item.type !== 'special')
+                : categories
+              ).map((item, idx) => {
+                const link = item.link || (item.slug ? `#/catalogo?categoria=${item.slug}` : '#/catalogo');
+                const label = item.label || item.name;
+                return (
+                  <button
+                    key={item.id || idx}
+                    onClick={() => { 
+                      window.location.hash = link; 
+                      if (setCurrentView) setCurrentView('category');
+                      onClose(); 
+                    }}
+                    className="w-full text-left font-display font-bold text-xs tracking-wider py-2 px-3 rounded-lg hover:bg-[#3C6E71]/20 text-gray-200 hover:text-white flex items-center justify-between transition-colors cursor-pointer"
+                  >
+                    <span>{label.toUpperCase()}</span>
+                    <ChevronRight className="w-3.5 h-3.5 text-gray-500" />
+                  </button>
+                );
+              })}
             </div>
           </div>
 
-          {/* Secciones Especiales */}
-          <div className="border-t border-[#3C6E71]/20 pt-2">
-            <button
-              onClick={() => { 
-                window.location.hash = '#/catalogo?genero=outlet'; 
-                if (setCurrentView) setCurrentView('category');
-                onClose(); 
-              }}
-              className="w-full text-left font-display font-bold text-xs tracking-wider py-2 px-3 rounded-lg bg-orange-500/15 text-orange-400 border border-orange-500/30 flex items-center justify-between cursor-pointer"
-            >
-              <span>OUTLET & OFERTAS</span>
-              <span className="text-[10px] bg-[#B85C38] text-white px-2 py-0.5 rounded font-bold">HOT 🔥</span>
-            </button>
-          </div>
+          {/* Secciones Especiales / Botones Destacados */}
+          {headerNavItems && headerNavItems.some(item => (item.isButton || item.type === 'special') && item.isVisible !== false && item.device !== 'desktop') ? (
+            headerNavItems.filter(item => (item.isButton || item.type === 'special') && item.isVisible !== false && item.device !== 'desktop').map(btn => (
+              <div key={btn.id} className="border-t border-[#3C6E71]/20 pt-2">
+                <button
+                  onClick={() => { 
+                    window.location.hash = btn.link || '#/catalogo?genero=outlet'; 
+                    if (setCurrentView) setCurrentView('category');
+                    onClose(); 
+                  }}
+                  className="w-full text-left font-display font-bold text-xs tracking-wider py-2 px-3 rounded-lg bg-orange-500/15 text-orange-400 border border-orange-500/30 flex items-center justify-between cursor-pointer"
+                >
+                  <span>{btn.label.toUpperCase()}</span>
+                  <span className="text-[10px] bg-[#B85C38] text-white px-2 py-0.5 rounded font-bold">HOT 🔥</span>
+                </button>
+              </div>
+            ))
+          ) : (
+            <div className="border-t border-[#3C6E71]/20 pt-2">
+              <button
+                onClick={() => { 
+                  window.location.hash = '#/catalogo?genero=outlet'; 
+                  if (setCurrentView) setCurrentView('category');
+                  onClose(); 
+                }}
+                className="w-full text-left font-display font-bold text-xs tracking-wider py-2 px-3 rounded-lg bg-orange-500/15 text-orange-400 border border-orange-500/30 flex items-center justify-between cursor-pointer"
+              >
+                <span>OUTLET & OFERTAS</span>
+                <span className="text-[10px] bg-[#B85C38] text-white px-2 py-0.5 rounded font-bold">HOT 🔥</span>
+              </button>
+            </div>
+          )}
 
           {/* Centro de Ayuda & Enlaces Legales */}
           <div className="border-t border-[#3C6E71]/20 pt-3 space-y-1">

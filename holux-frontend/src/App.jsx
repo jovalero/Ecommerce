@@ -4775,6 +4775,7 @@ export default function App() {
           token={token}
           userProfile={userProfile}
           categories={categories}
+          headerNavItems={headerNavItems}
           setCurrentView={setCurrentView}
           setIsAuthModalOpen={setIsAuthModalOpen}
           setAuthMode={setAuthMode}
@@ -6358,6 +6359,7 @@ export default function App() {
         token={token}
         userProfile={userProfile}
         categories={categories}
+        headerNavItems={headerNavItems}
         setCurrentView={setCurrentView}
         setIsAuthModalOpen={setIsAuthModalOpen}
         setAuthMode={setAuthMode}
