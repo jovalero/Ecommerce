@@ -109,13 +109,6 @@ export default function AuthModal({
         </form>
 
         <div className="pt-2 border-t border-gray-100 text-center space-y-3">
-          <button
-            type="button"
-            onClick={onGoogleLogin}
-            className="w-full py-2.5 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 text-xs font-bold rounded-lg flex items-center justify-center gap-2 cursor-pointer shadow-xs transition-colors"
-          >
-            <span>Continuar con Google</span>
-          </button>
 
           <p className="text-xs text-gray-500">
             {authMode === 'login' ? '¿No tienes cuenta?' : '¿Ya tienes cuenta?'}{' '}
