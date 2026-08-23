@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Image, Link, Calendar, CheckCircle2, Eye, Save, Trash2, Plus, MoveUp, MoveDown, ShieldCheck, Sparkles, CreditCard, Megaphone, LayoutTemplate, Layers } from 'lucide-react';
+import { Image, Link, Calendar, CheckCircle2, Eye, Save, Trash2, Plus, MoveUp, MoveDown, ShieldCheck, Sparkles, CreditCard, Megaphone, LayoutTemplate, Layers, Compass } from 'lucide-react';
 import ConfirmationModal from './ConfirmationModal';
 import { persistBannerData, uploadOrCompressBanner } from '../../utils/bannerStorage';
 
@@ -16,6 +16,8 @@ export default function BannerEditor({
   setHomeSectionTitles,
   gridPromoCards,
   setGridPromoCards,
+  headerNavItems,
+  setHeaderNavItems,
   API_BASE_URL,
   token
 }) {
@@ -24,6 +26,85 @@ export default function BannerEditor({
   const formRef = useRef(null);
   const [savedMsg, setSavedMsg] = useState(false);
   const [newTickerText, setNewTickerText] = useState('');
+
+  // Default Navigation Items
+  const defaultNavItems = [
+    { id: 'cat_dropdown', type: 'dropdown', label: 'CATEGORÍAS', isVisible: true, isDropdown: true, link: '#/catalogo' },
+    { id: 'cat_perfumes-hombre', type: 'category', label: 'PERFUMES HOMBRE', slug: 'perfumes-hombre', link: '#/catalogo?categoria=perfumes-hombre', isVisible: true },
+    { id: 'cat_perfumes-mujer', type: 'category', label: 'PERFUMES MUJER', slug: 'perfumes-mujer', link: '#/catalogo?categoria=perfumes-mujer', isVisible: true },
+    { id: 'outlet', type: 'special', label: 'OUTLET', link: '#/catalogo?genero=outlet', isVisible: true, isButton: true }
+  ];
+
+  // Navigation Items State (Header Navbar Customizer)
+  const [navigationItems, setNavigationItems] = useState(() => {
+    if (headerNavItems && headerNavItems.length > 0) return headerNavItems;
+    try {
+      const saved = localStorage.getItem('holux_header_nav_items');
+      return saved ? JSON.parse(saved) : defaultNavItems;
+    } catch (e) {
+      return defaultNavItems;
+    }
+  });
+
+  const updateNavItems = (newItems) => {
+    setNavigationItems(newItems);
+    if (setHeaderNavItems) setHeaderNavItems(newItems);
+    persistBannerData('holux_header_nav_items', newItems);
+  };
+
+  const handleMoveNavItem = (index, direction) => {
+    const target = index + direction;
+    if (target < 0 || target >= navigationItems.length) return;
+    const copy = [...navigationItems];
+    const temp = copy[index];
+    copy[index] = copy[target];
+    copy[target] = temp;
+    updateNavItems(copy);
+  };
+
+  const handleToggleNavItemVisibility = (index) => {
+    const copy = [...navigationItems];
+    copy[index] = { ...copy[index], isVisible: !copy[index].isVisible };
+    updateNavItems(copy);
+  };
+
+  const handleUpdateNavItemField = (index, field, value) => {
+    const copy = [...navigationItems];
+    copy[index] = { ...copy[index], [field]: value };
+    updateNavItems(copy);
+  };
+
+  const handleDeleteNavItem = (index) => {
+    const copy = navigationItems.filter((_, i) => i !== index);
+    updateNavItems(copy);
+  };
+
+  const handleAddCustomNavItem = () => {
+    const newItem = {
+      id: 'custom_' + Date.now(),
+      type: 'custom',
+      label: 'NUEVO ENLACE',
+      link: '#/catalogo',
+      isVisible: true,
+      isButton: false
+    };
+    updateNavItems([...navigationItems, newItem]);
+  };
+
+  const handleSyncMissingCategories = () => {
+    const existingSlugs = navigationItems.map(i => i.slug || (i.link?.includes('categoria=') ? i.link.split('categoria=')[1] : null)).filter(Boolean);
+    const missing = (categoriesList || []).filter(c => !existingSlugs.includes(c.slug));
+    if (missing.length === 0) return;
+    const newItems = missing.map(c => ({
+      id: 'cat_' + c.slug,
+      type: 'category',
+      label: c.name.toUpperCase(),
+      slug: c.slug,
+      link: `#/catalogo?categoria=${c.slug}`,
+      isVisible: true
+    }));
+    updateNavItems([...navigationItems, ...newItems]);
+  };
 
   // 3 Promotional Grid Cards State
   const [promoCards, setPromoCards] = useState(() => {
@@ -247,6 +328,7 @@ export default function BannerEditor({
 
     persistBannerData('holux_hero_slides', heroSlides);
     persistBannerData('holux_ticker_phrases', tickerPhrases);
+    persistBannerData('holux_header_nav_items', navigationItems);
 
     setSavedMsg(true);
     setTimeout(() => setSavedMsg(false), 3500);
@@ -259,18 +341,26 @@ export default function BannerEditor({
         <div>
           <div className="flex items-center gap-3">
             <h2 className="text-base font-display font-bold text-gray-900 uppercase tracking-wider">
-              EDITOR VISUAL DE BANNERS Y SLIDERS PRINCIPALES
+              EDITOR VISUAL DE BANNERS Y MENÚ DE NAVEGACIÓN
             </h2>
             <span className="text-xs font-mono-custom font-bold bg-[#3C6E71]/10 text-[#3C6E71] px-2.5 py-0.5 rounded-full border border-[#3C6E71]/20">
               {heroSlides.length} banners activos
             </span>
           </div>
           <p className="text-xs text-gray-500 mt-1">
-            Administrá imágenes de portada, promociones de cuotas y los avisos del cintillo superior.
+            Administrá el menú superior, imágenes de portada, promociones de cuotas y avisos de la tienda.
           </p>
         </div>
 
         <div className="flex items-center gap-3">
+          <button
+            onClick={handleSaveAllGlobal}
+            className="px-4 py-2 bg-[#1C2321] hover:bg-black text-white font-display text-xs font-bold tracking-wider rounded-xl shadow-xs flex items-center gap-2 cursor-pointer transition-all"
+          >
+            <Save className="w-4 h-4 text-emerald-400" />
+            <span>GUARDAR TODOS LOS CAMBIOS</span>
+          </button>
+
           <button
             type="button"
             onClick={() => {
@@ -299,9 +389,191 @@ export default function BannerEditor({
       {savedMsg && (
         <div className="p-4 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-2xl text-xs font-bold flex items-center gap-2 shadow-xs transition-all animate-fade-in">
           <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-          <span>¡Todos los banners, ofertas de cuotas y cintillos se publicaron exitosamente en la tienda!</span>
+          <span>¡Todos los cambios de menú, banners, ofertas y textos se publicaron exitosamente en la tienda!</span>
         </div>
       )}
+
+      {/* SECTION 0: GESTOR Y ORDENADOR DE LA BARRA DE NAVEGACIÓN (HEADER NAVBAR) */}
+      <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-100 pb-3">
+          <div className="flex items-center gap-2">
+            <Compass className="w-4 h-4 text-[#3C6E71]" />
+            <h3 className="font-display text-xs font-bold uppercase tracking-wider text-gray-900">
+              BARRA DE NAVEGACIÓN SUPERIOR (ORDEN Y ENLACES DEL MENÚ)
+            </h3>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={handleSyncMissingCategories}
+              className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-[10px] font-bold font-display cursor-pointer transition-colors"
+            >
+              🔄 SINCRONIZAR CATEGORÍAS
+            </button>
+            <button
+              type="button"
+              onClick={handleAddCustomNavItem}
+              className="px-3 py-1.5 bg-[#3C6E71] hover:bg-[#2b5153] text-white rounded-xl text-[10px] font-bold font-display cursor-pointer transition-colors flex items-center gap-1"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>+ AGREGAR ENLACE</span>
+            </button>
+          </div>
+        </div>
+
+        <p className="text-xs text-gray-500">
+          Personalizá qué botones y categorías aparecen en el menú superior de la tienda y su orden exacto con las flechas de posición.
+        </p>
+
+        {/* Live Miniature Mockup of the Navbar */}
+        <div className="bg-[#1C2321] p-3 rounded-xl flex items-center justify-between overflow-x-auto shadow-inner border border-white/5">
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="w-4 h-4 bg-white/20 rounded-full flex items-center justify-center text-[8px] text-white font-bold">H</div>
+            <span className="font-display text-[11px] font-bold text-white tracking-widest">HOLUX</span>
+          </div>
+          <div className="flex items-center gap-3 shrink-0 px-4">
+            {navigationItems.filter(i => i.isVisible !== false).map((item, idx) => (
+              <span
+                key={idx}
+                className={`font-display text-[10px] font-bold tracking-wider ${
+                  item.isButton || item.type === 'special'
+                    ? 'px-2 py-0.5 border border-[#3C6E71] text-[#3C6E71] rounded'
+                    : item.isDropdown || item.type === 'dropdown'
+                    ? 'text-[#F2EFE9] flex items-center gap-0.5'
+                    : 'text-gray-300'
+                }`}
+              >
+                {item.label}
+                {(item.isDropdown || item.type === 'dropdown') && ' ▾'}
+              </span>
+            ))}
+          </div>
+          <div className="text-[9px] text-gray-400 font-mono-custom shrink-0">
+            (VISTA PREVIA EN VIVO)
+          </div>
+        </div>
+
+        {/* List of Navigation Items to Reorder & Edit */}
+        <div className="space-y-2">
+          {navigationItems.map((item, idx) => (
+            <div
+              key={item.id || idx}
+              className={`p-3.5 rounded-xl border flex flex-col md:flex-row md:items-center justify-between gap-3 transition-all ${
+                item.isVisible === false ? 'bg-gray-100 border-gray-200 opacity-60' : 'bg-gray-50 border-gray-200'
+              }`}
+            >
+              {/* Left Order & Visibility Controls */}
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-[10px] font-mono-custom font-bold bg-white text-gray-700 px-2 py-1 rounded border border-gray-200">
+                  #{idx + 1}
+                </span>
+                <button
+                  type="button"
+                  disabled={idx === 0}
+                  onClick={() => handleMoveNavItem(idx, -1)}
+                  className={`p-1.5 rounded-lg border transition-colors ${
+                    idx === 0 ? 'bg-gray-100 text-gray-300 border-gray-200 cursor-not-allowed' : 'bg-white hover:bg-gray-100 text-gray-700 border-gray-200 cursor-pointer shadow-xs'
+                  }`}
+                  title="Mover hacia la izquierda / arriba"
+                >
+                  <MoveUp className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  disabled={idx === navigationItems.length - 1}
+                  onClick={() => handleMoveNavItem(idx, 1)}
+                  className={`p-1.5 rounded-lg border transition-colors ${
+                    idx === navigationItems.length - 1 ? 'bg-gray-100 text-gray-300 border-gray-200 cursor-not-allowed' : 'bg-white hover:bg-gray-100 text-gray-700 border-gray-200 cursor-pointer shadow-xs'
+                  }`}
+                  title="Mover hacia la derecha / abajo"
+                >
+                  <MoveDown className="w-3.5 h-3.5" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleToggleNavItemVisibility(idx)}
+                  className={`px-2.5 py-1 rounded-lg text-[10px] font-bold font-display transition-colors cursor-pointer border flex items-center gap-1 ${
+                    item.isVisible !== false
+                      ? 'bg-[#3C6E71]/10 border-[#3C6E71]/30 text-[#3C6E71]'
+                      : 'bg-gray-200 border-gray-300 text-gray-600'
+                  }`}
+                >
+                  <Eye className="w-3 h-3" />
+                  <span>{item.isVisible !== false ? 'VISIBLE' : 'OCULTO'}</span>
+                </button>
+              </div>
+
+              {/* Middle Inputs: Label, Link, Type */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 flex-grow">
+                <div>
+                  <label className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">ETIQUETA / TEXTO</label>
+                  <input
+                    type="text"
+                    value={item.label}
+                    onChange={(e) => handleUpdateNavItemField(idx, 'label', e.target.value)}
+                    className="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-900 outline-none focus:border-[#3C6E71]"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">DESTINO / LINK</label>
+                  <input
+                    type="text"
+                    value={item.link || ''}
+                    disabled={item.isDropdown || item.type === 'dropdown'}
+                    onChange={(e) => handleUpdateNavItemField(idx, 'link', e.target.value)}
+                    placeholder={item.isDropdown ? '(Desplegable de categorías)' : '#/catalogo...'}
+                    className={`w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-mono-custom outline-none focus:border-[#3C6E71] ${
+                      item.isDropdown ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'text-gray-800'
+                    }`}
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">ESTILO VISUAL</label>
+                  <select
+                    value={item.isDropdown ? 'dropdown' : item.isButton || item.type === 'special' ? 'button' : 'link'}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === 'dropdown') {
+                        handleUpdateNavItemField(idx, 'isDropdown', true);
+                        handleUpdateNavItemField(idx, 'isButton', false);
+                        handleUpdateNavItemField(idx, 'type', 'dropdown');
+                      } else if (val === 'button') {
+                        handleUpdateNavItemField(idx, 'isButton', true);
+                        handleUpdateNavItemField(idx, 'isDropdown', false);
+                        handleUpdateNavItemField(idx, 'type', 'special');
+                      } else {
+                        handleUpdateNavItemField(idx, 'isButton', false);
+                        handleUpdateNavItemField(idx, 'isDropdown', false);
+                        handleUpdateNavItemField(idx, 'type', 'category');
+                      }
+                    }}
+                    className="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-800 outline-none focus:border-[#3C6E71] cursor-pointer"
+                  >
+                    <option value="link">Enlace Normal</option>
+                    <option value="dropdown">Desplegable (Categorías ▾)</option>
+                    <option value="button">Botón Destacado (Estilo Outlet)</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Right Delete action */}
+              <div className="flex items-center justify-end shrink-0">
+                <button
+                  type="button"
+                  onClick={() => handleDeleteNavItem(idx)}
+                  className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                  title="Eliminar enlace del menú"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
 
       {/* SECTION 1: PROMO BANNER DE CUOTAS (AHORA EN DISEÑO BLANCO ELEGANTE) */}
       <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm space-y-5">

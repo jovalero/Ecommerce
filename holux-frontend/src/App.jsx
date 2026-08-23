@@ -416,6 +416,20 @@ export default function App() {
       return PROMO_BANNERS;
     }
   });
+  const defaultHeaderNavItems = [
+    { id: 'cat_dropdown', type: 'dropdown', label: 'CATEGORÍAS', isVisible: true, isDropdown: true, link: '#/catalogo' },
+    { id: 'cat_perfumes-hombre', type: 'category', label: 'PERFUMES HOMBRE', slug: 'perfumes-hombre', link: '#/catalogo?categoria=perfumes-hombre', isVisible: true },
+    { id: 'cat_perfumes-mujer', type: 'category', label: 'PERFUMES MUJER', slug: 'perfumes-mujer', link: '#/catalogo?categoria=perfumes-mujer', isVisible: true },
+    { id: 'outlet', type: 'special', label: 'OUTLET', link: '#/catalogo?genero=outlet', isVisible: true, isButton: true }
+  ];
+  const [headerNavItems, setHeaderNavItems] = useState(() => {
+    try {
+      const saved = localStorage.getItem('holux_header_nav_items');
+      return saved ? JSON.parse(saved) : defaultHeaderNavItems;
+    } catch (e) {
+      return defaultHeaderNavItems;
+    }
+  });
   const [selectedPrintOrder, setSelectedPrintOrder] = useState(null);
   const [selectedOrderDetail, setSelectedOrderDetail] = useState(null);
   const [adminOrderSearchQuery, setAdminOrderSearchQuery] = useState('');
@@ -546,6 +560,11 @@ export default function App() {
     loadPersistedBannerData('holux_grid_promo_cards', null).then(saved => {
       if (saved && Array.isArray(saved) && saved.length > 0) {
         setGridPromoCards(saved);
+      }
+    });
+    loadPersistedBannerData('holux_header_nav_items', null).then(saved => {
+      if (saved && Array.isArray(saved) && saved.length > 0) {
+        setHeaderNavItems(saved);
       }
     });
   }, []);
@@ -4913,6 +4932,8 @@ export default function App() {
                 setHomeSectionTitles={setHomeSectionTitles}
                 gridPromoCards={gridPromoCards}
                 setGridPromoCards={setGridPromoCards}
+                headerNavItems={headerNavItems}
+                setHeaderNavItems={setHeaderNavItems}
                 API_BASE_URL={API_BASE_URL}
                 token={token}
               />
@@ -6174,73 +6195,85 @@ export default function App() {
             </span>
           </div>
 
-          {/* Center Navigation Menu (CATEGORÍAS first, then active categories, then OUTLET) */}
-          <nav className="hidden md:flex items-center gap-4 lg:gap-6 xl:gap-8 relative shrink-0">
-            
-            {/* 1. CATEGORÍAS DROPDOWN (At the beginning) */}
-            <div className="relative group">
-              <button
-                onClick={() => { window.location.hash = '#/catalogo'; }}
-                className={`font-display text-xs font-bold tracking-wider flex items-center gap-1.5 transition-colors cursor-pointer py-1.5 ${
-                  activeCategory ? 'text-[#3C6E71]' : 'text-[#F2EFE9] group-hover:text-[#3C6E71]'
-                }`}
-              >
-                CATEGORÍAS
-                <ChevronDown className="w-3.5 h-3.5 transition-transform duration-200 group-hover:rotate-180" />
-              </button>
-              
-              {/* Dropdown Menu */}
-              <div className="invisible opacity-0 group-hover:visible group-hover:opacity-100 transition-all duration-150 transform translate-y-1 group-hover:translate-y-0 absolute top-full left-0 w-52 bg-[#1C2321] border border-[#3C6E71]/20 shadow-xl rounded-xl py-2 z-50">
-                <button
-                  onClick={() => { 
-                    window.location.hash = '#/catalogo';
-                  }}
-                  className="w-full text-left px-4 py-2 hover:bg-[#3C6E71]/20 text-xs font-display font-bold tracking-wider text-gray-200 hover:text-white transition-colors cursor-pointer"
-                >
-                  TODO EL CATÁLOGO
-                </button>
-                {categories.map(cat => (
+          {/* Center Navigation Menu (Customizable from Admin Panel) */}
+          <nav className="hidden md:flex items-center gap-3 lg:gap-5 xl:gap-7 relative shrink-0">
+            {headerNavItems.filter(item => item.isVisible !== false).map((item) => {
+              // 1. Dropdown Style (Categories Dropdown)
+              if (item.isDropdown || item.type === 'dropdown') {
+                return (
+                  <div key={item.id} className="relative group">
+                    <button
+                      onClick={() => { window.location.hash = item.link || '#/catalogo'; }}
+                      className={`font-display text-xs font-bold tracking-wider flex items-center gap-1.5 transition-colors cursor-pointer py-1.5 ${
+                        activeCategory ? 'text-[#3C6E71]' : 'text-[#F2EFE9] group-hover:text-[#3C6E71]'
+                      }`}
+                    >
+                      {item.label}
+                      <ChevronDown className="w-3.5 h-3.5 transition-transform duration-200 group-hover:rotate-180" />
+                    </button>
+                    
+                    {/* Dropdown Menu */}
+                    <div className="invisible opacity-0 group-hover:visible group-hover:opacity-100 transition-all duration-150 transform translate-y-1 group-hover:translate-y-0 absolute top-full left-0 w-52 bg-[#1C2321] border border-[#3C6E71]/20 shadow-xl rounded-xl py-2 z-50">
+                      <button
+                        onClick={() => { 
+                          window.location.hash = '#/catalogo';
+                        }}
+                        className="w-full text-left px-4 py-2 hover:bg-[#3C6E71]/20 text-xs font-display font-bold tracking-wider text-gray-200 hover:text-white transition-colors cursor-pointer"
+                      >
+                        TODO EL CATÁLOGO
+                      </button>
+                      {categories.map(cat => (
+                        <button
+                          key={cat.id}
+                          onClick={() => {
+                            window.location.hash = `#/catalogo?categoria=${cat.slug}`;
+                          }}
+                          className="w-full text-left px-4 py-2 hover:bg-[#3C6E71]/20 text-xs font-display font-bold tracking-wider text-gray-200 hover:text-white transition-colors cursor-pointer"
+                        >
+                          {cat.name.toUpperCase()}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              }
+
+              // 2. Button / Highlighted Style (e.g. Outlet)
+              if (item.isButton || item.type === 'button' || item.type === 'special') {
+                const isActive = item.link === '#/catalogo?genero=outlet' ? activeGender === 'outlet' : false;
+                return (
                   <button
-                    key={cat.id}
+                    key={item.id}
                     onClick={() => {
-                      window.location.hash = `#/catalogo?categoria=${cat.slug}`;
+                      window.location.hash = item.link || '#/catalogo';
                     }}
-                    className="w-full text-left px-4 py-2 hover:bg-[#3C6E71]/20 text-xs font-display font-bold tracking-wider text-gray-200 hover:text-white transition-colors cursor-pointer"
+                    className={`px-3 py-1 border border-[#3C6E71] rounded font-display text-xs font-bold tracking-wider transition-all cursor-pointer ${
+                      isActive 
+                        ? 'bg-[#3C6E71] text-white border-[#3C6E71]' 
+                        : 'text-[#3C6E71] hover:bg-[#3C6E71] hover:text-white'
+                    }`}
                   >
-                    {cat.name.toUpperCase()}
+                    {item.label}
                   </button>
-                ))}
-              </div>
-            </div>
+                );
+              }
 
-            {/* 2. Dynamic Categories from Database */}
-            {categories.map(cat => (
-              <button
-                key={cat.id}
-                onClick={() => {
-                  window.location.hash = `#/catalogo?categoria=${cat.slug}`;
-                }}
-                className={`font-display text-xs font-bold tracking-wider transition-colors cursor-pointer ${
-                  activeCategory === cat.slug ? 'text-[#3C6E71]' : 'text-gray-200 hover:text-[#3C6E71]'
-                }`}
-              >
-                {cat.name.toUpperCase()}
-              </button>
-            ))}
-
-            {/* 3. OUTLET */}
-            <button
-              onClick={() => {
-                window.location.hash = '#/catalogo?genero=outlet';
-              }}
-              className={`px-3 py-1 border border-[#3C6E71] rounded font-display text-xs font-bold tracking-wider transition-all cursor-pointer ${
-                activeGender === 'outlet' 
-                  ? 'bg-[#3C6E71] text-white border-[#3C6E71]' 
-                  : 'text-[#3C6E71] hover:bg-[#3C6E71] hover:text-white'
-              }`}
-            >
-              OUTLET
-            </button>
+              // 3. Normal Category or Custom Link
+              const isCatActive = item.slug ? activeCategory === item.slug : (activeCategory && item.link?.includes(`categoria=${activeCategory}`));
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => {
+                    window.location.hash = item.link || '#/catalogo';
+                  }}
+                  className={`font-display text-xs font-bold tracking-wider transition-colors cursor-pointer ${
+                    isCatActive ? 'text-[#3C6E71]' : 'text-gray-200 hover:text-[#3C6E71]'
+                  }`}
+                >
+                  {item.label}
+                </button>
+              );
+            })}
           </nav>
 
           {/* Right Icons section */}
