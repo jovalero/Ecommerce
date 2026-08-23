@@ -303,8 +303,11 @@ const MobilePromoCarousel = React.memo(function MobilePromoCarousel({ banners = 
   );
 });
 
-const getProductImage = (name) => {
-  const cleanName = name.toLowerCase();
+const getProductImage = (name = '') => {
+  const cleanName = String(name).toLowerCase();
+  if (cleanName.includes('perfume') || cleanName.includes('fragancia') || cleanName.includes('edp') || cleanName.includes('edt') || cleanName.includes('moschino') || cleanName.includes('dior') || cleanName.includes('versace') || cleanName.includes('herrera') || cleanName.includes('rabanne') || cleanName.includes('parfum') || cleanName.includes('colonia')) {
+    return 'https://images.unsplash.com/photo-1541643600914-78b084683601?w=600&auto=format&fit=crop&q=80';
+  }
   if (cleanName.includes('campera') || cleanName.includes('cortavientos')) {
     return 'https://images.unsplash.com/photo-1551028719-00167b16eac5?w=600&auto=format&fit=crop&q=80';
   }
@@ -344,7 +347,7 @@ const getProductImage = (name) => {
   if (cleanName.includes('chaleco')) {
     return 'https://images.unsplash.com/photo-1620799140408-edc6dcb6d633?w=600&auto=format&fit=crop&q=80';
   }
-  return 'https://images.unsplash.com/photo-1501555088652-021faa106b9b?w=600&auto=format&fit=crop&q=80';
+  return 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80';
 };
 
 export default function App() {
@@ -4649,11 +4652,15 @@ export default function App() {
                     <div className="space-y-4">
                       {cart.map(item => (
                         <div key={`${item.id}_${item.sizeLabel}`} className="flex gap-4 border-b border-gray-100 pb-4">
-                          <div className="w-16 h-16 bg-gray-50 border border-gray-100 rounded overflow-hidden flex items-center justify-center">
+                          <div className="w-16 h-16 bg-gray-50 border border-gray-100 rounded overflow-hidden flex items-center justify-center shrink-0">
                             <img 
-                              src={getProductImage(item.name)} 
+                              src={item.image_url || (Array.isArray(item.images) ? item.images[0] : (typeof item.images === 'string' ? JSON.parse(item.images || '[]')[0] : null)) || item.image || item.photo || getProductImage(item.name)} 
                               alt={item.name} 
                               className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.target.onerror = null;
+                                e.target.src = getProductImage(item.name);
+                              }}
                             />
                           </div>
 
@@ -4882,9 +4889,13 @@ export default function App() {
                         <div className="flex items-center gap-3">
                           <div className="w-12 h-12 bg-gray-50 border border-gray-200 rounded-lg overflow-hidden flex items-center justify-center shrink-0">
                             <img 
-                              src={getProductImage(item.name || item.product_name)} 
+                              src={item.image_url || item.image || (Array.isArray(item.images) ? item.images[0] : (typeof item.images === 'string' ? JSON.parse(item.images || '[]')[0] : null)) || getProductImage(item.name || item.product_name)} 
                               alt={item.name || item.product_name}
                               className="w-full h-full object-cover" 
+                              onError={(e) => {
+                                e.target.onerror = null;
+                                e.target.src = getProductImage(item.name || item.product_name);
+                              }}
                             />
                           </div>
                           <div>

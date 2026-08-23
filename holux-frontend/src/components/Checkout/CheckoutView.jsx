@@ -16,8 +16,11 @@ import {
 import { SmoothInput } from '../Common/SmoothInput';
 
 const getProductImage = (name) => {
-  if (!name) return 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=600&auto=format&fit=crop&q=80';
-  const cleanName = name.toLowerCase();
+  if (!name) return 'https://images.unsplash.com/photo-1541643600914-78b084683601?w=600&auto=format&fit=crop&q=80';
+  const cleanName = String(name).toLowerCase();
+  if (cleanName.includes('perfume') || cleanName.includes('fragancia') || cleanName.includes('edp') || cleanName.includes('edt') || cleanName.includes('moschino') || cleanName.includes('dior') || cleanName.includes('versace') || cleanName.includes('herrera') || cleanName.includes('rabanne') || cleanName.includes('parfum') || cleanName.includes('colonia')) {
+    return 'https://images.unsplash.com/photo-1541643600914-78b084683601?w=600&auto=format&fit=crop&q=80';
+  }
   if (cleanName.includes('campera') || cleanName.includes('cortavientos')) {
     return 'https://images.unsplash.com/photo-1551028719-00167b16eac5?w=600&auto=format&fit=crop&q=80';
   }
@@ -54,7 +57,7 @@ const getProductImage = (name) => {
   if (cleanName.includes('gorro')) {
     return 'https://images.unsplash.com/photo-1576871337632-b9aef4c17ab9?w=600&auto=format&fit=crop&q=80';
   }
-  return 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=600&auto=format&fit=crop&q=80';
+  return 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80';
 };
 
 // Memoized Contact Inputs
