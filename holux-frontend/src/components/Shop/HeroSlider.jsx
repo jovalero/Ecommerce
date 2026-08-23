@@ -104,68 +104,103 @@ export const HeroSlider = memo(function HeroSlider({
       {/* Slide images with smooth GPU-accelerated crossfade transitions */}
       {slides.map((slide, idx) => {
         const isActive = idx === currentSlide;
+        const hasText = Boolean(
+          (slide.title && slide.title.trim()) ||
+          (slide.span && slide.span.trim()) ||
+          (slide.highlight && slide.highlight.trim()) ||
+          (slide.desc && slide.desc.trim()) ||
+          (slide.cta && slide.cta.trim())
+        );
+
+        const handleSlideClick = () => {
+          if (slide.link) {
+            if (slide.link.startsWith('#') || slide.link.startsWith('/')) {
+              window.location.hash = slide.link.replace(/^#\/?/, '#/');
+            } else {
+              window.open(slide.link, '_blank');
+            }
+          } else {
+            window.location.hash = '#/catalogo';
+          }
+        };
+
         return (
           <div
             key={idx}
+            onClick={!hasText ? handleSlideClick : undefined}
             className={`absolute inset-0 transition-opacity duration-700 ease-in-out will-change-[opacity] ${
               isActive ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'
-            }`}
+            } ${!hasText ? 'cursor-pointer' : ''}`}
             style={{ transform: 'translate3d(0, 0, 0)' }}
           >
             {/* Background Image with async decoding */}
-            <img
-              src={slide.image}
-              alt={slide.title || 'Banner Holux'}
-              decoding="async"
-              loading="eager"
-              fetchPriority={idx === 0 ? "high" : "auto"}
-              className="absolute inset-0 w-full h-full object-cover object-center opacity-85"
-            />
-
-            {/* Black Overlay to ensure text readability */}
-            <div className="absolute inset-0 bg-black/55 via-black/35 to-black/60" />
-
-            {/* Text Content Area */}
-            <div className="absolute inset-0 flex items-center justify-center p-6 text-center z-10">
-              <div
-                className={`max-w-3xl space-y-3 sm:space-y-4 transition-all duration-700 delay-100 transform ${
-                  isActive ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'
+            <picture className="absolute inset-0 w-full h-full">
+              {slide.mobileImage && (
+                <source media="(max-width: 640px)" srcSet={slide.mobileImage} />
+              )}
+              <img
+                src={slide.image}
+                alt={slide.title || 'Banner Holux'}
+                decoding="async"
+                loading="eager"
+                fetchPriority={idx === 0 ? "high" : "auto"}
+                className={`absolute inset-0 w-full h-full object-cover object-center ${
+                  hasText ? 'opacity-85' : 'opacity-100'
                 }`}
-              >
-                <span className="text-xs sm:text-sm font-semibold text-orange-200 tracking-[0.2em] uppercase font-sans block drop-shadow">
-                  {slide.span}
-                </span>
-                <h1 className="text-2xl sm:text-4xl lg:text-5xl font-display font-bold tracking-wide text-white leading-tight uppercase drop-shadow-md">
-                  {slide.title} <br className="hidden sm:inline" />
-                  <span className="text-[#3C6E71] bg-white/10 px-3 py-1 rounded-lg inline-block mt-2 sm:mt-0 font-bold">
-                    {slide.highlight}
-                  </span>
-                </h1>
-                <p className="text-xs sm:text-base text-gray-200 max-w-xl mx-auto leading-relaxed font-sans hidden sm:block font-medium">
-                  {slide.desc}
-                </p>
-                <div className="pt-2">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (slide.link) {
-                        if (slide.link.startsWith('#') || slide.link.startsWith('/')) {
-                          window.location.hash = slide.link.replace(/^#\/?/, '#/');
-                        } else {
-                          window.open(slide.link, '_blank');
-                        }
-                      } else {
-                        window.location.hash = '#/catalogo';
-                      }
-                    }}
-                    className="px-6 py-3 sm:px-8 sm:py-3.5 bg-black hover:bg-neutral-800 text-white font-display text-xs sm:text-sm font-bold tracking-widest rounded-lg shadow-lg hover:shadow-xl transition-all cursor-pointer inline-flex items-center gap-2 border border-white/10"
-                  >
-                    {slide.cta || 'EXPLORAR CATÁLOGO'}
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
+              />
+            </picture>
+
+            {/* Black Overlay ONLY when there is text */}
+            {hasText && (
+              <div className="absolute inset-0 bg-black/55 via-black/35 to-black/60" />
+            )}
+
+            {/* Text Content Area ONLY when there is text */}
+            {hasText && (
+              <div className="absolute inset-0 flex items-center justify-center p-6 text-center z-10">
+                <div
+                  className={`max-w-3xl space-y-3 sm:space-y-4 transition-all duration-700 delay-100 transform ${
+                    isActive ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'
+                  }`}
+                >
+                  {slide.span && slide.span.trim() && (
+                    <span className="text-xs sm:text-sm font-semibold text-orange-200 tracking-[0.2em] uppercase font-sans block drop-shadow">
+                      {slide.span}
+                    </span>
+                  )}
+                  {slide.title && slide.title.trim() && (
+                    <h1 className="text-2xl sm:text-4xl lg:text-5xl font-display font-bold tracking-wide text-white leading-tight uppercase drop-shadow-md">
+                      {slide.title} {slide.highlight && <br className="hidden sm:inline" />}
+                      {slide.highlight && slide.highlight.trim() && (
+                        <span className="text-[#3C6E71] bg-white/10 px-3 py-1 rounded-lg inline-block mt-2 sm:mt-0 font-bold ml-2">
+                          {slide.highlight}
+                        </span>
+                      )}
+                    </h1>
+                  )}
+                  {slide.desc && slide.desc.trim() && (
+                    <p className="text-xs sm:text-base text-gray-200 max-w-xl mx-auto leading-relaxed font-sans hidden sm:block font-medium">
+                      {slide.desc}
+                    </p>
+                  )}
+                  {slide.cta && slide.cta.trim() && (
+                    <div className="pt-2">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleSlideClick();
+                        }}
+                        className="px-6 py-3 sm:px-8 sm:py-3.5 bg-black hover:bg-neutral-800 text-white font-display text-xs sm:text-sm font-bold tracking-widest rounded-lg shadow-lg hover:shadow-xl transition-all cursor-pointer inline-flex items-center gap-2 border border-white/10"
+                      >
+                        {slide.cta}
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
-            </div>
+            )}
           </div>
         );
       })}

@@ -48,8 +48,8 @@ export default function BannerEditor({ heroSlides = [], setHeroSlides, promoBann
     setTitle(slide.title || '');
     setSpan(slide.span || '');
     setDesc(slide.desc || '');
-    setHighlight(slide.highlight || 'NUEVA TEMPORADA');
-    setCta(slide.cta || 'EXPLORAR CATÁLOGO');
+    setHighlight(slide.highlight || '');
+    setCta(slide.cta || '');
     setDesktopImage(slide.image || '');
     setMobileImage(slide.mobileImage || slide.image || '');
     setIsActive(slide.isActive !== false);
@@ -163,11 +163,13 @@ export default function BannerEditor({ heroSlides = [], setHeroSlides, promoBann
             type="button"
             onClick={() => {
               setEditingIndex(null);
-              setTitle('NUEVA COLECCIÓN');
-              setSpan('EQUIPAMIENTO TÉCNICO');
-              setDesc('Explora los mejores productos para tus próximas expediciones en montaña.');
-              setDesktopImage('https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=1600');
-              setMobileImage('https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=800');
+              setTitle('');
+              setSpan('');
+              setDesc('');
+              setHighlight('');
+              setCta('');
+              setDesktopImage('');
+              setMobileImage('');
             }}
             className="px-4 py-2 bg-[#3C6E71] hover:bg-[#2c5355] text-white font-display text-xs font-bold tracking-wider rounded-xl shadow-xs flex items-center gap-2 cursor-pointer transition-all"
           >
@@ -374,23 +376,27 @@ export default function BannerEditor({ heroSlides = [], setHeroSlides, promoBann
           <form onSubmit={handleSaveBannerForm} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1">
-                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">TÍTULO PRINCIPAL</label>
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">
+                  TÍTULO PRINCIPAL <span className="text-gray-400 font-normal lowercase">(opcional)</span>
+                </label>
                 <input
                   type="text"
-                  required
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
+                  placeholder="Ej: NUEVA COLECCIÓN (o dejar vacío)"
                   className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-900 focus:border-[#3C6E71] focus:bg-white outline-none transition-all"
                 />
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">SUBTÍTULO / TAG</label>
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">
+                  SUBTÍTULO / TAG <span className="text-gray-400 font-normal lowercase">(opcional)</span>
+                </label>
                 <input
                   type="text"
-                  required
                   value={span}
                   onChange={(e) => setSpan(e.target.value)}
+                  placeholder="Ej: EXCLUSIVO (o dejar vacío)"
                   className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-900 focus:border-[#3C6E71] focus:bg-white outline-none transition-all"
                 />
               </div>
@@ -398,35 +404,41 @@ export default function BannerEditor({ heroSlides = [], setHeroSlides, promoBann
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1">
-                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">PALABRA DESTACADA (FONDO VERDE)</label>
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">
+                  PALABRA DESTACADA <span className="text-gray-400 font-normal lowercase">(opcional)</span>
+                </label>
                 <input
                   type="text"
                   value={highlight}
                   onChange={(e) => setHighlight(e.target.value)}
-                  placeholder="Ej: EXCLUSIVO / NUEVA TEMPORADA"
+                  placeholder="Ej: TEMPORADA 2026 (o dejar vacío)"
                   className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-900 focus:border-[#3C6E71] focus:bg-white outline-none transition-all"
                 />
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">TEXTO DEL BOTÓN (CTA)</label>
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">
+                  TEXTO DEL BOTÓN / CTA <span className="text-gray-400 font-normal lowercase">(opcional)</span>
+                </label>
                 <input
                   type="text"
-                  required
                   value={cta}
                   onChange={(e) => setCta(e.target.value)}
-                  placeholder="Ej: VER PERFUMES / COMPRAR AHORA"
+                  placeholder="Ej: EXPLORAR PERFUMES (o dejar vacío para banner limpio)"
                   className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-900 focus:border-[#3C6E71] focus:bg-white outline-none transition-all"
                 />
               </div>
             </div>
 
             <div className="space-y-1">
-              <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">DESCRIPCIÓN</label>
+              <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">
+                DESCRIPCIÓN <span className="text-gray-400 font-normal lowercase">(opcional)</span>
+              </label>
               <textarea
                 rows={2}
                 value={desc}
                 onChange={(e) => setDesc(e.target.value)}
+                placeholder="Texto explicativo adicional (o dejar vacío)"
                 className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs text-gray-800 focus:border-[#3C6E71] focus:bg-white outline-none transition-all"
               />
             </div>
