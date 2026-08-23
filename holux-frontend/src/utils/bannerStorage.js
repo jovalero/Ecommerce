@@ -124,10 +124,17 @@ export async function uploadOrCompressBanner(file, API_BASE_URL, token) {
       formData.append('file', file);
       formData.append('bucket', 'banners');
 
-      const headers = {};
+      const headers = {
+        'Accept': 'application/json'
+      };
       if (token) headers['Authorization'] = `Bearer ${token}`;
 
-      const res = await fetch(`${API_BASE_URL}/admin/media/upload`, {
+      const baseUrlClean = API_BASE_URL.replace(/\/+$/, '');
+      const endpoint = baseUrlClean.endsWith('/api')
+        ? `${baseUrlClean}/admin/upload`
+        : `${baseUrlClean}/api/admin/upload`;
+
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers,
         body: formData

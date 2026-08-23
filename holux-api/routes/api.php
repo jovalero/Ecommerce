@@ -165,4 +165,5 @@ Route::prefix('admin')->middleware(['throttle:api', 'auth.supabase', 'auth.admin
 
     // Media Upload (Supabase Storage CDN)
     Route::post('/upload', [\App\Http\Controllers\Admin\MediaUploadController::class, 'store']);
+    Route::post('/media/upload', [\App\Http\Controllers\Admin\MediaUploadController::class, 'store']);
 });
