@@ -167,19 +167,19 @@ const PROMO_BANNERS = [
   {
     title: "FRAGANCIAS HOMBRE",
     span: "ELEGANCIA Y CARÁCTER",
-    image: "https://images.unsplash.com/photo-1551632811-561732d1e306?w=800&auto=format&fit=crop&q=80",
+    image: "https://images.unsplash.com/photo-1594035910387-fea47794261f?w=800&auto=format&fit=crop&q=80",
     link: "#/catalogo?categoria=perfumes-hombre"
   },
   {
     title: "FRAGANCIAS MUJER",
     span: "SOFISTICACIÓN Y FRESCURA",
-    image: "https://images.unsplash.com/photo-1501555088652-021faa106b9b?w=800&auto=format&fit=crop&q=80",
+    image: "https://images.unsplash.com/photo-1547887537-6158d64c35b3?w=800&auto=format&fit=crop&q=80",
     link: "#/catalogo?categoria=perfumes-mujer"
   },
   {
     title: "EXCLUSIVIDAD Y TENDENCIA",
-    span: "JOYAS DE LA PERFUMERÍA ORIENTAL",
-    image: "https://images.unsplash.com/photo-1520639888713-7851133b1ed0?w=800&auto=format&fit=crop&q=80",
+    span: "JOYAS DE LA PERFUMERÍA",
+    image: "https://images.unsplash.com/photo-1588405748880-12d1d2a59f75?w=800&auto=format&fit=crop&q=80",
     link: "#/catalogo"
   }
 ];
@@ -375,28 +375,28 @@ export default function App() {
   // Hero Carousel Slides data
   const slides = [
     {
-      span: "EQUIPAMIENTO PROFESIONAL DE MONTAÑA",
-      title: "HACIA LO ALTO",
-      highlight: "SIN LÍMITES",
-      desc: "Diseñamos indumentaria y equipo técnico de alto rendimiento para resistir las condiciones climáticas más extremas de la cordillera.",
-      cta: "VER EQUIPAMIENTO",
-      image: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=1600&q=80"
+      span: "FRAGANCIAS EXCLUSIVAS Y DE AUTOR",
+      title: "PERFUMES DE LUJO",
+      highlight: "100% ORIGINALES",
+      desc: "Descubrí nuestra exclusiva selección de perfumería internacional importada de primeras marcas para hombre y mujer.",
+      cta: "VER PERFUMERÍA",
+      image: "https://images.unsplash.com/photo-1541643600914-78b084683601?auto=format&fit=crop&w=1600&q=80"
     },
     {
-      span: "EXPEDICIONES Y AVENTURA",
-      title: "EQUÍPATE PARA",
-      highlight: "CADA DESAFÍO",
-      desc: "Descubre nuestra línea de carpas de alta resistencia, bolsas de dormir térmicas y accesorios técnicos homologados para trekking y camping.",
-      cta: "EXPLORAR CARPAS",
-      image: "https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?auto=format&fit=crop&w=1600&q=80"
+      span: "COLECCIÓN HOMBRE & MUJER",
+      title: "ELEGANCIA &",
+      highlight: "DISTINCIÓN",
+      desc: "Las mejores marcas del mundo: Xerjoff, Dior, Jean Paul Gaultier, Maison Alhambra, Baccarat Rouge y más.",
+      cta: "EXPLORAR CATÁLOGO",
+      image: "https://images.unsplash.com/photo-1592945403244-b3fbafd7f539?auto=format&fit=crop&w=1600&q=80"
     },
     {
-      span: "COLECCIÓN CALZADO Y ABRIGO",
-      title: "RESISTENCIA EN",
-      highlight: "CADA PASO",
-      desc: "Botas técnicas con agarre de alta tracción y camperas cortavientos Fitz Roy diseñadas con aislamiento de nivel profesional.",
-      cta: "VER CALZADO",
-      image: "https://images.unsplash.com/photo-1551632811-561732d1e306?auto=format&fit=crop&w=1600&q=80"
+      span: "OFERTAS Y BENEFICIOS",
+      title: "HASTA 6 CUOTAS",
+      highlight: "SIN INTERÉS",
+      desc: "Aboná con tarjetas de crédito, débito o transferencia bancaria con descuentos exclusivos y envíos a todo el país.",
+      cta: "COMPRAR AHORA",
+      image: "https://images.unsplash.com/photo-1523293182086-7651a899d37f?auto=format&fit=crop&w=1600&q=80"
     }
   ];
 
@@ -451,16 +451,16 @@ export default function App() {
     try {
       const saved = localStorage.getItem('holux_home_section_titles');
       return saved ? JSON.parse(saved) : {
-        novedadesTitle: 'NOVEDADES DE HOLUX',
-        novedadesSubtitle: 'Descubrí los últimos lanzamientos de nuestra colección',
-        destacadosTitle: 'PRODUCTOS DESTACADOS',
+        novedadesTitle: 'NOVEDADES EN PERFUMERÍA',
+        novedadesSubtitle: 'Descubrí los últimos lanzamientos y fragancias exclusivas',
+        destacadosTitle: 'FRAGANCIAS DESTACADAS',
         destacadosSubtitle: 'Una selección especial recomendada por nuestros expertos'
       };
     } catch (e) {
       return {
-        novedadesTitle: 'NOVEDADES DE HOLUX',
-        novedadesSubtitle: 'Descubrí los últimos lanzamientos de nuestra colección',
-        destacadosTitle: 'PRODUCTOS DESTACADOS',
+        novedadesTitle: 'NOVEDADES EN PERFUMERÍA',
+        novedadesSubtitle: 'Descubrí los últimos lanzamientos y fragancias exclusivas',
+        destacadosTitle: 'FRAGANCIAS DESTACADAS',
         destacadosSubtitle: 'Una selección especial recomendada por nuestros expertos'
       };
     }
@@ -1141,21 +1141,59 @@ export default function App() {
     setLoadingProducts(true);
     setLoadingCategories(true);
     try {
-      const resCat = await fetch(`${API_BASE_URL}/api/categories`);
-      if (resCat.ok) {
-        const data = await resCat.json();
-        const cats = Array.isArray(data) ? data : (data.data || []);
-        setCategories(cats);
+      // 1. Fetch Categories (try Laravel API first, then Supabase directly)
+      let catsLoaded = false;
+      try {
+        const resCat = await fetch(`${API_BASE_URL}/api/categories`);
+        if (resCat.ok) {
+          const data = await resCat.json();
+          const cats = Array.isArray(data) ? data : (data.data || []);
+          if (cats.length > 0) {
+            setCategories(cats);
+            catsLoaded = true;
+          }
+        }
+      } catch (err) {}
+
+      if (!catsLoaded) {
+        try {
+          const supaCat = await fetch(`${SUPABASE_URL}/rest/v1/categories?select=*`, {
+            headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+          });
+          if (supaCat.ok) {
+            const cats = await supaCat.json();
+            setCategories(cats);
+          }
+        } catch (supaErr) {}
       }
 
-      const resProd = await fetch(`${API_BASE_URL}/api/products?per_page=100`);
-      if (resProd.ok) {
-        const result = await resProd.json();
-        const prods = Array.isArray(result) ? result : (result.data || []);
-        setProducts(prods);
+      // 2. Fetch Products (try Laravel API first, then Supabase directly)
+      let prodsLoaded = false;
+      try {
+        const resProd = await fetch(`${API_BASE_URL}/api/products?per_page=100`);
+        if (resProd.ok) {
+          const result = await resProd.json();
+          const prods = Array.isArray(result) ? result : (result.data || []);
+          if (prods.length > 0) {
+            setProducts(prods);
+            prodsLoaded = true;
+          }
+        }
+      } catch (err) {}
+
+      if (!prodsLoaded) {
+        try {
+          const supaProd = await fetch(`${SUPABASE_URL}/rest/v1/products?select=*&order=created_at.desc`, {
+            headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+          });
+          if (supaProd.ok) {
+            const prods = await supaProd.json();
+            setProducts(prods);
+          }
+        } catch (supaErr) {}
       }
     } catch (e) {
-      console.error("Error loading catalog from API:", e);
+      console.error("Error loading catalog:", e);
     } finally {
       setLoadingProducts(false);
       setLoadingCategories(false);
