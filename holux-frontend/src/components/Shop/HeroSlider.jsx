@@ -152,12 +152,16 @@ export const HeroSlider = memo(function HeroSlider({
               />
             </picture>
 
-            {/* Black Overlay with customizable opacity */}
+            {/* Black Overlay and gradients ONLY when overlayDarkness > 0 */}
             {overlayDarkness > 0 && (
-              <div
-                className="absolute inset-0 transition-opacity duration-500 pointer-events-none"
-                style={{ backgroundColor: `rgba(0, 0, 0, ${overlayDarkness})` }}
-              />
+              <>
+                <div
+                  className="absolute inset-0 transition-opacity duration-500 pointer-events-none z-1"
+                  style={{ backgroundColor: `rgba(0, 0, 0, ${overlayDarkness})` }}
+                />
+                <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-black/40 to-transparent pointer-events-none z-1" />
+                <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-black/50 to-transparent pointer-events-none z-1" />
+              </>
             )}
 
             {/* Text Content Area ONLY when there is text */}
@@ -210,9 +214,6 @@ export const HeroSlider = memo(function HeroSlider({
         );
       })}
 
-      {/* Top and bottom gradient shadows for seamless transition */}
-      <div className="absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-black/50 to-transparent pointer-events-none z-10" />
-      <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-black/60 to-transparent pointer-events-none z-10" />
 
       {/* Left Control Arrow (Visible on hover) */}
       <button
