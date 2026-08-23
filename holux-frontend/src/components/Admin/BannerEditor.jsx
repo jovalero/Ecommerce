@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Image, Link, Calendar, CheckCircle2, Eye, Save, Trash2, Plus, MoveUp, MoveDown, ShieldCheck, Sparkles, CreditCard, Megaphone, LayoutTemplate, Layers, Compass, Monitor, Smartphone, Tablet, ChevronRight, Grid, User } from 'lucide-react';
 import ConfirmationModal from './ConfirmationModal';
 import { persistBannerData, uploadOrCompressBanner } from '../../utils/bannerStorage';
