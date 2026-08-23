@@ -619,6 +619,16 @@ export default function App() {
         setHeaderNavItems(saved);
       }
     });
+    loadPersistedBannerData('holux_promo_banner', null).then(saved => {
+      if (saved && typeof saved === 'object') {
+        setPromoBanner(saved);
+      }
+    });
+    loadPersistedBannerData('holux_ticker_phrases', null).then(saved => {
+      if (saved && Array.isArray(saved) && saved.length > 0) {
+        setTickerPhrases(saved);
+      }
+    });
   }, []);
 
   // Sync wallet to user-specific localStorage key
@@ -932,12 +942,20 @@ export default function App() {
   const [adminReviewsList, setAdminReviewsList] = useState([]);
 
   // Ticker Phrases State (Cuotas, Promos, Envíos)
-  const [tickerPhrases, setTickerPhrases] = useState([
+  const defaultTickerPhrases = [
     '| ENVÍO GRATIS EN COMPRAS MAYORES A $150.000',
     '| ¡HASTA 6 CUOTAS SIN INTERÉS!',
     '| GARANTÍA OFICIAL HOLUX EN TODAS TUS EXPEDICIONES',
     '| 15% OFF PAGANDO CON TRANSFERENCIA BANCARIA'
-  ]);
+  ];
+  const [tickerPhrases, setTickerPhrases] = useState(() => {
+    try {
+      const saved = localStorage.getItem('holux_ticker_phrases');
+      return saved ? JSON.parse(saved) : defaultTickerPhrases;
+    } catch (e) {
+      return defaultTickerPhrases;
+    }
+  });
 
   // Mouse drag scrolling for Novedades (Zero React re-renders)
   const isNovedadesDraggingRef = useRef(false);
@@ -988,11 +1006,19 @@ export default function App() {
   };
 
   // Middle Promo Installment Banner State (6 cuotas)
-  const [promoBanner, setPromoBanner] = useState({
+  const defaultPromoBanner = {
     tag: 'PROMOCIÓN DE TEMPORADA',
     title: '6 CUOTAS SIN INTERÉS EN TODO EL CATÁLOGO',
     description: 'Equípate hoy mismo y paga en cómodas cuotas fijas sin interés. Realizamos envíos de forma rápida a todo el territorio nacional.',
     isVisible: true
+  };
+  const [promoBanner, setPromoBanner] = useState(() => {
+    try {
+      const saved = localStorage.getItem('holux_promo_banner');
+      return saved ? JSON.parse(saved) : defaultPromoBanner;
+    } catch (e) {
+      return defaultPromoBanner;
+    }
   });
 
   // Product Edit Floating Modal State

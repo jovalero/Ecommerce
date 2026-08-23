@@ -194,6 +194,34 @@ export default function BannerEditor({
   const [promoDesc, setPromoDesc] = useState(promoBanner?.description || 'Equípate hoy mismo y paga en cómodas cuotas fijas sin interés. Realizamos envíos de forma rápida a todo el territorio nacional.');
   const [promoIsVisible, setPromoIsVisible] = useState(promoBanner?.isVisible !== false);
 
+  useEffect(() => {
+    if (promoBanner) {
+      if (promoBanner.tag !== undefined) setPromoTag(promoBanner.tag);
+      if (promoBanner.title !== undefined) setPromoTitle(promoBanner.title);
+      if (promoBanner.description !== undefined) setPromoDesc(promoBanner.description);
+      if (promoBanner.isVisible !== undefined) setPromoIsVisible(promoBanner.isVisible);
+    }
+  }, [promoBanner]);
+
+  const handleUpdatePromoBanner = (field, value) => {
+    const updated = {
+      tag: field === 'tag' ? value : promoTag,
+      title: field === 'title' ? value : promoTitle,
+      description: field === 'description' ? value : promoDesc,
+      isVisible: field === 'isVisible' ? value : promoIsVisible
+    };
+    if (field === 'tag') setPromoTag(value);
+    if (field === 'title') setPromoTitle(value);
+    if (field === 'description') setPromoDesc(value);
+    if (field === 'isVisible') setPromoIsVisible(value);
+
+    if (setPromoBanner) setPromoBanner(updated);
+    try {
+      localStorage.setItem('holux_promo_banner', JSON.stringify(updated));
+    } catch (e) {}
+    persistBannerData('holux_promo_banner', updated);
+  };
+
   // Form states for selected banner
   const [title, setTitle] = useState('');
   const [span, setSpan] = useState('');
@@ -210,13 +238,23 @@ export default function BannerEditor({
   const handleAddTickerPhrase = () => {
     if (!newTickerText.trim() || !setTickerPhrases) return;
     const phrase = newTickerText.startsWith('|') ? newTickerText.trim() : `| ${newTickerText.trim()}`;
-    setTickerPhrases([...tickerPhrases, phrase]);
+    const updated = [...tickerPhrases, phrase];
+    setTickerPhrases(updated);
+    try {
+      localStorage.setItem('holux_ticker_phrases', JSON.stringify(updated));
+    } catch (e) {}
+    persistBannerData('holux_ticker_phrases', updated);
     setNewTickerText('');
   };
 
   const handleRemoveTickerPhrase = (idx) => {
     if (!setTickerPhrases) return;
-    setTickerPhrases(tickerPhrases.filter((_, i) => i !== idx));
+    const updated = tickerPhrases.filter((_, i) => i !== idx);
+    setTickerPhrases(updated);
+    try {
+      localStorage.setItem('holux_ticker_phrases', JSON.stringify(updated));
+    } catch (e) {}
+    persistBannerData('holux_ticker_phrases', updated);
   };
 
   const handleEditBanner = (idx) => {
@@ -739,7 +777,7 @@ export default function BannerEditor({
             <input
               type="text"
               value={promoTag}
-              onChange={(e) => setPromoTag(e.target.value)}
+              onChange={(e) => handleUpdatePromoBanner('tag', e.target.value)}
               placeholder="Ej: PROMOCIÓN DE TEMPORADA"
               className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-900 outline-none focus:border-[#3C6E71] focus:bg-white transition-all"
             />
@@ -750,7 +788,7 @@ export default function BannerEditor({
             <input
               type="text"
               value={promoTitle}
-              onChange={(e) => setPromoTitle(e.target.value)}
+              onChange={(e) => handleUpdatePromoBanner('title', e.target.value)}
               placeholder="Ej: 6 CUOTAS SIN INTERÉS EN TODO EL CATÁLOGO"
               className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-900 outline-none focus:border-[#3C6E71] focus:bg-white transition-all"
             />
@@ -762,7 +800,7 @@ export default function BannerEditor({
           <textarea
             rows={2}
             value={promoDesc}
-            onChange={(e) => setPromoDesc(e.target.value)}
+            onChange={(e) => handleUpdatePromoBanner('description', e.target.value)}
             placeholder="Equípate hoy mismo y paga en cómodas cuotas fijas sin interés..."
             className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs text-gray-800 outline-none focus:border-[#3C6E71] focus:bg-white transition-all"
           />
@@ -773,7 +811,7 @@ export default function BannerEditor({
             <input
               type="checkbox"
               checked={promoIsVisible}
-              onChange={(e) => setPromoIsVisible(e.target.checked)}
+              onChange={(e) => handleUpdatePromoBanner('isVisible', e.target.checked)}
               className="w-4 h-4 text-[#3C6E71] rounded border-gray-300 focus:ring-[#3C6E71] cursor-pointer"
             />
             <span>Mostrar este bloque de financiación en la portada principal</span>
