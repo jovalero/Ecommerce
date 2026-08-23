@@ -389,6 +389,24 @@ export default function App() {
       return slides;
     }
   });
+  const [homeSectionTitles, setHomeSectionTitles] = useState(() => {
+    try {
+      const saved = localStorage.getItem('holux_home_section_titles');
+      return saved ? JSON.parse(saved) : {
+        novedadesTitle: 'NOVEDADES DE HOLUX',
+        novedadesSubtitle: 'Descubrí los últimos lanzamientos de nuestra colección',
+        destacadosTitle: 'PRODUCTOS DESTACADOS',
+        destacadosSubtitle: 'Una selección especial recomendada por nuestros expertos'
+      };
+    } catch (e) {
+      return {
+        novedadesTitle: 'NOVEDADES DE HOLUX',
+        novedadesSubtitle: 'Descubrí los últimos lanzamientos de nuestra colección',
+        destacadosTitle: 'PRODUCTOS DESTACADOS',
+        destacadosSubtitle: 'Una selección especial recomendada por nuestros expertos'
+      };
+    }
+  });
   const [selectedPrintOrder, setSelectedPrintOrder] = useState(null);
   const [selectedOrderDetail, setSelectedOrderDetail] = useState(null);
   const [adminOrderSearchQuery, setAdminOrderSearchQuery] = useState('');
@@ -4854,7 +4872,18 @@ export default function App() {
             )}
 
             {adminTab === 'banners' && (
-              <BannerEditor heroSlides={heroSlides} setHeroSlides={setHeroSlides} promoBanner={promoBanner} setPromoBanner={setPromoBanner} tickerPhrases={tickerPhrases} setTickerPhrases={setTickerPhrases} categoriesList={adminCategoriesList} productsList={adminProductsList} />
+              <BannerEditor
+                heroSlides={heroSlides}
+                setHeroSlides={setHeroSlides}
+                promoBanner={promoBanner}
+                setPromoBanner={setPromoBanner}
+                tickerPhrases={tickerPhrases}
+                setTickerPhrases={setTickerPhrases}
+                categoriesList={adminCategoriesList}
+                productsList={adminProductsList}
+                homeSectionTitles={homeSectionTitles}
+                setHomeSectionTitles={setHomeSectionTitles}
+              />
             )}
 
             {adminTab === 'coupons' && (
@@ -6306,10 +6335,10 @@ export default function App() {
           <section id="catalogo" className="w-full px-4 sm:px-8 lg:px-12 py-12">
             <div className="relative group/novedades">
               <h2 className="font-display text-2xl sm:text-3xl font-bold text-[#1C2321] tracking-wide text-center uppercase">
-                Novedades de Holux
+                {homeSectionTitles?.novedadesTitle || 'Novedades de Holux'}
               </h2>
               <p className="text-xs sm:text-sm text-[#3C6E71] font-semibold mt-1 text-center font-sans tracking-wider uppercase">
-                Descubrí los últimos lanzamientos de nuestra colección de montaña
+                {homeSectionTitles?.novedadesSubtitle || 'Descubrí los últimos lanzamientos de nuestra colección'}
               </p>
               
               {/* Slider Wrapper (Visible on all screens with touch scrolling on mobile) */}
@@ -6410,10 +6439,10 @@ export default function App() {
             <div className="w-full px-4 sm:px-8 lg:px-12">
               <div className="relative group/destacados">
                 <h2 className="font-display text-3xl font-black text-[#1C2321] tracking-wide text-center uppercase">
-                  Productos Destacados
+                  {homeSectionTitles?.destacadosTitle || 'Productos Destacados'}
                 </h2>
                 <p className="text-sm text-[#3C6E71] font-bold mt-1.5 text-center font-sans tracking-widest uppercase">
-                  Una selección especial recomendada por nuestros expertos
+                  {homeSectionTitles?.destacadosSubtitle || 'Una selección especial recomendada por nuestros expertos'}
                 </p>
 
                 {/* Slider Wrapper (Visible on all screens with touch scrolling on mobile) */}

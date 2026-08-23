@@ -1,13 +1,38 @@
 import React, { useState, useRef } from 'react';
-import { Image, Link, Calendar, CheckCircle2, Eye, Save, Trash2, Plus, MoveUp, MoveDown, ShieldCheck, Sparkles, CreditCard, Megaphone } from 'lucide-react';
+import { Image, Link, Calendar, CheckCircle2, Eye, Save, Trash2, Plus, MoveUp, MoveDown, ShieldCheck, Sparkles, CreditCard, Megaphone, LayoutTemplate } from 'lucide-react';
 import ConfirmationModal from './ConfirmationModal';
 
-export default function BannerEditor({ heroSlides = [], setHeroSlides, promoBanner, setPromoBanner, tickerPhrases = [], setTickerPhrases, categoriesList = [], productsList = [] }) {
+export default function BannerEditor({
+  heroSlides = [],
+  setHeroSlides,
+  promoBanner,
+  setPromoBanner,
+  tickerPhrases = [],
+  setTickerPhrases,
+  categoriesList = [],
+  productsList = [],
+  homeSectionTitles,
+  setHomeSectionTitles
+}) {
   const [editingIndex, setEditingIndex] = useState(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const formRef = useRef(null);
   const [savedMsg, setSavedMsg] = useState(false);
   const [newTickerText, setNewTickerText] = useState('');
+
+  // Section Headers State (Novedades & Destacados)
+  const [novedadesTitle, setNovedadesTitle] = useState(() => {
+    return homeSectionTitles?.novedadesTitle || 'NOVEDADES DE HOLUX';
+  });
+  const [novedadesSubtitle, setNovedadesSubtitle] = useState(() => {
+    return homeSectionTitles?.novedadesSubtitle || 'Descubrí los últimos lanzamientos de nuestra colección';
+  });
+  const [destacadosTitle, setDestacadosTitle] = useState(() => {
+    return homeSectionTitles?.destacadosTitle || 'PRODUCTOS DESTACADOS';
+  });
+  const [destacadosSubtitle, setDestacadosSubtitle] = useState(() => {
+    return homeSectionTitles?.destacadosSubtitle || 'Una selección especial recomendada por nuestros expertos';
+  });
 
   // Confirmation Modal State
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
@@ -146,6 +171,16 @@ export default function BannerEditor({ heroSlides = [], setHeroSlides, promoBann
         isVisible: promoIsVisible
       });
     }
+    const updatedTitles = {
+      novedadesTitle,
+      novedadesSubtitle,
+      destacadosTitle,
+      destacadosSubtitle
+    };
+    if (setHomeSectionTitles) setHomeSectionTitles(updatedTitles);
+    try {
+      localStorage.setItem('holux_home_section_titles', JSON.stringify(updatedTitles));
+    } catch (err) {}
     setSavedMsg(true);
     setTimeout(() => setSavedMsg(false), 3500);
   };
@@ -307,7 +342,116 @@ export default function BannerEditor({ heroSlides = [], setHeroSlides, promoBann
         </div>
       </div>
 
-      {/* SECTION 3: BANNERS LIST */}
+      {/* SECTION 3: TÍTULOS Y SUBTÍTULOS DE SECCIONES DE PORTADA */}
+      <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-100 pb-3">
+          <div className="flex items-center gap-2">
+            <LayoutTemplate className="w-4 h-4 text-[#3C6E71]" />
+            <h3 className="font-display text-xs font-bold uppercase tracking-wider text-gray-900">
+              TÍTULOS Y SUBTÍTULOS DE SECCIONES DE PORTADA
+            </h3>
+          </div>
+          <span className="text-[10px] font-bold font-mono-custom bg-gray-100 text-gray-700 px-2.5 py-0.5 rounded-full self-start sm:self-auto">
+            SECCIONES HOME
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* BLOQUE NOVEDADES */}
+          <div className="bg-gray-50 p-4 border border-gray-200 rounded-xl space-y-3">
+            <div className="flex items-center gap-2 border-b border-gray-200 pb-2">
+              <Sparkles className="w-3.5 h-3.5 text-[#3C6E71]" />
+              <h4 className="text-[11px] font-bold text-gray-800 uppercase tracking-wider">
+                1. Carrusel de Novedades / Lanzamientos
+              </h4>
+            </div>
+            
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">
+                TÍTULO PRINCIPAL
+              </label>
+              <input
+                type="text"
+                value={novedadesTitle}
+                onChange={(e) => {
+                  setNovedadesTitle(e.target.value);
+                  const updated = { novedadesTitle: e.target.value, novedadesSubtitle, destacadosTitle, destacadosSubtitle };
+                  if (setHomeSectionTitles) setHomeSectionTitles(updated);
+                  localStorage.setItem('holux_home_section_titles', JSON.stringify(updated));
+                }}
+                placeholder="Ej: NOVEDADES DE HOLUX"
+                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-bold text-gray-900 focus:border-[#3C6E71] outline-none"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">
+                SUBTÍTULO / DESCRIPCIÓN
+              </label>
+              <input
+                type="text"
+                value={novedadesSubtitle}
+                onChange={(e) => {
+                  setNovedadesSubtitle(e.target.value);
+                  const updated = { novedadesTitle, novedadesSubtitle: e.target.value, destacadosTitle, destacadosSubtitle };
+                  if (setHomeSectionTitles) setHomeSectionTitles(updated);
+                  localStorage.setItem('holux_home_section_titles', JSON.stringify(updated));
+                }}
+                placeholder="Ej: DESCUBRÍ LOS ÚLTIMOS LANZAMIENTOS DE NUESTRA COLECCIÓN"
+                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs text-gray-700 focus:border-[#3C6E71] outline-none"
+              />
+            </div>
+          </div>
+
+          {/* BLOQUE DESTACADOS */}
+          <div className="bg-gray-50 p-4 border border-gray-200 rounded-xl space-y-3">
+            <div className="flex items-center gap-2 border-b border-gray-200 pb-2">
+              <Eye className="w-3.5 h-3.5 text-[#3C6E71]" />
+              <h4 className="text-[11px] font-bold text-gray-800 uppercase tracking-wider">
+                2. Carrusel de Productos Destacados
+              </h4>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">
+                TÍTULO PRINCIPAL
+              </label>
+              <input
+                type="text"
+                value={destacadosTitle}
+                onChange={(e) => {
+                  setDestacadosTitle(e.target.value);
+                  const updated = { novedadesTitle, novedadesSubtitle, destacadosTitle: e.target.value, destacadosSubtitle };
+                  if (setHomeSectionTitles) setHomeSectionTitles(updated);
+                  localStorage.setItem('holux_home_section_titles', JSON.stringify(updated));
+                }}
+                placeholder="Ej: PRODUCTOS DESTACADOS"
+                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-bold text-gray-900 focus:border-[#3C6E71] outline-none"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">
+                SUBTÍTULO / DESCRIPCIÓN
+              </label>
+              <input
+                type="text"
+                value={destacadosSubtitle}
+                onChange={(e) => {
+                  setDestacadosSubtitle(e.target.value);
+                  const updated = { novedadesTitle, novedadesSubtitle, destacadosTitle, destacadosSubtitle: e.target.value };
+                  if (setHomeSectionTitles) setHomeSectionTitles(updated);
+                  localStorage.setItem('holux_home_section_titles', JSON.stringify(updated));
+                }}
+                placeholder="Ej: UNA SELECCIÓN ESPECIAL RECOMENDADA POR NUESTROS EXPERTOS"
+                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs text-gray-700 focus:border-[#3C6E71] outline-none"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* SECTION 4: BANNERS LIST */}
       <div className="space-y-3">
         <div className="flex items-center justify-between px-1">
           <h3 className="font-display text-xs font-bold text-gray-700 uppercase tracking-wider">
