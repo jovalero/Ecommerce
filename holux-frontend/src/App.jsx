@@ -3084,8 +3084,8 @@ export default function App() {
                   <Tag className="w-4 h-4 flex-shrink-0" />
                   <span>Cupones y Beneficios</span>
                 </div>
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded font-mono-custom ${customerPanelSection === 'coupons' ? 'bg-white text-[#3C6E71]' : 'bg-emerald-600 text-white'}`}>
-                  {customerCoupons ? customerCoupons.filter(c => c.status === 'disponible').length : 3}
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full font-mono-custom ${customerPanelSection === 'coupons' ? 'bg-white text-[#3C6E71]' : 'bg-[#3C6E71]/10 text-[#3C6E71]'}`}>
+                  {customerCoupons ? customerCoupons.filter(c => c.status === 'disponible').length : 0}
                 </span>
               </button>
 
@@ -3098,7 +3098,7 @@ export default function App() {
                   <ShoppingBag className="w-4 h-4 flex-shrink-0" />
                   <span>Pedidos</span>
                 </div>
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full font-mono-custom ${customerPanelSection === 'orders' ? 'bg-white text-[#3C6E71]' : 'bg-[#B85C38] text-white'}`}>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full font-mono-custom ${customerPanelSection === 'orders' ? 'bg-white text-[#3C6E71]' : 'bg-[#3C6E71]/10 text-[#3C6E71]'}`}>
                   {orders ? orders.length : 0}
                 </span>
               </button>
@@ -3112,14 +3112,10 @@ export default function App() {
                   <Heart className={`w-4 h-4 flex-shrink-0 ${customerPanelSection === 'favorites' ? 'text-white fill-white' : 'text-gray-400'}`} />
                   <span>Favoritos</span>
                 </div>
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded font-mono-custom ${customerPanelSection === 'favorites' ? 'bg-white text-[#3C6E71]' : 'bg-rose-50 text-rose-600 border border-rose-200'}`}>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full font-mono-custom ${customerPanelSection === 'favorites' ? 'bg-white text-[#3C6E71]' : 'bg-[#3C6E71]/10 text-[#3C6E71]'}`}>
                   {favorites ? favorites.length : 0}
                 </span>
               </button>
-
-
-
-
 
               {/* 4. Valoraciones */}
               <button
@@ -3142,7 +3138,7 @@ export default function App() {
                   <MapPin className="w-4 h-4 flex-shrink-0" />
                   <span>Dirección de envío</span>
                 </div>
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded font-mono-custom ${customerPanelSection === 'addresses' ? 'bg-white text-[#3C6E71]' : 'bg-gray-100 text-gray-700'}`}>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full font-mono-custom ${customerPanelSection === 'addresses' ? 'bg-white text-[#3C6E71]' : 'bg-[#3C6E71]/10 text-[#3C6E71]'}`}>
                   {addresses ? addresses.length : 0}
                 </span>
               </button>

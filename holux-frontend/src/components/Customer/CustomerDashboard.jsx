@@ -218,8 +218,8 @@ export default function CustomerDashboard({
                     <span>Pedidos</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                      customerPanelSection === 'orders' ? 'bg-white text-[#3C6E71]' : 'bg-gray-100 text-gray-700'
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold font-mono-custom ${
+                      customerPanelSection === 'orders' ? 'bg-white text-[#3C6E71]' : 'bg-[#3C6E71]/10 text-[#3C6E71]'
                     }`}>
                       {orders.length}
                     </span>
@@ -241,8 +241,8 @@ export default function CustomerDashboard({
                     <span>Favoritos</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                      customerPanelSection === 'favorites' ? 'bg-white text-[#3C6E71]' : 'bg-rose-50 text-rose-600 border border-rose-200'
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold font-mono-custom ${
+                      customerPanelSection === 'favorites' ? 'bg-white text-[#3C6E71]' : 'bg-[#3C6E71]/10 text-[#3C6E71]'
                     }`}>
                       {favorites.length}
                     </span>
@@ -264,7 +264,9 @@ export default function CustomerDashboard({
                     <span>Cupones y Beneficios</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-600 text-white">
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold font-mono-custom ${
+                      customerPanelSection === 'coupons' ? 'bg-white text-[#3C6E71]' : 'bg-[#3C6E71]/10 text-[#3C6E71]'
+                    }`}>
                       {customerCoupons.filter(c => c.status === 'disponible').length}
                     </span>
                     <ChevronRight className="w-4 h-4 text-gray-300" />
@@ -301,7 +303,9 @@ export default function CustomerDashboard({
                     <span>Dirección de envío</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-gray-100 text-gray-700">
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold font-mono-custom ${
+                      customerPanelSection === 'addresses' ? 'bg-white text-[#3C6E71]' : 'bg-[#3C6E71]/10 text-[#3C6E71]'
+                    }`}>
                       {addresses.length}
                     </span>
                     <ChevronRight className="w-4 h-4 text-gray-300" />
