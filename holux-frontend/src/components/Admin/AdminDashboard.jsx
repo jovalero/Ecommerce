@@ -529,6 +529,9 @@ export default function AdminDashboard({
                 setPromoBanner={setPromoBanner}
                 tickerPhrases={tickerPhrases}
                 setTickerPhrases={setTickerPhrases}
+                categoriesList={adminCategoriesList}
+                productsList={adminProductsList}
+                API_BASE_URL={API_BASE_URL}
               />
             )}
 

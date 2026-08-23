@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Image, Link, Calendar, CheckCircle2, Eye, Save, Trash2, Plus, MoveUp, MoveDown, ShieldCheck, Sparkles, CreditCard, Megaphone, LayoutTemplate, Layers } from 'lucide-react';
 import ConfirmationModal from './ConfirmationModal';
+import { persistBannerData, uploadOrCompressBanner } from '../../utils/bannerStorage';
 
 export default function BannerEditor({
   heroSlides = [],
@@ -14,7 +15,9 @@ export default function BannerEditor({
   homeSectionTitles,
   setHomeSectionTitles,
   gridPromoCards,
-  setGridPromoCards
+  setGridPromoCards,
+  API_BASE_URL,
+  token
 }) {
   const [editingIndex, setEditingIndex] = useState(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -80,9 +83,7 @@ export default function BannerEditor({
     });
     setPromoCards(updated);
     if (setGridPromoCards) setGridPromoCards(updated);
-    try {
-      localStorage.setItem('holux_grid_promo_cards', JSON.stringify(updated));
-    } catch (e) {}
+    persistBannerData('holux_grid_promo_cards', updated);
   };
 
   // Section Headers State (Novedades & Destacados)
@@ -186,9 +187,7 @@ export default function BannerEditor({
     }
 
     setHeroSlides(updated);
-    try {
-      localStorage.setItem('holux_hero_slides', JSON.stringify(updated));
-    } catch (err) {}
+    persistBannerData('holux_hero_slides', updated);
     setEditingIndex(null);
     setIsFormOpen(false);
     setSavedMsg(true);
@@ -203,9 +202,7 @@ export default function BannerEditor({
     updated[idx] = updated[targetIdx];
     updated[targetIdx] = temp;
     setHeroSlides(updated);
-    try {
-      localStorage.setItem('holux_hero_slides', JSON.stringify(updated));
-    } catch (err) {}
+    persistBannerData('holux_hero_slides', updated);
   };
 
   const handleDelete = (idx) => {
@@ -216,9 +213,7 @@ export default function BannerEditor({
     setConfirmAction(() => () => {
       const updated = heroSlides.filter((_, i) => i !== idx);
       setHeroSlides(updated);
-      try {
-        localStorage.setItem('holux_hero_slides', JSON.stringify(updated));
-      } catch (err) {}
+      persistBannerData('holux_hero_slides', updated);
       if (editingIndex === idx) {
         setEditingIndex(null);
         setTitle('');
@@ -229,12 +224,14 @@ export default function BannerEditor({
 
   const handleSaveAllGlobal = () => {
     if (setPromoBanner) {
-      setPromoBanner({
+      const promoObj = {
         tag: promoTag,
         title: promoTitle,
         description: promoDesc,
         isVisible: promoIsVisible
-      });
+      };
+      setPromoBanner(promoObj);
+      persistBannerData('holux_promo_banner', promoObj);
     }
     const updatedTitles = {
       novedadesTitle,
@@ -243,14 +240,13 @@ export default function BannerEditor({
       destacadosSubtitle
     };
     if (setHomeSectionTitles) setHomeSectionTitles(updatedTitles);
-    try {
-      localStorage.setItem('holux_home_section_titles', JSON.stringify(updatedTitles));
-    } catch (err) {}
+    persistBannerData('holux_home_section_titles', updatedTitles);
 
     if (setGridPromoCards) setGridPromoCards(promoCards);
-    try {
-      localStorage.setItem('holux_grid_promo_cards', JSON.stringify(promoCards));
-    } catch (err) {}
+    persistBannerData('holux_grid_promo_cards', promoCards);
+
+    persistBannerData('holux_hero_slides', heroSlides);
+    persistBannerData('holux_ticker_phrases', tickerPhrases);
 
     setSavedMsg(true);
     setTimeout(() => setSavedMsg(false), 3500);
@@ -610,14 +606,11 @@ export default function BannerEditor({
                       type="file"
                       id={`promo-card-file-${idx}`}
                       accept="image/*"
-                      onChange={(e) => {
+                      onChange={async (e) => {
                         const file = e.target.files?.[0];
                         if (file) {
-                          const reader = new FileReader();
-                          reader.onload = (ev) => {
-                            if (ev.target?.result) handleUpdatePromoCard(idx, 'image', ev.target.result);
-                          };
-                          reader.readAsDataURL(file);
+                          const url = await uploadOrCompressBanner(file, API_BASE_URL, token);
+                          if (url) handleUpdatePromoCard(idx, 'image', url);
                         }
                       }}
                       className="hidden"
@@ -839,14 +832,11 @@ export default function BannerEditor({
                     type="file"
                     id="desktop-banner-file"
                     accept="image/*"
-                    onChange={(e) => {
+                    onChange={async (e) => {
                       const file = e.target.files?.[0];
                       if (file) {
-                        const reader = new FileReader();
-                        reader.onload = (ev) => {
-                          if (ev.target?.result) setDesktopImage(ev.target.result);
-                        };
-                        reader.readAsDataURL(file);
+                        const url = await uploadOrCompressBanner(file, API_BASE_URL, token);
+                        if (url) setDesktopImage(url);
                       }
                     }}
                     className="hidden"
@@ -889,14 +879,11 @@ export default function BannerEditor({
                     type="file"
                     id="mobile-banner-file"
                     accept="image/*"
-                    onChange={(e) => {
+                    onChange={async (e) => {
                       const file = e.target.files?.[0];
                       if (file) {
-                        const reader = new FileReader();
-                        reader.onload = (ev) => {
-                          if (ev.target?.result) setMobileImage(ev.target.result);
-                        };
-                        reader.readAsDataURL(file);
+                        const url = await uploadOrCompressBanner(file, API_BASE_URL, token);
+                        if (url) setMobileImage(url);
                       }
                     }}
                     className="hidden"

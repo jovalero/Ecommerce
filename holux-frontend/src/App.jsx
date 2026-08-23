@@ -68,6 +68,7 @@ import InfoPagesView from './components/Shop/InfoPagesView';
 import Footer from './components/Shop/Footer';
 import MobileMenuDrawer from './components/Navigation/MobileMenuDrawer';
 import { useProductCatalog } from './hooks/useProductCatalog';
+import { loadPersistedBannerData } from './utils/bannerStorage';
 
 // Configuration
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
@@ -529,6 +530,25 @@ export default function App() {
   };
 
   const [customerCoupons, setCustomerCoupons] = useState(getSyncedCustomerCoupons);
+
+  // Asynchronously sync persistent banners, 3 promo cards & section titles from IndexedDB
+  useEffect(() => {
+    loadPersistedBannerData('holux_hero_slides', null).then(saved => {
+      if (saved && Array.isArray(saved) && saved.length > 0) {
+        setHeroSlides(saved);
+      }
+    });
+    loadPersistedBannerData('holux_home_section_titles', null).then(saved => {
+      if (saved) {
+        setHomeSectionTitles(saved);
+      }
+    });
+    loadPersistedBannerData('holux_grid_promo_cards', null).then(saved => {
+      if (saved && Array.isArray(saved) && saved.length > 0) {
+        setGridPromoCards(saved);
+      }
+    });
+  }, []);
 
   // Sync wallet to user-specific localStorage key
   useEffect(() => {
@@ -4893,6 +4913,8 @@ export default function App() {
                 setHomeSectionTitles={setHomeSectionTitles}
                 gridPromoCards={gridPromoCards}
                 setGridPromoCards={setGridPromoCards}
+                API_BASE_URL={API_BASE_URL}
+                token={token}
               />
             )}
 
