@@ -126,7 +126,7 @@ export const HeroSlider = memo(function HeroSlider({
 
         const overlayDarkness = slide.overlayOpacity !== undefined 
           ? Number(slide.overlayOpacity) / 100 
-          : (hasText ? 0.45 : 0);
+          : 0;
 
         return (
           <div
