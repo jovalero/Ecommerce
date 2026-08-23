@@ -7,8 +7,8 @@ export const initialStoreData = {
       "desc": "",
       "highlight": "",
       "cta": "EXPLORAR PERFUMES",
-      "image": "/banners/hero_slide_1.jpg",
-      "mobileImage": "/banners/hero_slide_mobile_1.jpg",
+      "image": "/banners/hero_slide_1.png",
+      "mobileImage": "/banners/hero_slide_mobile_1.png",
       "link": "#/catalogo",
       "isActive": true
     },
