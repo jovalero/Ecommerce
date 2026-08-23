@@ -919,6 +919,7 @@ export default function App() {
 
   // Navigation View & Admin State
   const [adminTab, setAdminTab] = useState('dashboard');
+  const [isAdminMobileMenuOpen, setIsAdminMobileMenuOpen] = useState(false);
   
   // Admin Data states
   const [adminStats, setAdminStats] = useState(null);
@@ -4873,44 +4874,166 @@ export default function App() {
     return (
       <div className="min-h-screen bg-gray-100 flex flex-col font-sans text-gray-900 selection:bg-[#3C6E71] selection:text-white">
         {/* TOP FULL-PAGE ADMIN HEADER */}
-        <header className="bg-[#1C2321] text-white px-6 py-4 flex items-center justify-between border-b border-[#3C6E71]/30 shadow-md">
-          <div className="flex items-center gap-3">
-            <img src="/holuxlogo.png" alt="HOLUX" className="h-8 w-auto object-contain brightness-0 invert" />
-            <div>
-              <h1 className="font-display text-lg font-bold tracking-wider uppercase">PANEL DE CONTROL DE ADMINISTRACIÓN</h1>
-              <p className="text-xs text-gray-400">Gestión integral de tienda, catálogo, pedidos y configuración general</p>
+        <header className="bg-[#1C2321] text-white px-3 sm:px-6 py-2.5 sm:py-4 border-b border-[#3C6E71]/30 shadow-md">
+          <div className="flex items-center justify-between gap-2">
+            {/* Logo, Title & Mobile Menu Button */}
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+              <button
+                type="button"
+                onClick={() => setIsAdminMobileMenuOpen(true)}
+                className="sm:hidden p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white flex items-center gap-1.5 shrink-0 cursor-pointer border border-white/10"
+                title="Abrir menú de administración"
+              >
+                <Menu className="w-4 h-4 text-[#3C6E71]" />
+                <span className="text-[10px] font-bold font-display tracking-wider">SECCIONES</span>
+              </button>
+
+              <img src="/holuxlogo.png" alt="HOLUX" className="h-6 sm:h-8 w-auto object-contain brightness-0 invert shrink-0" />
+              <div className="min-w-0">
+                <h1 className="font-display text-xs sm:text-base lg:text-lg font-bold tracking-wider uppercase truncate">
+                  PANEL ADMIN
+                </h1>
+                <p className="text-[10px] sm:text-xs text-gray-400 truncate hidden md:block">
+                  Gestión integral de tienda, catálogo, pedidos y configuración general
+                </p>
+              </div>
             </div>
-          </div>
 
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => {
-                window.location.hash = '#/mi-cuenta';
-                setCurrentView('customer_panel');
-              }}
-              className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl font-display text-xs font-bold tracking-wider flex items-center gap-2 transition-all cursor-pointer border border-white/10"
-              title="Ir a Mi Cuenta Personal (Mis Pedidos y Datos)"
-            >
-              <User className="w-4 h-4 text-[#3C6E71]" />
-              <span>MI CUENTA PERSONAL</span>
-            </button>
+            {/* Quick Actions (Ver tienda & Mi cuenta) */}
+            <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+              <button
+                onClick={() => {
+                  window.location.hash = '#/mi-cuenta';
+                  setCurrentView('customer_panel');
+                }}
+                className="px-2.5 sm:px-4 py-1.5 sm:py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl font-display text-[10px] sm:text-xs font-bold tracking-wider flex items-center gap-1.5 transition-all cursor-pointer border border-white/10"
+                title="Ir a Mi Cuenta Personal"
+              >
+                <User className="w-3.5 h-3.5 text-[#3C6E71]" />
+                <span className="hidden sm:inline">MI CUENTA</span>
+              </button>
 
-            <button
-              onClick={() => {
-                window.location.hash = '#/';
-                setCurrentView('home');
-              }}
-              className="px-4 py-2 bg-[#3C6E71] hover:bg-[#3C6E71]/90 text-white rounded-xl font-display text-xs font-bold tracking-wider flex items-center gap-2 transition-all cursor-pointer shadow-md"
-              title="Volver a explorar la tienda"
-            >
-              <span>← VER TIENDA</span>
-            </button>
+              <button
+                onClick={() => {
+                  window.location.hash = '#/';
+                  setCurrentView('home');
+                }}
+                className="px-2.5 sm:px-4 py-1.5 sm:py-2 bg-[#3C6E71] hover:bg-[#3C6E71]/90 text-white rounded-xl font-display text-[10px] sm:text-xs font-bold tracking-wider flex items-center gap-1.5 transition-all cursor-pointer shadow-md"
+                title="Volver a explorar la tienda"
+              >
+                <span>← VER TIENDA</span>
+              </button>
+            </div>
           </div>
         </header>
 
+        {/* MOBILE HORIZONTAL SCROLLABLE ADMIN TABS BAR */}
+        <div className="sm:hidden bg-white border-b border-gray-200 px-2.5 py-2 flex items-center gap-1.5 overflow-x-auto no-scrollbar shadow-xs shrink-0 sticky top-0 z-30">
+          {[
+            { id: 'dashboard', label: 'Dashboard', icon: TrendingUp },
+            { id: 'orders', label: 'Pedidos', icon: ShoppingBag },
+            { id: 'products', label: 'Stock', icon: Box },
+            { id: 'banners', label: 'Banners', icon: Edit2 },
+            { id: 'coupons', label: 'Cupones', icon: Edit2 },
+            { id: 'categories', label: 'Categorías', icon: Grid },
+            { id: 'customers', label: 'Clientes', icon: Users },
+            { id: 'support', label: 'Soporte', icon: MessageSquare },
+            { id: 'reviews', label: 'Reseñas', icon: MessageSquare },
+            { id: 'settings', label: 'Ajustes', icon: Lock }
+          ].map(item => {
+            const Icon = item.icon;
+            const isActive = adminTab === item.id;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setAdminTab(item.id)}
+                className={`px-3 py-1.5 rounded-full text-[11px] font-display font-bold whitespace-nowrap flex items-center gap-1.5 transition-all cursor-pointer shrink-0 border ${
+                  isActive
+                    ? 'bg-[#3C6E71] text-white border-[#3C6E71] shadow-xs'
+                    : 'bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200'
+                }`}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                <span>{item.label}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* MOBILE ADMIN DRAWER MODAL */}
+        {isAdminMobileMenuOpen && (
+          <div className="fixed inset-0 z-50 sm:hidden">
+            <div 
+              className="absolute inset-0 bg-black/75 backdrop-blur-xs" 
+              onClick={() => setIsAdminMobileMenuOpen(false)} 
+            />
+            <div className="relative w-4/5 max-w-xs bg-[#1C2321] text-white h-full shadow-2xl flex flex-col z-10 border-r border-[#3C6E71]/30">
+              <div className="p-4 border-b border-[#3C6E71]/20 flex items-center justify-between bg-black/40">
+                <div className="flex items-center gap-2">
+                  <img src="/holuxlogo.png" alt="HOLUX" className="h-6 w-auto object-contain brightness-0 invert" />
+                  <span className="font-display text-sm font-bold tracking-wider">PANEL ADMIN</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsAdminMobileMenuOpen(false)}
+                  className="p-1 text-gray-400 hover:text-white rounded-lg cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="flex-grow overflow-y-auto p-3 space-y-1">
+                {[
+                  { id: 'dashboard', label: 'DASHBOARD ANALÍTICA', icon: TrendingUp },
+                  { id: 'orders', label: 'GESTIÓN DE PEDIDOS', icon: ShoppingBag },
+                  { id: 'products', label: 'CATÁLOGO Y STOCK', icon: Box },
+                  { id: 'banners', label: 'EDITAR BANNERS', icon: Edit2 },
+                  { id: 'coupons', label: 'CUPONES & PROMOS', icon: Edit2 },
+                  { id: 'categories', label: 'CATEGORÍAS', icon: Grid },
+                  { id: 'customers', label: 'CLIENTES & VIP', icon: Users },
+                  { id: 'support', label: 'SOPORTE & TICKETS', icon: MessageSquare },
+                  { id: 'reviews', label: 'MODERAR RESEÑAS', icon: MessageSquare },
+                  { id: 'settings', label: 'CONFIGURACIÓN GENERAL', icon: Lock }
+                ].map(item => {
+                  const Icon = item.icon;
+                  const isActive = adminTab === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => {
+                        setAdminTab(item.id);
+                        setIsAdminMobileMenuOpen(false);
+                      }}
+                      className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-left font-display text-xs font-bold tracking-wider transition-all cursor-pointer ${
+                        isActive ? 'bg-[#3C6E71] text-white shadow-md' : 'text-gray-300 hover:bg-white/10'
+                      }`}
+                    >
+                      <Icon className="w-4 h-4 flex-shrink-0" />
+                      <span>{item.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="p-3 border-t border-white/10 bg-black/20">
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="w-full flex items-center justify-center gap-2 px-3 py-2.5 bg-red-600/90 hover:bg-red-700 text-white font-display text-xs font-bold tracking-wider rounded-xl transition-all cursor-pointer"
+                >
+                  <LogOut className="w-4 h-4" />
+                  <span>CERRAR SESIÓN</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* FULL PAGE BODY */}
         <div className="flex-grow flex overflow-hidden">
-          {/* Admin Sidebar */}
+          {/* Admin Sidebar (Desktop) */}
           <aside className="w-64 bg-white border-r border-gray-200 p-6 space-y-2 overflow-y-auto hidden sm:block">
             {[
               { id: 'dashboard', label: 'DASHBOARD ANALÍTICA', icon: TrendingUp },
