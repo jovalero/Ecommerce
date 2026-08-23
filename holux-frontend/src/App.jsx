@@ -164,22 +164,22 @@ const parseOrderItems = (order) => {
 // Promotional Banners configuration (customizable for home page sections)
 const PROMO_BANNERS = [
   {
-    title: "SKI",
-    span: "COLECCIÓN NIEVE Y ALTA MONTAÑA",
+    title: "FRAGANCIAS HOMBRE",
+    span: "ELEGANCIA Y CARÁCTER",
     image: "https://images.unsplash.com/photo-1551632811-561732d1e306?w=800&auto=format&fit=crop&q=80",
-    link: "#/catalogo?categoria=trekking"
+    link: "#/catalogo?categoria=perfumes-hombre"
   },
   {
-    title: "TREKKING",
-    span: "EXPLORÁ NUEVOS SENDEROS",
+    title: "FRAGANCIAS MUJER",
+    span: "SOFISTICACIÓN Y FRESCURA",
     image: "https://images.unsplash.com/photo-1501555088652-021faa106b9b?w=800&auto=format&fit=crop&q=80",
-    link: "#/catalogo?categoria=trekking"
+    link: "#/catalogo?categoria=perfumes-mujer"
   },
   {
-    title: "URBAN ACTIVE",
-    span: "DISEÑO VERSÁTIL PARA EL DÍA A DÍA",
+    title: "EXCLUSIVIDAD Y TENDENCIA",
+    span: "JOYAS DE LA PERFUMERÍA ORIENTAL",
     image: "https://images.unsplash.com/photo-1520639888713-7851133b1ed0?w=800&auto=format&fit=crop&q=80",
-    link: "#/catalogo?categoria=accesorios"
+    link: "#/catalogo"
   }
 ];
 

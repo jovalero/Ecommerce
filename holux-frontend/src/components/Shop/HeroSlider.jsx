@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, memo } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 
 const DEFAULT_SLIDES = [
   {
@@ -214,32 +214,6 @@ export const HeroSlider = memo(function HeroSlider({
         );
       })}
 
-
-      {/* Left Control Arrow (Visible on hover) */}
-      <button
-        onClick={handlePrev}
-        onMouseDown={(e) => e.stopPropagation()}
-        onMouseUp={(e) => e.stopPropagation()}
-        onTouchStart={(e) => e.stopPropagation()}
-        onTouchEnd={(e) => e.stopPropagation()}
-        className="absolute left-6 top-1/2 transform -translate-y-1/2 p-3.5 bg-black/40 hover:bg-[#3C6E71]/80 text-white rounded-full transition-all duration-300 z-20 cursor-pointer flex items-center justify-center border border-white/10 opacity-0 group-hover:opacity-100"
-        title="Slide anterior"
-      >
-        <ChevronLeft className="w-5 h-5" />
-      </button>
-
-      {/* Right Control Arrow (Visible on hover) */}
-      <button
-        onClick={handleNext}
-        onMouseDown={(e) => e.stopPropagation()}
-        onMouseUp={(e) => e.stopPropagation()}
-        onTouchStart={(e) => e.stopPropagation()}
-        onTouchEnd={(e) => e.stopPropagation()}
-        className="absolute right-6 top-1/2 transform -translate-y-1/2 p-3.5 bg-black/40 hover:bg-[#3C6E71]/80 text-white rounded-full transition-all duration-300 z-20 cursor-pointer flex items-center justify-center border border-white/10 opacity-0 group-hover:opacity-100"
-        title="Siguiente slide"
-      >
-        <ChevronRight className="w-5 h-5" />
-      </button>
 
       {/* Carousel Slide Indicators */}
       <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-20 flex gap-3">

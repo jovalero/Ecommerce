@@ -115,20 +115,20 @@ export default function BannerEditor({
       const saved = localStorage.getItem('holux_grid_promo_cards');
       return saved ? JSON.parse(saved) : [
         {
-          title: "SKI",
-          span: "COLECCIÓN NIEVE Y ALTA MONTAÑA",
+          title: "FRAGANCIAS HOMBRE",
+          span: "ELEGANCIA Y CARÁCTER",
           image: "https://images.unsplash.com/photo-1551632811-561732d1e306?w=800&auto=format&fit=crop&q=80",
-          link: "#/catalogo"
+          link: "#/catalogo?categoria=perfumes-hombre"
         },
         {
-          title: "TREKKING",
-          span: "EXPLORÁ NUEVOS SENDEROS",
+          title: "FRAGANCIAS MUJER",
+          span: "SOFISTICACIÓN Y FRESCURA",
           image: "https://images.unsplash.com/photo-1501555088652-021faa106b9b?w=800&auto=format&fit=crop&q=80",
-          link: "#/catalogo"
+          link: "#/catalogo?categoria=perfumes-mujer"
         },
         {
-          title: "URBAN ACTIVE",
-          span: "DISEÑO VERSÁTIL PARA EL DÍA A DÍA",
+          title: "EXCLUSIVIDAD Y TENDENCIA",
+          span: "JOYAS DE LA PERFUMERÍA ORIENTAL",
           image: "https://images.unsplash.com/photo-1520639888713-7851133b1ed0?w=800&auto=format&fit=crop&q=80",
           link: "#/catalogo"
         }
@@ -136,20 +136,20 @@ export default function BannerEditor({
     } catch (e) {
       return [
         {
-          title: "SKI",
-          span: "COLECCIÓN NIEVE Y ALTA MONTAÑA",
+          title: "FRAGANCIAS HOMBRE",
+          span: "ELEGANCIA Y CARÁCTER",
           image: "https://images.unsplash.com/photo-1551632811-561732d1e306?w=800&auto=format&fit=crop&q=80",
-          link: "#/catalogo"
+          link: "#/catalogo?categoria=perfumes-hombre"
         },
         {
-          title: "TREKKING",
-          span: "EXPLORÁ NUEVOS SENDEROS",
+          title: "FRAGANCIAS MUJER",
+          span: "SOFISTICACIÓN Y FRESCURA",
           image: "https://images.unsplash.com/photo-1501555088652-021faa106b9b?w=800&auto=format&fit=crop&q=80",
-          link: "#/catalogo"
+          link: "#/catalogo?categoria=perfumes-mujer"
         },
         {
-          title: "URBAN ACTIVE",
-          span: "DISEÑO VERSÁTIL PARA EL DÍA A DÍA",
+          title: "EXCLUSIVIDAD Y TENDENCIA",
+          span: "JOYAS DE LA PERFUMERÍA ORIENTAL",
           image: "https://images.unsplash.com/photo-1520639888713-7851133b1ed0?w=800&auto=format&fit=crop&q=80",
           link: "#/catalogo"
         }
@@ -1041,25 +1041,51 @@ export default function BannerEditor({
                   </div>
                 </div>
 
-                <div className="space-y-1">
+                <div className="space-y-1.5">
                   <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">
                     LINK / REDIRECCIÓN
                   </label>
                   <select
-                    value={card.link?.startsWith('#/catalogo?categoria=') ? card.link.replace('#/catalogo?categoria=', '') : ''}
+                    value={
+                      card.link === '#/catalogo?genero=outlet'
+                        ? 'outlet'
+                        : card.link?.startsWith('#/catalogo?categoria=')
+                        ? card.link.replace('#/catalogo?categoria=', '')
+                        : card.link === '#/catalogo' || !card.link
+                        ? ''
+                        : 'custom'
+                    }
                     onChange={(e) => {
                       const val = e.target.value;
-                      handleUpdatePromoCard(idx, 'link', val ? `#/catalogo?categoria=${val}` : '#/catalogo');
+                      if (val === 'outlet') {
+                        handleUpdatePromoCard(idx, 'link', '#/catalogo?genero=outlet');
+                      } else if (val === 'custom') {
+                        // Keep current link
+                      } else if (val) {
+                        handleUpdatePromoCard(idx, 'link', `#/catalogo?categoria=${val}`);
+                      } else {
+                        handleUpdatePromoCard(idx, 'link', '#/catalogo');
+                      }
                     }}
                     className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-bold text-gray-800 outline-none cursor-pointer"
                   >
                     <option value="">Todo el catálogo (#/catalogo)</option>
+                    <option value="outlet">Outlet / Ofertas (#/catalogo?genero=outlet)</option>
                     {(categoriesList || []).map((cat) => (
                       <option key={cat.id} value={cat.slug}>
-                        Categoría: {cat.name}
+                        Categoría: {cat.name} ({cat.slug})
                       </option>
                     ))}
+                    <option value="custom">Enlace personalizado...</option>
                   </select>
+
+                  <input
+                    type="text"
+                    value={card.link || ''}
+                    onChange={(e) => handleUpdatePromoCard(idx, 'link', e.target.value)}
+                    placeholder="#/catalogo?categoria=..."
+                    className="w-full px-3 py-1.5 bg-gray-100 border border-gray-200 rounded-xl text-[11px] font-mono-custom text-gray-700 outline-none"
+                  />
                 </div>
               </div>
             </div>
