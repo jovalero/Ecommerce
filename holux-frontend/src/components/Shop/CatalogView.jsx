@@ -198,14 +198,35 @@ export default function CatalogView({
   // --- FETCH CATEGORIES LIST ---
   useEffect(() => {
     const fetchCats = async () => {
+      let catsOk = false;
       try {
         const res = await fetch(`${API_BASE_URL}/api/categories`);
         if (res.ok) {
           const data = await res.json();
-          setAvailableCategories(data || []);
+          const cats = Array.isArray(data) ? data : (data.data || []);
+          if (cats.length > 0) {
+            setAvailableCategories(cats);
+            catsOk = true;
+          }
         }
-      } catch (err) {
-        console.error("Error fetching categories:", err);
+      } catch (err) {}
+
+      if (!catsOk) {
+        try {
+          const supaUrl = import.meta.env.VITE_SUPABASE_URL || 'https://fmbhcfsrsfkglmvgbnlm.supabase.co';
+          const supaKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_aAzQcAqCATpYDGBVRNJRQQ_1CKarnEb';
+          const supaRes = await fetch(`${supaUrl}/rest/v1/categories?select=*`, {
+            headers: { 'apikey': supaKey, 'Authorization': `Bearer ${supaKey}` }
+          });
+          if (supaRes.ok) {
+            const data = await supaRes.json();
+            if (Array.isArray(data) && data.length > 0) {
+              setAvailableCategories(data);
+            }
+          }
+        } catch (supaErr) {
+          console.error("Error fetching categories from Supabase:", supaErr);
+        }
       }
     };
     fetchCats();
@@ -228,9 +249,11 @@ export default function CatalogView({
     }
   }, [initialCollection]);
 
-  // --- FETCH PRODUCTS SERVER-SIDE ---
+  // --- FETCH PRODUCTS SERVER-SIDE WITH SUPABASE DIRECT CLOUD FALLBACK ---
   const fetchProductsServer = async () => {
     setLoading(true);
+    let loadedFromApi = false;
+
     try {
       const params = new URLSearchParams();
       if (selectedCategories.length > 0) {
@@ -260,30 +283,145 @@ export default function CatalogView({
       params.append('page', page);
       params.append('per_page', perPage);
 
-      const res = await fetch(`${API_BASE_URL}/api/products?${params.toString()}`);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 6000);
+
+      const res = await fetch(`${API_BASE_URL}/api/products?${params.toString()}`, {
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+
       if (res.ok) {
         const result = await res.json();
-        setProducts(result.data || []);
-        setTotalProducts(result.total || 0);
-        setLastPage(result.last_page || 1);
-        setFromItem(result.from || 0);
-        setToItem(result.to || 0);
+        const prods = result.data || [];
+        if (prods.length > 0 || (result.total === 0 && (selectedCategories.length > 0 || searchQuery.trim()))) {
+          setProducts(prods);
+          setTotalProducts(result.total || 0);
+          setLastPage(result.last_page || 1);
+          setFromItem(result.from || 0);
+          setToItem(result.to || 0);
 
-        if (result.price_range) {
-          setPriceRange(result.price_range);
-          if (userPriceMax === 200000 && result.price_range.max > 0) {
-            setUserPriceMax(result.price_range.max);
+          if (result.price_range) {
+            setPriceRange(result.price_range);
+            if (userPriceMax === 200000 && result.price_range.max > 0) {
+              setUserPriceMax(result.price_range.max);
+            }
           }
-        }
-        if (result.available_sizes) {
-          setAvailableSizes(result.available_sizes);
+          if (result.available_sizes) {
+            setAvailableSizes(result.available_sizes);
+          }
+          loadedFromApi = true;
         }
       }
-    } catch (err) {
-      console.error("Error loading products:", err);
-    } finally {
-      setLoading(false);
+    } catch (err) {}
+
+    // Fallback directly to Supabase cloud database if API didn't respond
+    if (!loadedFromApi) {
+      try {
+        const supaUrl = import.meta.env.VITE_SUPABASE_URL || 'https://fmbhcfsrsfkglmvgbnlm.supabase.co';
+        const supaKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_aAzQcAqCATpYDGBVRNJRQQ_1CKarnEb';
+        
+        const supaRes = await fetch(`${supaUrl}/rest/v1/products?select=*,categories(id,name,slug)&order=created_at.desc`, {
+          headers: { 'apikey': supaKey, 'Authorization': `Bearer ${supaKey}` }
+        });
+
+        if (supaRes.ok) {
+          const allProds = await supaRes.json();
+          if (Array.isArray(allProds)) {
+            let filtered = [...allProds];
+
+            // 1. Category Filter
+            if (selectedCategories.length > 0) {
+              filtered = filtered.filter(p => {
+                const catSlug = (p.categories?.slug || '').toLowerCase();
+                const catName = (p.categories?.name || '').toLowerCase();
+                const pCatId = p.category_id || p.categories?.id || '';
+                return selectedCategories.some(sel => {
+                  const selLow = String(sel).toLowerCase();
+                  return selLow === catSlug || selLow === pCatId || catName.includes(selLow);
+                });
+              });
+            }
+
+            // 2. Collection / Gender Filter
+            if (selectedCollections.length > 0) {
+              filtered = filtered.filter(p => {
+                const pGender = (p.gender || p.collection || '').toLowerCase();
+                const pName = (p.name || '').toLowerCase();
+                const catName = (p.categories?.name || '').toLowerCase();
+                return selectedCollections.some(col => {
+                  const c = String(col).toLowerCase();
+                  if (c === 'outlet') return Number(p.offer_price) > 0 || Number(p.discount_percent) > 0;
+                  return pGender.includes(c) || pName.includes(c) || catName.includes(c);
+                });
+              });
+            }
+
+            // 3. Brand Filter
+            if (selectedBrands.length > 0) {
+              filtered = filtered.filter(p => {
+                const pBrand = (p.brand || '').toLowerCase();
+                const pName = (p.name || '').toLowerCase();
+                return selectedBrands.some(b => {
+                  const bLow = String(b).toLowerCase();
+                  return pBrand === bLow || pName.includes(bLow);
+                });
+              });
+            }
+
+            // 4. In Stock Filter
+            if (inStockOnly) {
+              filtered = filtered.filter(p => Number(p.stock) > 0);
+            }
+
+            // 5. Max Price Filter
+            if (userPriceMax > 0 && userPriceMax < priceRange.max) {
+              filtered = filtered.filter(p => {
+                const effective = Number(p.offer_price) > 0 ? Number(p.offer_price) : Number(p.price);
+                return effective <= userPriceMax;
+              });
+            }
+
+            // 6. Search Query
+            if (searchQuery.trim()) {
+              const q = searchQuery.toLowerCase().trim();
+              filtered = filtered.filter(p => 
+                (p.name && p.name.toLowerCase().includes(q)) ||
+                (p.brand && p.brand.toLowerCase().includes(q)) ||
+                (p.description && p.description.toLowerCase().includes(q))
+              );
+            }
+
+            // 7. Sort
+            if (sortBy === 'price-asc') {
+              filtered.sort((a, b) => (Number(a.offer_price || a.price) - Number(b.offer_price || b.price)));
+            } else if (sortBy === 'price-desc') {
+              filtered.sort((a, b) => (Number(b.offer_price || b.price) - Number(a.offer_price || a.price)));
+            } else if (sortBy === 'name-asc') {
+              filtered.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+            } else if (sortBy === 'name-desc') {
+              filtered.sort((a, b) => (b.name || '').localeCompare(a.name || ''));
+            }
+
+            // Pagination
+            const total = filtered.length;
+            const last = Math.max(1, Math.ceil(total / perPage));
+            const start = (page - 1) * perPage;
+            const paginated = filtered.slice(start, start + perPage);
+
+            setProducts(paginated);
+            setTotalProducts(total);
+            setLastPage(last);
+            setFromItem(total > 0 ? start + 1 : 0);
+            setToItem(Math.min(start + perPage, total));
+          }
+        }
+      } catch (supaErr) {
+        console.error("Error loading products from Supabase fallback:", supaErr);
+      }
     }
+
+    setLoading(false);
   };
 
   useEffect(() => {
