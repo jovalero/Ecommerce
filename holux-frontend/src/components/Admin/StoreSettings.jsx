@@ -224,6 +224,14 @@ export default function StoreSettings({ API_BASE_URL, token }) {
     localStorage.setItem('holux_payment_methods_config', JSON.stringify(updated));
   };
 
+  // Handle Copy Webhook URL
+  const handleCopyWebhook = () => {
+    if (!webhookUrl) return;
+    navigator.clipboard.writeText(webhookUrl);
+    setCopiedWebhook(true);
+    setTimeout(() => setCopiedWebhook(false), 2500);
+  };
+
   // Unified Save Handler (Single Button at bottom)
   const handleSubmitAllSettings = async (e) => {
     if (e) e.preventDefault();
