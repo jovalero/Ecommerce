@@ -283,30 +283,6 @@ const MobilePromoCarousel = React.memo(function MobilePromoCarousel({ banners = 
         ))}
       </div>
       
-      {/* Control Arrows */}
-      <button
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          handlePrev();
-        }}
-        className="absolute left-3 top-1/2 transform -translate-y-1/2 p-2.5 bg-black/60 hover:bg-[#3C6E71] text-white rounded-full z-10 cursor-pointer transition-all shadow-lg active:scale-90"
-        aria-label="Anterior"
-      >
-        <ChevronLeft className="w-5 h-5" />
-      </button>
-      <button
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          handleNext();
-        }}
-        className="absolute right-3 top-1/2 transform -translate-y-1/2 p-2.5 bg-[#3C6E71] hover:bg-[#2b5153] text-white rounded-full z-10 cursor-pointer transition-all shadow-lg active:scale-90 ring-2 ring-white/40"
-        aria-label="Siguiente"
-      >
-        <ChevronRight className="w-5 h-5" />
-      </button>
-
       {/* Dot Indicators */}
       <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-10 flex gap-2">
         {banners.map((_, idx) => (
