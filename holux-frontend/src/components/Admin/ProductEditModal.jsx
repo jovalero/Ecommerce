@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Plus, Trash2, Image as ImageIcon, Video, Copy, Tag, DollarSign, Layers, Search, Sparkles, GripVertical, ArrowUp, ArrowDown, Star, ChevronLeft, ChevronRight } from 'lucide-react';
 import ConfirmationModal from './ConfirmationModal';
 import { SmoothInput, SmoothTextarea } from '../Common/SmoothInput';
+import { API_BASE_URL } from '../../config/api';
 
 export default function ProductEditModal({ product, categories = [], onClose, onSave, onDuplicate }) {
   // Basic info
@@ -243,7 +244,7 @@ export default function ProductEditModal({ product, categories = [], onClose, on
   // File upload handlers (Supabase Storage CDN API + FileReader fallback)
   const handleFileUpload = async (e) => {
     const files = Array.from(e.target.files || []);
-    const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+    const API_BASE = API_BASE_URL;
     
     for (const file of files) {
       try {
@@ -291,7 +292,7 @@ export default function ProductEditModal({ product, categories = [], onClose, on
   const handleDrop = async (e) => {
     e.preventDefault();
     const files = Array.from(e.dataTransfer.files || []);
-    const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+    const API_BASE = API_BASE_URL;
 
     for (const file of files) {
       try {

@@ -14,6 +14,7 @@ import {
   Building2
 } from 'lucide-react';
 import { SmoothInput } from '../Common/SmoothInput';
+import { API_BASE_URL } from '../../config/api';
 
 const getProductImage = (name) => {
   if (!name) return 'https://images.unsplash.com/photo-1541643600914-78b084683601?w=600&auto=format&fit=crop&q=80';
@@ -294,7 +295,7 @@ const CheckoutView = memo(({
 
     try {
       const token = localStorage.getItem('holux_auth_token') || '';
-      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}/api/me/coupons/apply`, {
+      const res = await fetch(`${API_BASE_URL}/api/me/coupons/apply`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -408,7 +409,7 @@ const CheckoutView = memo(({
           setShippingRates(JSON.parse(saved));
         }
 
-        const res = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}/api/settings`);
+        const res = await fetch(`${API_BASE_URL}/api/settings`);
         if (res.ok) {
           const data = await res.json();
           if (data.settings) {

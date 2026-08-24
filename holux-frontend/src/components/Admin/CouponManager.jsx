@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Tag, Plus, Trash2, CheckCircle2, DollarSign, Percent, Truck, Gift, Star, Crown, AlertCircle } from 'lucide-react';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+import { API_BASE_URL } from '../../config/api';
 
 export default function CouponManager({ token }) {
   const [coupons, setCoupons] = useState([]);

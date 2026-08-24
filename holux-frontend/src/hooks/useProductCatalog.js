@@ -1,8 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 
-const API_BASE = (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'))
-  ? 'http://localhost:8000'
-  : (import.meta.env.VITE_API_BASE_URL || 'https://holux-api.onrender.com');
+import { API_BASE_URL as API_BASE } from '../config/api';
 
 export function useProductCatalog(token) {
   // Filters and Query State
