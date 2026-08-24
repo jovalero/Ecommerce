@@ -71,9 +71,29 @@ export default function CatalogView({
   const [priceRange, setPriceRange] = useState({ min: 0, max: 200000 });
   const [userPriceMax, setUserPriceMax] = useState(200000);
   const [inStockOnly, setInStockOnly] = useState(false);
-  const [sortBy, setSortBy] = useState('relevant');
+  const [sortBy, setSortBy] = useState(() => {
+    try {
+      const hash = window.location.hash || '';
+      const params = new URLSearchParams(hash.split('?')[1] || '');
+      const sUrl = params.get('sort_by') || params.get('orden');
+      if (sUrl) return sUrl;
+      const saved = sessionStorage.getItem('holux_catalog_sort');
+      if (saved) return saved;
+    } catch {}
+    return 'relevant';
+  });
   const [gridColumns, setGridColumns] = useState(4); // 4 or 3
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useState(() => {
+    try {
+      const hash = window.location.hash || '';
+      const params = new URLSearchParams(hash.split('?')[1] || '');
+      const pUrl = params.get('page') || params.get('pagina');
+      if (pUrl && Number(pUrl) > 0) return Number(pUrl);
+      const saved = sessionStorage.getItem('holux_catalog_page');
+      if (saved && Number(saved) > 0) return Number(saved);
+    } catch {}
+    return 1;
+  });
   const perPage = 12;
 
   // --- STATE: DATA & METADATA ---
@@ -233,20 +253,39 @@ export default function CatalogView({
     fetchCats();
   }, [API_BASE_URL]);
 
+  // Persist page and sort to sessionStorage
+  useEffect(() => {
+    try {
+      sessionStorage.setItem('holux_catalog_page', String(page));
+    } catch {}
+  }, [page]);
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem('holux_catalog_sort', sortBy);
+    } catch {}
+  }, [sortBy]);
+
   // Synchronize when initialCategory or initialCollection props change from URL
   useEffect(() => {
     if (initialCategory) {
-      setSelectedCategories([initialCategory]);
+      setSelectedCategories(prev => {
+        if (prev.length === 1 && prev[0] === initialCategory) return prev;
+        setPage(1);
+        return [initialCategory];
+      });
       setSelectedCollections([]);
-      setPage(1);
     }
   }, [initialCategory]);
 
   useEffect(() => {
     if (initialCollection) {
-      setSelectedCollections([initialCollection]);
+      setSelectedCollections(prev => {
+        if (prev.length === 1 && prev[0] === initialCollection) return prev;
+        setPage(1);
+        return [initialCollection];
+      });
       setSelectedCategories([]);
-      setPage(1);
     }
   }, [initialCollection]);
 

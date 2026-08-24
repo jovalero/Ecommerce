@@ -7008,26 +7008,47 @@ export default function App() {
           <main className="flex-grow bg-[#F2EFE9] py-10 font-sans">
           <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8">
             
-            {/* Breadcrumbs */}
-            <div className="flex items-center gap-1.5 text-[10px] text-gray-500 uppercase tracking-widest font-sans mb-6">
-              <button 
-                onClick={() => { window.location.hash = '#/'; }} 
-                className="hover:text-black hover:underline cursor-pointer transition-colors"
-              >
-                Inicio
-              </button>
-              <span>&gt;</span>
-              <button 
+            {/* Breadcrumbs & Back button */}
+            <div className="flex items-center justify-between gap-4 mb-6">
+              <div className="flex items-center gap-1.5 text-[10px] text-gray-500 uppercase tracking-widest font-sans flex-wrap">
+                <button 
+                  onClick={() => { window.location.hash = '#/'; }} 
+                  className="hover:text-black hover:underline cursor-pointer transition-colors"
+                >
+                  Inicio
+                </button>
+                <span>&gt;</span>
+                <button 
+                  onClick={() => {
+                    if (window.history.length > 1) {
+                      window.history.back();
+                    } else {
+                      const cat = selectedDetailProduct.categories ? selectedDetailProduct.categories.slug : '';
+                      window.location.hash = `#/catalogo${cat ? '?categoria=' + cat : ''}`;
+                    }
+                  }} 
+                  className="hover:text-black hover:underline cursor-pointer transition-colors"
+                >
+                  {selectedDetailProduct.categories ? selectedDetailProduct.categories.name : 'Catálogo'}
+                </button>
+                <span>&gt;</span>
+                <span className="text-[#3C6E71] font-bold truncate max-w-[180px] sm:max-w-none">{selectedDetailProduct.name}</span>
+              </div>
+
+              <button
+                type="button"
                 onClick={() => {
-                  const cat = selectedDetailProduct.categories ? selectedDetailProduct.categories.slug : '';
-                  window.location.hash = `#/catalogo${cat ? '?categoria=' + cat : ''}`;
-                }} 
-                className="hover:text-black hover:underline cursor-pointer transition-colors"
+                  if (window.history.length > 1) {
+                    window.history.back();
+                  } else {
+                    window.location.hash = '#/catalogo';
+                  }
+                }}
+                className="inline-flex items-center gap-1.5 text-[11px] font-bold font-display uppercase tracking-wider text-gray-700 hover:text-black bg-white hover:bg-gray-50 px-3 py-1.5 rounded-xl border border-gray-200 transition-all cursor-pointer shadow-2xs shrink-0"
               >
-                {selectedDetailProduct.categories ? selectedDetailProduct.categories.name : 'Catálogo'}
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span>Volver</span>
               </button>
-              <span>&gt;</span>
-              <span className="text-[#3C6E71] font-bold">{selectedDetailProduct.name}</span>
             </div>
 
             {/* Split layout */}
