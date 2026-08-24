@@ -13,6 +13,7 @@ import {
   Grid2X2
 } from 'lucide-react';
 import ProductCard from './ProductCard';
+import { productsMetadata } from '../../config/productsMetadata';
 
 const TOP_PERFUME_BRANDS = [
   'Antonio Banderas',
@@ -328,7 +329,33 @@ export default function CatalogView({
         if (supaRes.ok) {
           const allProds = await supaRes.json();
           if (Array.isArray(allProds)) {
-            let filtered = [...allProds];
+            const enrichProd = (p) => {
+              const meta = productsMetadata[p.id] || {};
+              const resolveImg = (url) => {
+                if (!url || typeof url !== 'string') return null;
+                if (url.includes('localhost:8000/storage/uploads/')) {
+                  return '/uploads/' + url.split('localhost:8000/storage/uploads/')[1];
+                }
+                return url;
+              };
+              const images = (Array.isArray(p.images) && p.images.length > 0)
+                ? p.images.map(resolveImg)
+                : (Array.isArray(meta.images) ? meta.images.map(resolveImg) : (p.image_url ? [resolveImg(p.image_url)] : []));
+              const image_url = resolveImg(p.image_url) || (images && images[0]) || meta.image_url || null;
+
+              return {
+                ...p,
+                description: p.description || meta.description || '',
+                specs: p.specs || meta.specs || [],
+                tags: p.tags || meta.tags || [],
+                is_featured: p.is_featured ?? meta.is_featured ?? false,
+                is_new: p.is_new ?? meta.is_new ?? false,
+                image_url,
+                images
+              };
+            };
+
+            let filtered = allProds.map(enrichProd);
 
             // 1. Category Filter
             if (selectedCategories.length > 0) {

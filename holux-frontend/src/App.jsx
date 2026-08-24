@@ -71,6 +71,7 @@ import MobileMenuDrawer from './components/Navigation/MobileMenuDrawer';
 import { useProductCatalog } from './hooks/useProductCatalog';
 import { loadPersistedBannerData } from './utils/bannerStorage';
 import { initialStoreData } from './config/initialStoreData';
+import { productsMetadata } from './config/productsMetadata';
 
 // Configuration
 const API_BASE_URL = (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'))
@@ -1171,6 +1172,32 @@ export default function App() {
       }
 
       // 2. Fetch Products (try Laravel API first, then Supabase directly)
+      const enrichProd = (p) => {
+        const meta = productsMetadata[p.id] || {};
+        const resolveImg = (url) => {
+          if (!url || typeof url !== 'string') return null;
+          if (url.includes('localhost:8000/storage/uploads/')) {
+            return '/uploads/' + url.split('localhost:8000/storage/uploads/')[1];
+          }
+          return url;
+        };
+        const images = (Array.isArray(p.images) && p.images.length > 0)
+          ? p.images.map(resolveImg)
+          : (Array.isArray(meta.images) ? meta.images.map(resolveImg) : (p.image_url ? [resolveImg(p.image_url)] : []));
+        const image_url = resolveImg(p.image_url) || (images && images[0]) || meta.image_url || null;
+
+        return {
+          ...p,
+          description: p.description || meta.description || '',
+          specs: p.specs || meta.specs || [],
+          tags: p.tags || meta.tags || [],
+          is_featured: p.is_featured ?? meta.is_featured ?? false,
+          is_new: p.is_new ?? meta.is_new ?? false,
+          image_url,
+          images
+        };
+      };
+
       let prodsLoaded = false;
       try {
         const resProd = await fetch(`${API_BASE_URL}/api/products?per_page=100`);
@@ -1178,7 +1205,7 @@ export default function App() {
           const result = await resProd.json();
           const prods = Array.isArray(result) ? result : (result.data || []);
           if (prods.length > 0) {
-            setProducts(prods);
+            setProducts(prods.map(enrichProd));
             prodsLoaded = true;
           }
         }
@@ -1191,7 +1218,9 @@ export default function App() {
           });
           if (supaProd.ok) {
             const prods = await supaProd.json();
-            setProducts(prods);
+            if (Array.isArray(prods)) {
+              setProducts(prods.map(enrichProd));
+            }
           }
         } catch (supaErr) {}
       }

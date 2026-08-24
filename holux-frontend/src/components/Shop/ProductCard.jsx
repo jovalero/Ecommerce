@@ -1,5 +1,6 @@
 import React, { memo } from 'react';
 import { Heart, Star, Zap } from 'lucide-react';
+import { productsMetadata } from '../../config/productsMetadata';
 
 export const ProductCard = memo(function ProductCard({
   product,
@@ -50,10 +51,25 @@ export const ProductCard = memo(function ProductCard({
     return 'https://images.unsplash.com/photo-1541643600914-78b084683601?w=600&auto=format&fit=crop&q=80';
   };
 
+  const resolveImg = (url) => {
+    if (!url || typeof url !== 'string') return null;
+    if (url.includes('localhost:8000/storage/uploads/')) {
+      return '/uploads/' + url.split('localhost:8000/storage/uploads/')[1];
+    }
+    return url;
+  };
+
+  const meta = productsMetadata[product.id] || {};
+  const imageUrl = resolveImg(product.image_url)
+    || (Array.isArray(product.images) && resolveImg(product.images[0]))
+    || resolveImg(meta.image_url)
+    || (Array.isArray(meta.images) && resolveImg(meta.images[0]))
+    || product.image
+    || getProductImageFallback(product.name);
+
   const netPrice = Math.round(effectivePrice * 0.79);
   const stock = Number(product.stock) || 0;
   const isOutOfStock = stock <= 0;
-  const imageUrl = product.image_url || (Array.isArray(product.images) && product.images[0]) || (typeof product.images === 'string' && product.images.startsWith('http') ? product.images : null) || product.image || getProductImageFallback(product.name);
 
   return (
     <div className="group bg-white border border-gray-200/90 rounded-xl sm:rounded-2xl overflow-hidden flex flex-col justify-between hover:shadow-xl hover:border-gray-300 transition-all duration-300 relative text-left h-full">
