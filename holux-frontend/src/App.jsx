@@ -1252,13 +1252,13 @@ export default function App() {
 
       if (!prodsLoaded) {
         try {
-          const supaProd = await fetch(`${SUPABASE_URL}/rest/v1/products?select=*&order=created_at.desc`, {
+          const supaProd = await fetch(`${SUPABASE_URL}/rest/v1/products?select=*,categories(id,name,slug)&order=created_at.desc`, {
             headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
           });
           if (supaProd.ok) {
             const prods = await supaProd.json();
             if (Array.isArray(prods)) {
-              setProducts(prods.map(enrichProd));
+              setProducts(prods.map(enrichProductItem));
             }
           }
         } catch (supaErr) {}
@@ -1687,27 +1687,50 @@ export default function App() {
       } else if (hash.startsWith('#/producto/')) {
         const prodId = hash.replace('#/producto/', '').split('?')[0];
         setCurrentView('product-detail');
-        const found = products.find(p => String(p.id) === String(prodId));
-        const meta = productsMetadata[prodId];
-        
-        let targetProd = found;
-        if (!targetProd && meta) {
-          targetProd = { id: prodId, ...meta };
-        }
 
-        if (targetProd) {
-          const enriched = enrichProductItem(targetProd);
-          setSelectedDetailProduct(enriched);
-          setSelectedProduct(enriched);
-          setDetailQuantity(1);
-          setSelectedSize('');
-          setSizeError(false);
-          handleOpenReviews(enriched);
-          window.scrollTo({ top: 0, behavior: 'instant' });
-        } else if (prodId) {
-          fetch(`${API_BASE_URL}/api/products/${prodId}`)
-            .then(res => res.ok ? res.json() : null)
-            .then(prod => {
+        // If already set with real name and price, keep it
+        let hasProduct = false;
+        setSelectedDetailProduct((current) => {
+          if (current && String(current.id) === String(prodId) && current.name) {
+            hasProduct = true;
+            return current;
+          }
+          const found = products.find(p => String(p.id) === String(prodId));
+          if (found && found.name) {
+            hasProduct = true;
+            const enriched = enrichProductItem(found);
+            setSelectedProduct(enriched);
+            handleOpenReviews(enriched);
+            return enriched;
+          }
+          return current;
+        });
+
+        // Always ensure full product data from Supabase / API
+        const loadFullProduct = async () => {
+          try {
+            const supaRes = await fetch(`${SUPABASE_URL}/rest/v1/products?id=eq.${prodId}&select=*,categories(id,name,slug)`, {
+              headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+            });
+            if (supaRes.ok) {
+              const data = await supaRes.json();
+              if (Array.isArray(data) && data.length > 0) {
+                const enriched = enrichProductItem(data[0]);
+                setSelectedDetailProduct(enriched);
+                setSelectedProduct(enriched);
+                setDetailQuantity(1);
+                setSelectedSize('');
+                setSizeError(false);
+                handleOpenReviews(enriched);
+                return;
+              }
+            }
+          } catch (e) {}
+
+          try {
+            const res = await fetch(`${API_BASE_URL}/api/products/${prodId}`);
+            if (res.ok) {
+              const prod = await res.json();
               if (prod) {
                 const enriched = enrichProductItem(prod);
                 setSelectedDetailProduct(enriched);
@@ -1716,10 +1739,13 @@ export default function App() {
                 setSelectedSize('');
                 setSizeError(false);
                 handleOpenReviews(enriched);
-                window.scrollTo({ top: 0, behavior: 'instant' });
               }
-            })
-            .catch(err => console.error(err));
+            }
+          } catch (e) {}
+        };
+
+        if (!hasProduct) {
+          loadFullProduct();
         }
       }
     };
