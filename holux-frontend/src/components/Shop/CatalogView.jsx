@@ -420,13 +420,23 @@ export default function CatalogView({
             }
 
             // 7. Sort
-            if (sortBy === 'price-asc') {
-              filtered.sort((a, b) => (Number(a.offer_price || a.price) - Number(b.offer_price || b.price)));
-            } else if (sortBy === 'price-desc') {
-              filtered.sort((a, b) => (Number(b.offer_price || b.price) - Number(a.offer_price || a.price)));
-            } else if (sortBy === 'name-asc') {
+            if (sortBy === 'price_asc' || sortBy === 'price-asc') {
+              filtered.sort((a, b) => {
+                const priceA = Number(a.offer_price && a.offer_price > 0 ? a.offer_price : a.price) || 0;
+                const priceB = Number(b.offer_price && b.offer_price > 0 ? b.offer_price : b.price) || 0;
+                return priceA - priceB;
+              });
+            } else if (sortBy === 'price_desc' || sortBy === 'price-desc') {
+              filtered.sort((a, b) => {
+                const priceA = Number(a.offer_price && a.offer_price > 0 ? a.offer_price : a.price) || 0;
+                const priceB = Number(b.offer_price && b.offer_price > 0 ? b.offer_price : b.price) || 0;
+                return priceB - priceA;
+              });
+            } else if (sortBy === 'newest') {
+              filtered.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+            } else if (sortBy === 'name_asc' || sortBy === 'name-asc') {
               filtered.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-            } else if (sortBy === 'name-desc') {
+            } else if (sortBy === 'name_desc' || sortBy === 'name-desc') {
               filtered.sort((a, b) => (b.name || '').localeCompare(a.name || ''));
             }
 
@@ -1092,6 +1102,24 @@ export default function CatalogView({
                 >
                   <X className="w-5 h-5" />
                 </button>
+              </div>
+
+              {/* Ordenar por mobile */}
+              <div className="space-y-2 text-xs">
+                <span className="font-bold text-gray-900 font-display uppercase">Ordenar por</span>
+                <div className="relative">
+                  <select
+                    value={sortBy}
+                    onChange={(e) => { setSortBy(e.target.value); setPage(1); }}
+                    className="w-full appearance-none bg-gray-50 border border-gray-200 rounded-xl pl-3.5 pr-8 py-2.5 text-xs font-bold text-gray-800 outline-none focus:border-[#3C6E71]"
+                  >
+                    <option value="relevant">Más relevantes</option>
+                    <option value="price_asc">Menor precio</option>
+                    <option value="price_desc">Mayor precio</option>
+                    <option value="newest">Más recientes</option>
+                  </select>
+                  <ChevronDown className="w-3.5 h-3.5 text-gray-500 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
               </div>
 
               {/* Categorías mobile */}
