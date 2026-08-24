@@ -1856,8 +1856,13 @@ export default function App() {
     }
   };
 
-  // Product Catalog Advanced State (Server-side search, filters, sorting, bulk actions, CSV)
-  const productCatalogState = useProductCatalog(token);
+  // Product Catalog Advanced State (Only active for admin users in admin dashboard)
+  const isAdminUser = Boolean(
+    userProfile?.role === 'admin' ||
+    userProfile?.is_admin ||
+    currentView === 'admin'
+  );
+  const productCatalogState = useProductCatalog(isAdminUser ? token : null);
 
   const fetchAdminProducts = async () => {
     try {

@@ -88,13 +88,16 @@ export function useProductCatalog(token) {
         }
       });
 
-      if (res.status === 401) {
-        setError('Sesión expirada o no autorizada. Por favor iniciá sesión nuevamente.');
+      if (res.status === 401 || res.status === 403) {
+        setProducts([]);
+        setLoading(false);
         return;
       }
 
       if (!res.ok) {
-        throw new Error(`HTTP ${res.status}: Error al cargar catálogo`);
+        setProducts([]);
+        setLoading(false);
+        return;
       }
 
       const json = await res.json();
