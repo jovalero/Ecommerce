@@ -1121,7 +1121,7 @@ export default function App() {
     }
   }, [token]);
 
-  // Parse URL hash for Supabase OAuth tokens (Google sign-in redirect)
+  // Parse URL hash for Supabase OAuth & Email confirmation tokens
   useEffect(() => {
     const hash = window.location.hash;
     if (hash && hash.startsWith('#')) {
@@ -1130,11 +1130,13 @@ export default function App() {
       const refreshToken = params.get('refresh_token');
       if (accessToken) {
         setToken(accessToken);
+        localStorage.setItem('user_token', accessToken);
+        localStorage.setItem('holux_auth_token', accessToken);
         if (refreshToken) {
           localStorage.setItem('supabase_refresh_token', refreshToken);
         }
         // Clean up url hash
-        window.history.replaceState(null, null, window.location.pathname);
+        window.history.replaceState(null, null, window.location.pathname + '#/');
       }
     }
   }, []);
@@ -2412,6 +2414,8 @@ export default function App() {
         const data = await response.json();
         if (response.ok && data.access_token) {
           setToken(data.access_token);
+          localStorage.setItem('user_token', data.access_token);
+          localStorage.setItem('holux_auth_token', data.access_token);
           if (data.refresh_token) {
             localStorage.setItem('supabase_refresh_token', data.refresh_token);
           }
