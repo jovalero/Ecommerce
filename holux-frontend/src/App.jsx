@@ -7314,20 +7314,26 @@ export default function App() {
                         )}
 
                         {/* Description headings */}
-                        {selectedDetailProduct.description && (
-                          <div className="space-y-2 pt-4 border-t border-gray-100">
-                            <h4 className="text-xs font-bold uppercase tracking-wider text-gray-900 font-display">
-                              Descripción del producto
-                            </h4>
-                            <p className="text-xs text-gray-600 leading-relaxed font-sans font-medium">
-                              {selectedDetailProduct.description}
-                            </p>
-                          </div>
-                        )}
-
-                        {/* Specs listing - ONLY render if product has explicit custom specs */}
                         {(() => {
-                          const rawSpecs = selectedDetailProduct.specs || selectedDetailProduct.specifications;
+                          const meta = productsMetadata[selectedDetailProduct.id] || {};
+                          const desc = selectedDetailProduct.description || meta.description;
+                          if (!desc) return null;
+                          return (
+                            <div className="space-y-2 pt-4 border-t border-gray-100">
+                              <h4 className="text-xs font-bold uppercase tracking-wider text-gray-900 font-display">
+                                Descripción del producto
+                              </h4>
+                              <p className="text-xs text-gray-700 leading-relaxed font-sans font-normal whitespace-pre-line">
+                                {desc}
+                              </p>
+                            </div>
+                          );
+                        })()}
+
+                        {/* Specs listing - Perfume olfactory notes & technical details */}
+                        {(() => {
+                          const meta = productsMetadata[selectedDetailProduct.id] || {};
+                          const rawSpecs = selectedDetailProduct.specs || selectedDetailProduct.specifications || meta.specs;
                           let specList = [];
                           if (Array.isArray(rawSpecs) && rawSpecs.length > 0) {
                             specList = rawSpecs.filter(Boolean);
@@ -7338,13 +7344,15 @@ export default function App() {
                           if (specList.length === 0) return null;
 
                           return (
-                            <div className="space-y-1.5 pt-2">
+                            <div className="space-y-2 pt-3 border-t border-gray-100">
                               <h4 className="text-xs font-bold uppercase tracking-wider text-gray-900 font-display">
-                                Detalles y especificaciones
+                                Notas Olfativas y Especificaciones
                               </h4>
-                              <ul className="text-xs text-gray-600 space-y-1 list-disc list-inside font-sans font-medium">
+                              <ul className="text-xs text-gray-700 space-y-1.5 list-disc list-inside font-sans font-normal">
                                 {specList.map((item, idx) => (
-                                  <li key={idx}>{item}</li>
+                                  <li key={idx} className="leading-relaxed font-medium text-gray-800">
+                                    {typeof item === 'string' ? item.replace(/^-\s*/, '') : item}
+                                  </li>
                                 ))}
                               </ul>
                             </div>
