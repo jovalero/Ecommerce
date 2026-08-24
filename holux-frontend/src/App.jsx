@@ -8462,7 +8462,7 @@ export default function App() {
                         value={authFullName}
                         onChange={(e) => setAuthFullName(e.target.value)}
                         placeholder="Ej: José Valero"
-                        className="w-full px-3 py-2 border border-gray-300 rounded text-xs focus:border-[#3C6E71] focus:ring-0 outline-none"
+                        className="w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded text-base sm:text-xs focus:border-[#3C6E71] focus:ring-0 outline-none"
                       />
                     </div>
                     <div className="space-y-1">
@@ -8473,7 +8473,7 @@ export default function App() {
                         value={authPhone}
                         onChange={(e) => setAuthPhone(e.target.value)}
                         placeholder="Ej: +54 9 11 2345-6789"
-                        className="w-full px-3 py-2 border border-gray-300 rounded text-xs focus:border-[#3C6E71] focus:ring-0 outline-none"
+                        className="w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded text-base sm:text-xs focus:border-[#3C6E71] focus:ring-0 outline-none"
                       />
                     </div>
                   </>
@@ -8487,7 +8487,7 @@ export default function App() {
                     value={authEmail}
                     onChange={(e) => setAuthEmail(e.target.value)}
                     placeholder="Ej: jose@example.com"
-                    className="w-full px-3 py-2 border border-gray-300 rounded text-xs focus:border-[#3C6E71] focus:ring-0 outline-none"
+                    className="w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded text-base sm:text-xs focus:border-[#3C6E71] focus:ring-0 outline-none"
                   />
                 </div>
 
@@ -8499,7 +8499,7 @@ export default function App() {
                     value={authPassword}
                     onChange={(e) => setAuthPassword(e.target.value)}
                     placeholder="Mínimo 6 caracteres"
-                    className="w-full px-3 py-2 border border-gray-300 rounded text-xs focus:border-[#3C6E71] focus:ring-0 outline-none"
+                    className="w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded text-base sm:text-xs focus:border-[#3C6E71] focus:ring-0 outline-none"
                   />
                 </div>
 

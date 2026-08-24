@@ -100,3 +100,13 @@ body {
 .animate-marquee:hover {
   animation-play-state: paused !important;
 }
+
+/* Prevent iOS Safari and Mobile WebKit auto-zoom on input focus */
+@media screen and (max-width: 768px) {
+  input,
+  select,
+  textarea,
+  .smooth-input {
+    font-size: 16px !important;
+  }
+}
