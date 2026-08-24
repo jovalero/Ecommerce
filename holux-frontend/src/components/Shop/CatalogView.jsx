@@ -527,14 +527,31 @@ export default function CatalogView({
     userPriceMax < (priceRange.max || 150000) || 
     inStockOnly;
 
-  // Scroll to top of grid when page changes
+  // Scroll to top of grid & window when page changes
   const gridTopRef = useRef(null);
-  const handlePageChange = (newPage) => {
-    setPage(newPage);
+
+  const scrollToTop = () => {
+    try {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      document.documentElement.scrollTo({ top: 0, behavior: 'smooth' });
+      document.body.scrollTop = 0;
+      document.documentElement.scrollTop = 0;
+    } catch (e) {
+      window.scrollTo(0, 0);
+    }
     if (gridTopRef.current) {
-      gridTopRef.current.scrollIntoView({ behavior: 'smooth' });
+      gridTopRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   };
+
+  const handlePageChange = (newPage) => {
+    setPage(newPage);
+    scrollToTop();
+  };
+
+  useEffect(() => {
+    scrollToTop();
+  }, [page]);
 
   // Title calculation
   const pageTitle = useMemo(() => {
