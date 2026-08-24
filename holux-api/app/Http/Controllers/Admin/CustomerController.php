@@ -18,42 +18,104 @@ class CustomerController extends Controller
      */
     public function index(SupabaseService $supabase): JsonResponse
     {
-        $customers = $supabase->get('profiles', [
-            'role' => 'eq.customer',
-            'order' => 'created_at.desc',
-        ], true) ?: [];
+        $supabaseUrl = config('services.supabase.url') ?: env('SUPABASE_URL', 'https://fmbhcfsrsfkglmvgbnlm.supabase.co');
+        $serviceKey = config('services.supabase.service_key') ?: env('SUPABASE_SERVICE_KEY');
 
-        // Fetch all orders to compute total spent, orders count, and emails
+        // 1. Fetch all real registered users from Supabase Auth
+        $authUsersMap = [];
+        try {
+            $authRes = \Illuminate\Support\Facades\Http::withHeaders([
+                'apikey' => $serviceKey,
+                'Authorization' => 'Bearer ' . $serviceKey,
+            ])->get("{$supabaseUrl}/auth/v1/admin/users");
+
+            if ($authRes->successful()) {
+                $usersData = $authRes->json('users') ?: [];
+                foreach ($usersData as $u) {
+                    if (($u['email'] ?? '') === 'admin@holux.com') {
+                        continue;
+                    }
+                    $authUsersMap[$u['id']] = $u;
+                }
+            }
+        } catch (\Exception $e) {
+            Log::warning('Could not fetch auth users for customer index: ' . $e->getMessage());
+        }
+
+        // 2. Fetch profiles & orders
+        $profiles = $supabase->get('profiles', [], true) ?: [];
+        $profilesMap = collect($profiles)->keyBy('id');
+
         $orders = $supabase->get('orders', [], true) ?: [];
         $ordersByCustomer = collect($orders)->groupBy('customer_id');
 
-        $enriched = array_map(function ($c) use ($ordersByCustomer) {
-            $cOrders = $ordersByCustomer->get($c['id'], collect([]));
+        // 3. Build unified customer list from all real auth users
+        $customerList = [];
+
+        foreach ($authUsersMap as $userId => $u) {
+            $p = $profilesMap->get($userId, []);
+            $cOrders = $ordersByCustomer->get($userId, collect([]));
             $totalSpent = $cOrders->sum(function ($o) {
                 return (float) ($o['total'] ?? $o['total_amount'] ?? 0);
             });
             $lastOrder = $cOrders->first();
-            $email = $c['email'] ?? ($lastOrder['customer_email'] ?? 'usuario@tienda.com');
-            
+
+            $email = $u['email'] 
+                ?? ($p['email'] ?? ($lastOrder['customer_email'] ?? ''));
+
+            $fullName = $p['full_name'] 
+                ?? ($u['user_metadata']['full_name'] ?? ($lastOrder['customer_name'] ?? ($u['email'] ? explode('@', $u['email'])[0] : 'Cliente Holux')));
+
+            $phone = $p['phone'] 
+                ?? ($u['user_metadata']['phone'] ?? ($u['phone'] ?? ($lastOrder['customer_phone'] ?? 'Sin teléfono')));
+
             $base = [
-                'id' => $c['id'],
-                'name' => $c['full_name'] ?? 'Cliente Holux',
-                'full_name' => $c['full_name'] ?? 'Cliente Holux',
+                'id' => $userId,
+                'name' => $fullName,
+                'full_name' => $fullName,
                 'email' => $email,
-                'phone' => $c['phone'] ?? 'Sin teléfono',
+                'phone' => $phone,
                 'orders_count' => $cOrders->count(),
                 'orders' => $cOrders->count(),
                 'total_spent' => $totalSpent,
                 'spent' => $totalSpent,
-                'active' => $c['active'] !== false,
-                'status' => ($c['active'] !== false) ? 'active' : 'suspended',
-                'created_at' => $c['created_at'] ?? now()->toISOString(),
+                'active' => ($p['active'] ?? true) !== false,
+                'status' => (($p['active'] ?? true) !== false) ? 'active' : 'suspended',
+                'created_at' => $u['created_at'] ?? ($p['created_at'] ?? now()->toISOString()),
             ];
 
-            return CustomerMetadataService::attach($base);
-        }, $customers);
+            $customerList[] = CustomerMetadataService::attach($base);
+        }
 
-        return response()->json($enriched);
+        foreach ($profiles as $p) {
+            if (isset($authUsersMap[$p['id']]) || ($p['role'] ?? '') === 'admin') {
+                continue;
+            }
+            $cOrders = $ordersByCustomer->get($p['id'], collect([]));
+            $totalSpent = $cOrders->sum(function ($o) {
+                return (float) ($o['total'] ?? $o['total_amount'] ?? 0);
+            });
+            $lastOrder = $cOrders->first();
+
+            $base = [
+                'id' => $p['id'],
+                'name' => $p['full_name'] ?? 'Cliente Holux',
+                'full_name' => $p['full_name'] ?? 'Cliente Holux',
+                'email' => $p['email'] ?? ($lastOrder['customer_email'] ?? 'usuario@tienda.com'),
+                'phone' => $p['phone'] ?? 'Sin teléfono',
+                'orders_count' => $cOrders->count(),
+                'orders' => $cOrders->count(),
+                'total_spent' => $totalSpent,
+                'spent' => $totalSpent,
+                'active' => ($p['active'] ?? true) !== false,
+                'status' => (($p['active'] ?? true) !== false) ? 'active' : 'suspended',
+                'created_at' => $p['created_at'] ?? now()->toISOString(),
+            ];
+
+            $customerList[] = CustomerMetadataService::attach($base);
+        }
+
+        return response()->json($customerList);
     }
 
     /**
