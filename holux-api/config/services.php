@@ -36,9 +36,9 @@ return [
     ],
 
     'supabase' => [
-        'url' => env('SUPABASE_URL'),
-        'anon_key' => env('SUPABASE_ANON_KEY'),
-        'service_key' => env('SUPABASE_SERVICE_KEY'),
+        'url' => env('SUPABASE_URL', 'https://fmbhcfsrsfkglmvgbnlm.supabase.co'),
+        'anon_key' => env('SUPABASE_ANON_KEY', 'sb_publishable_aAzQcAqCATpYDGBVRNJRQQ_1CKarnEb'),
+        'service_key' => env('SUPABASE_SERVICE_KEY', env('SUPABASE_ANON_KEY', 'sb_publishable_aAzQcAqCATpYDGBVRNJRQQ_1CKarnEb')),
         'jwt_secret' => env('SUPABASE_JWT_SECRET'),
     ],
 

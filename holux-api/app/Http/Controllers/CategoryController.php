@@ -15,7 +15,12 @@ class CategoryController extends Controller
      */
     public function index(SupabaseService $supabase): JsonResponse
     {
-        $categories = $supabase->get('categories');
-        return response()->json($categories);
+        try {
+            $categories = $supabase->get('categories') ?: [];
+            return response()->json($categories);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Error loading categories: ' . $e->getMessage());
+            return response()->json([]);
+        }
     }
 }

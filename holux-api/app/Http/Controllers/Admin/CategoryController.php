@@ -18,11 +18,16 @@ class CategoryController extends Controller
      */
     public function index(SupabaseService $supabase): JsonResponse
     {
-        $categories = $supabase->get('categories', [
-            'order' => 'name.asc',
-        ], true);
+        try {
+            $categories = $supabase->get('categories', [
+                'order' => 'name.asc',
+            ], true) ?: [];
 
-        return response()->json($categories);
+            return response()->json($categories);
+        } catch (\Throwable $e) {
+            Log::error('Error loading admin categories: ' . $e->getMessage());
+            return response()->json([]);
+        }
     }
 
     /**

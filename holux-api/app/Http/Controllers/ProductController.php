@@ -19,9 +19,14 @@ class ProductController extends Controller
     public function index(Request $request, SupabaseService $supabase): JsonResponse
     {
         // 1. Fetch all products with their associated categories
-        $rawProducts = $supabase->get('products', [
-            'select' => '*,categories(id,name,slug)',
-        ]) ?: [];
+        try {
+            $rawProducts = $supabase->get('products', [
+                'select' => '*,categories(id,name,slug)',
+            ]) ?: [];
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Error fetching products from Supabase: ' . $e->getMessage());
+            $rawProducts = [];
+        }
 
         $allProducts = ProductMetadataService::attachMany($rawProducts);
 
