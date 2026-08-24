@@ -351,7 +351,37 @@ const getProductImage = (name = '') => {
   if (cleanName.includes('chaleco')) {
     return 'https://images.unsplash.com/photo-1620799140408-edc6dcb6d633?w=600&auto=format&fit=crop&q=80';
   }
-  return 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80';
+  return 'https://images.unsplash.com/photo-1541643600914-78b084683601?w=600&auto=format&fit=crop&q=80';
+};
+
+export const enrichProductItem = (p) => {
+  if (!p || typeof p !== 'object') return p;
+  const meta = productsMetadata[p.id] || {};
+  const resolveImg = (url) => {
+    if (!url || typeof url !== 'string') return null;
+    if (url.includes('localhost:8000/storage/uploads/')) {
+      return '/uploads/' + url.split('localhost:8000/storage/uploads/')[1];
+    }
+    return url;
+  };
+  const images = (Array.isArray(p.images) && p.images.length > 0)
+    ? p.images.map(resolveImg).filter(Boolean)
+    : (Array.isArray(meta.images) && meta.images.length > 0
+        ? meta.images.map(resolveImg).filter(Boolean)
+        : (p.image_url ? [resolveImg(p.image_url)].filter(Boolean) : (meta.image_url ? [resolveImg(meta.image_url)].filter(Boolean) : [])));
+
+  const image_url = resolveImg(p.image_url) || (images && images[0]) || resolveImg(meta.image_url) || null;
+
+  return {
+    ...p,
+    description: p.description || meta.description || '',
+    specs: p.specs || meta.specs || [],
+    tags: p.tags || meta.tags || [],
+    is_featured: p.is_featured ?? meta.is_featured ?? false,
+    is_new: p.is_new ?? meta.is_new ?? false,
+    image_url,
+    images
+  };
 };
 
 export default function App() {
@@ -1599,13 +1629,14 @@ export default function App() {
 
   const handleProductClick = (product) => {
     if (!product) return;
+    const enriched = enrichProductItem(product);
     setSizeError(false);
-    setSelectedDetailProduct(product);
-    setSelectedProduct(product);
+    setSelectedDetailProduct(enriched);
+    setSelectedProduct(enriched);
     setDetailQuantity(1);
     setSelectedSize('');
     setCurrentView('product-detail');
-    handleOpenReviews(product);
+    handleOpenReviews(enriched);
     window.location.hash = `#/producto/${product.id}`;
     window.scrollTo({ top: 0, behavior: 'instant' });
   };
@@ -1656,25 +1687,34 @@ export default function App() {
         const prodId = hash.replace('#/producto/', '').split('?')[0];
         setCurrentView('product-detail');
         const found = products.find(p => String(p.id) === String(prodId));
-        if (found) {
-          setSelectedDetailProduct(found);
-          setSelectedProduct(found);
+        const meta = productsMetadata[prodId];
+        
+        let targetProd = found;
+        if (!targetProd && meta) {
+          targetProd = { id: prodId, ...meta };
+        }
+
+        if (targetProd) {
+          const enriched = enrichProductItem(targetProd);
+          setSelectedDetailProduct(enriched);
+          setSelectedProduct(enriched);
           setDetailQuantity(1);
           setSelectedSize('');
           setSizeError(false);
-          handleOpenReviews(found);
+          handleOpenReviews(enriched);
           window.scrollTo({ top: 0, behavior: 'instant' });
         } else if (prodId) {
           fetch(`${API_BASE_URL}/api/products/${prodId}`)
             .then(res => res.ok ? res.json() : null)
             .then(prod => {
               if (prod) {
-                setSelectedDetailProduct(prod);
-                setSelectedProduct(prod);
+                const enriched = enrichProductItem(prod);
+                setSelectedDetailProduct(enriched);
+                setSelectedProduct(enriched);
                 setDetailQuantity(1);
                 setSelectedSize('');
                 setSizeError(false);
-                handleOpenReviews(prod);
+                handleOpenReviews(enriched);
                 window.scrollTo({ top: 0, behavior: 'instant' });
               }
             })
@@ -6974,15 +7014,33 @@ export default function App() {
               {/* Left visual column */}
               <div className="lg:col-span-7 flex flex-col items-center">
                 {(() => {
+                  const meta = productsMetadata[selectedDetailProduct.id] || {};
+                  const resolveImg = (url) => {
+                    if (!url || typeof url !== 'string') return null;
+                    if (url.includes('localhost:8000/storage/uploads/')) {
+                      return '/uploads/' + url.split('localhost:8000/storage/uploads/')[1];
+                    }
+                    return url;
+                  };
+
                   let imgList = [];
                   if (Array.isArray(selectedDetailProduct.images) && selectedDetailProduct.images.length > 0) {
-                    imgList = selectedDetailProduct.images.filter(Boolean);
-                  } else if (selectedDetailProduct.image_url) {
-                    imgList = [selectedDetailProduct.image_url];
-                  } else {
+                    imgList = selectedDetailProduct.images.map(resolveImg).filter(Boolean);
+                  }
+                  if (imgList.length === 0 && selectedDetailProduct.image_url) {
+                    const resolved = resolveImg(selectedDetailProduct.image_url);
+                    if (resolved) imgList = [resolved];
+                  }
+                  if (imgList.length === 0 && Array.isArray(meta.images) && meta.images.length > 0) {
+                    imgList = meta.images.map(resolveImg).filter(Boolean);
+                  }
+                  if (imgList.length === 0 && meta.image_url) {
+                    const resolved = resolveImg(meta.image_url);
+                    if (resolved) imgList = [resolved];
+                  }
+                  if (imgList.length === 0) {
                     imgList = [getProductImage(selectedDetailProduct.name)];
                   }
-                  if (imgList.length === 0) imgList = [getProductImage(selectedDetailProduct.name)];
                   
                   const activeImgUrl = imgList[selectedProductImageIndex] || imgList[0];
 
@@ -7042,7 +7100,8 @@ export default function App() {
                             alt={selectedDetailProduct.name} 
                             onError={(e) => {
                               e.target.onerror = null;
-                              e.target.src = getProductImage(selectedDetailProduct.name);
+                              const fallback = (meta.image_url && resolveImg(meta.image_url)) || getProductImage(selectedDetailProduct.name);
+                              e.target.src = fallback;
                             }}
                             className="w-full h-full object-cover transition-opacity duration-300"
                           />
