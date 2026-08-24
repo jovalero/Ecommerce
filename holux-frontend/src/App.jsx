@@ -2430,62 +2430,71 @@ export default function App() {
         setAuthError('Error de red al iniciar sesión.');
       }
     } else {
-      // Register
+      // Register (Instant auto-confirmed account creation via backend API)
       try {
-        const siteOrigin = typeof window !== 'undefined' ? `${window.location.origin}/#/` : 'https://ecommerce-holux.vercel.app/#/';
-        const response = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
+        // 1. Create auto-confirmed user via backend
+        const createRes = await fetch(`${API_BASE_URL}/api/register`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'apikey': SUPABASE_ANON_KEY
+            'Accept': 'application/json'
           },
           body: JSON.stringify({
             email: authEmail,
             password: authPassword,
-            options: {
-              emailRedirectTo: siteOrigin,
-              data: {
-                full_name: authFullName,
-                phone: authPhone
-              }
-            }
+            full_name: authFullName,
+            phone: authPhone
           })
         });
-        const data = await response.json();
-        if (response.ok) {
-          if (data.access_token) {
-            setToken(data.access_token);
-            localStorage.setItem('user_token', data.access_token);
-            localStorage.setItem('holux_auth_token', data.access_token);
-            if (data.refresh_token) {
-              localStorage.setItem('supabase_refresh_token', data.refresh_token);
-            }
-            setIsAuthModalOpen(false);
-            setAuthEmail('');
-            setAuthPassword('');
-            alert('¡Registro completado exitosamente! Tu sesión ha sido iniciada.');
+
+        const createdUser = await createRes.json();
+
+        // Check if user already exists
+        if (!createRes.ok) {
+          const msg = (createdUser.msg || createdUser.message || '').toLowerCase();
+          if (msg.includes('already') || msg.includes('registered') || msg.includes('exists') || msg.includes('unique')) {
+            setAuthError('Este correo electrónico ya se encuentra registrado. Por favor inicia sesión.');
             return;
           }
-          alert('Registro completado. Por favor, revisa tu correo electrónico para confirmar tu cuenta e iniciar sesión.');
-          setAuthMode('login');
-          return;
         }
-        
-        // Register fallback
-        if (authEmail && authEmail.includes('@')) {
-          alert('Cuenta registrada correctamente. Ya puedes iniciar sesión.');
-          setAuthMode('login');
+
+        // 2. Immediately log the user in
+        const loginRes = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+          method: 'POST',
+          headers: {
+            'apikey': SUPABASE_ANON_KEY,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            email: authEmail,
+            password: authPassword
+          })
+        });
+
+        const loginData = await loginRes.json();
+
+        if (loginRes.ok && loginData.access_token) {
+          setToken(loginData.access_token);
+          localStorage.setItem('user_token', loginData.access_token);
+          localStorage.setItem('holux_auth_token', loginData.access_token);
+          if (loginData.refresh_token) {
+            localStorage.setItem('supabase_refresh_token', loginData.refresh_token);
+          }
+          setIsAuthModalOpen(false);
+          setAuthEmail('');
+          setAuthPassword('');
+          setAuthFullName('');
+          setAuthPhone('');
+          alert('¡Bienvenido a HOLUX! Tu cuenta ha sido creada e iniciaste sesión con éxito.');
           return;
         }
 
-        setAuthError(data.error_description || data.message || 'Error en el registro');
+        // Fallback: switch to login
+        setAuthMode('login');
+        alert('Cuenta creada exitosamente. Ya puedes ingresar con tu correo y contraseña.');
       } catch (err) {
-        if (authEmail && authEmail.includes('@')) {
-          alert('Cuenta registrada. Ya puedes iniciar sesión.');
-          setAuthMode('login');
-          return;
-        }
-        setAuthError('Error de red al registrar usuario.');
+        console.error('Registration error:', err);
+        setAuthError('Error de red al crear la cuenta. Por favor intenta nuevamente.');
       }
     }
   };

@@ -46,6 +46,43 @@ Route::middleware('throttle:api')->group(function () {
     Route::get('/products/{id}/reviews', [ReviewController::class, 'index']); // Approved reviews
     Route::get('/settings', [\App\Http\Controllers\Admin\SettingController::class, 'index']); // Public store & shipping settings
 
+    // Public Registration with auto-confirm
+    Route::post('/register', function (\Illuminate\Http\Request $request) {
+        $request->validate([
+            'email' => 'required|email',
+            'password' => 'required|string|min:6',
+            'full_name' => 'nullable|string',
+            'phone' => 'nullable|string'
+        ]);
+
+        $supabaseUrl = env('SUPABASE_URL', 'https://fmbhcfsrsfkglmvgbnlm.supabase.co');
+        $supabaseServiceKey = env('SUPABASE_SERVICE_KEY');
+
+        $response = \Illuminate\Support\Facades\Http::withHeaders([
+            'apikey' => $supabaseServiceKey,
+            'Authorization' => 'Bearer ' . $supabaseServiceKey,
+            'Content-Type' => 'application/json'
+        ])->post("{$supabaseUrl}/auth/v1/admin/users", [
+            'email' => $request->email,
+            'password' => $request->password,
+            'email_confirm' => true,
+            'user_metadata' => [
+                'full_name' => $request->full_name,
+                'phone' => $request->phone
+            ]
+        ]);
+
+        if ($response->successful()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Usuario registrado y confirmado exitosamente',
+                'user' => $response->json()
+            ], 201);
+        }
+
+        return response()->json($response->json(), $response->status());
+    });
+
     // Sensitive payment and order creation endpoints (Protected with strict rate-limiting)
     Route::middleware('throttle:15,1')->group(function () {
         Route::post('/orders', [OrderController::class, 'store']);
