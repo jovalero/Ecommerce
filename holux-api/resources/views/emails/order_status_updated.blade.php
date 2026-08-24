@@ -195,7 +195,7 @@
             </p>
 
             <div style="text-align: center; margin-top: 20px;">
-                <a href="{{ env('FRONTEND_URL', 'http://localhost:5173') }}" class="btn">IR A MI CUENTA</a>
+                <a href="{{ env('FRONTEND_URL', 'https://ecommerce-holux.vercel.app') }}" class="btn">IR A MI CUENTA</a>
             </div>
         </div>
 

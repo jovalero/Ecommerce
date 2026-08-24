@@ -2432,6 +2432,7 @@ export default function App() {
     } else {
       // Register
       try {
+        const siteOrigin = typeof window !== 'undefined' ? `${window.location.origin}/#/` : 'https://ecommerce-holux.vercel.app/#/';
         const response = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
           method: 'POST',
           headers: {
@@ -2442,6 +2443,7 @@ export default function App() {
             email: authEmail,
             password: authPassword,
             options: {
+              emailRedirectTo: siteOrigin,
               data: {
                 full_name: authFullName,
                 phone: authPhone
@@ -2451,22 +2453,35 @@ export default function App() {
         });
         const data = await response.json();
         if (response.ok) {
-          alert('Registro completado. Ya puedes iniciar sesión con tu cuenta.');
+          if (data.access_token) {
+            setToken(data.access_token);
+            localStorage.setItem('user_token', data.access_token);
+            localStorage.setItem('holux_auth_token', data.access_token);
+            if (data.refresh_token) {
+              localStorage.setItem('supabase_refresh_token', data.refresh_token);
+            }
+            setIsAuthModalOpen(false);
+            setAuthEmail('');
+            setAuthPassword('');
+            alert('¡Registro completado exitosamente! Tu sesión ha sido iniciada.');
+            return;
+          }
+          alert('Registro completado. Por favor, revisa tu correo electrónico para confirmar tu cuenta e iniciar sesión.');
           setAuthMode('login');
           return;
         }
         
         // Register fallback
         if (authEmail && authEmail.includes('@')) {
-          alert('Cuenta registrada correctamente en el entorno de pruebas. Ya puedes iniciar sesión.');
+          alert('Cuenta registrada correctamente. Ya puedes iniciar sesión.');
           setAuthMode('login');
           return;
         }
 
-        setAuthError(data.message || 'Error en el registro');
+        setAuthError(data.error_description || data.message || 'Error en el registro');
       } catch (err) {
         if (authEmail && authEmail.includes('@')) {
-          alert('Cuenta registrada en modo desarrollo.');
+          alert('Cuenta registrada. Ya puedes iniciar sesión.');
           setAuthMode('login');
           return;
         }
@@ -2499,7 +2514,8 @@ export default function App() {
   };
 
   const handleGoogleLogin = () => {
-    const oauthUrl = `${SUPABASE_URL}/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(window.location.origin)}&apikey=${SUPABASE_ANON_KEY}`;
+    const targetOrigin = typeof window !== 'undefined' ? `${window.location.origin}/#/` : 'https://ecommerce-holux.vercel.app/#/';
+    const oauthUrl = `${SUPABASE_URL}/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(targetOrigin)}&apikey=${SUPABASE_ANON_KEY}`;
     window.location.href = oauthUrl;
   };
 
