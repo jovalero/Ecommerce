@@ -1069,9 +1069,17 @@ export default function App() {
     localStorage.setItem('holux_cart', JSON.stringify(cart));
   }, [cart]);
 
-  // Initial catalog load
+  // Initial catalog load & Backend Warmup Heartbeat
   useEffect(() => {
     fetchCatalog();
+
+    // Silent background warmup ping to keep Render backend awake
+    const pingBackend = () => {
+      fetch(`${API_BASE_URL}/api/ping`, { mode: 'no-cors' }).catch(() => {});
+    };
+    pingBackend();
+    const heartbeatInterval = setInterval(pingBackend, 5 * 60 * 1000); // Pulse every 5 min while browser is open
+    return () => clearInterval(heartbeatInterval);
   }, []);
 
   // Fetch client profile if token changes

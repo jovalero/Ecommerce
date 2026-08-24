@@ -34,6 +34,11 @@ use Illuminate\Support\Facades\Route;
 // 1. PUBLIC ROUTES (No Auth Required)
 // ==========================================
 Route::middleware('throttle:api')->group(function () {
+    // Health / Keep-alive Ping Route
+    Route::get('/ping', function () {
+        return response()->json(['status' => 'alive', 'timestamp' => now()->toIso8601String()]);
+    });
+
     // Categories and Products
     Route::get('/categories', [CategoryController::class, 'index']);
     Route::get('/products', [ProductController::class, 'index']);
