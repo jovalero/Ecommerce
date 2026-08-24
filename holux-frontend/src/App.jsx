@@ -374,9 +374,10 @@ export const enrichProductItem = (p) => {
 
   return {
     ...p,
+    brand: p.brand || meta.brand || (p.name ? p.name.split(' ')[0] : 'HOLUX'),
     description: p.description || meta.description || '',
-    specs: p.specs || meta.specs || [],
-    tags: p.tags || meta.tags || [],
+    specs: (Array.isArray(p.specs) && p.specs.length > 0) ? p.specs : (meta.specs || []),
+    tags: (Array.isArray(p.tags) && p.tags.length > 0) ? p.tags : (meta.tags || []),
     is_featured: p.is_featured ?? meta.is_featured ?? false,
     is_new: p.is_new ?? meta.is_new ?? false,
     image_url,
@@ -7148,7 +7149,7 @@ export default function App() {
                 <div className="space-y-4">
                   {/* Category and brand tags */}
                   <div className="text-[10px] text-[#3C6E71] font-bold uppercase tracking-widest font-sans">
-                    {selectedDetailProduct.brand.toUpperCase()} • {selectedDetailProduct.categories ? selectedDetailProduct.categories.name.toUpperCase() : 'AVENTURA'}
+                    {(selectedDetailProduct.brand || 'HOLUX').toUpperCase()} • {(selectedDetailProduct.categories?.name || 'PERFUMERÍA').toUpperCase()}
                   </div>
 
                   {/* Title */}
