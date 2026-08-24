@@ -1040,55 +1040,82 @@ export default function CatalogView({
               </div>
             )}
 
-            {/* --- PAGINADOR REAL --- */}
-            {lastPage > 1 && (
-              <div className="bg-white border border-gray-200/90 rounded-2xl p-4 sm:p-5 shadow-xs flex items-center justify-between gap-2 flex-wrap">
-                <button
-                  type="button"
-                  disabled={page <= 1}
-                  onClick={() => handlePageChange(page - 1)}
-                  className={`px-4 py-2.5 rounded-xl text-xs font-bold font-display uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer ${
-                    page <= 1
-                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                      : 'bg-gray-100 hover:bg-gray-200 text-gray-800'
-                  }`}
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                  <span>Anterior</span>
-                </button>
+            {/* --- PAGINADOR INTELIGENTE RESPONSIVE --- */}
+            {lastPage > 1 && (() => {
+              const getPaginationPages = (current, total) => {
+                if (total <= 7) {
+                  return Array.from({ length: total }, (_, i) => i + 1);
+                }
+                if (current <= 3) {
+                  return [1, 2, 3, 4, '...', total];
+                }
+                if (current >= total - 2) {
+                  return [1, '...', total - 3, total - 2, total - 1, total];
+                }
+                return [1, '...', current - 1, current, current + 1, '...', total];
+              };
 
-                <div className="flex items-center gap-1.5 overflow-x-auto">
-                  {Array.from({ length: lastPage }, (_, i) => i + 1).map(p => (
-                    <button
-                      key={p}
-                      type="button"
-                      onClick={() => handlePageChange(p)}
-                      className={`w-9 h-9 rounded-xl text-xs font-bold font-mono-custom transition-all cursor-pointer ${
-                        page === p
-                          ? 'bg-[#1C2321] text-white shadow-sm'
-                          : 'bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200'
-                      }`}
-                    >
-                      {p}
-                    </button>
-                  ))}
+              const pagesList = getPaginationPages(page, lastPage);
+
+              return (
+                <div className="bg-white border border-gray-200/90 rounded-2xl p-3 sm:p-5 shadow-xs flex items-center justify-between gap-2 flex-wrap">
+                  <button
+                    type="button"
+                    disabled={page <= 1}
+                    onClick={() => handlePageChange(page - 1)}
+                    className={`px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs font-bold font-display uppercase tracking-wider flex items-center gap-1 sm:gap-1.5 transition-all cursor-pointer ${
+                      page <= 1
+                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed opacity-50'
+                        : 'bg-gray-100 hover:bg-gray-200 text-gray-800 active:scale-95'
+                    }`}
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                    <span className="hidden sm:inline">Anterior</span>
+                  </button>
+
+                  <div className="flex items-center gap-1 sm:gap-1.5 justify-center flex-wrap">
+                    {pagesList.map((p, idx) => {
+                      if (p === '...') {
+                        return (
+                          <span key={`dots-${idx}`} className="w-6 sm:w-8 text-center text-gray-400 font-bold font-mono-custom text-xs select-none">
+                            ...
+                          </span>
+                        );
+                      }
+                      const isCurrent = page === p;
+                      return (
+                        <button
+                          key={`page-${p}`}
+                          type="button"
+                          onClick={() => handlePageChange(p)}
+                          className={`w-8 h-8 sm:w-9 sm:h-9 rounded-xl text-xs font-bold font-mono-custom transition-all cursor-pointer flex items-center justify-center ${
+                            isCurrent
+                              ? 'bg-[#1C2321] text-white shadow-sm ring-2 ring-[#1C2321]/20 scale-105'
+                              : 'bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200 active:scale-95'
+                          }`}
+                        >
+                          {p}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <button
+                    type="button"
+                    disabled={page >= lastPage}
+                    onClick={() => handlePageChange(page + 1)}
+                    className={`px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs font-bold font-display uppercase tracking-wider flex items-center gap-1 sm:gap-1.5 transition-all cursor-pointer ${
+                      page >= lastPage
+                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed opacity-50'
+                        : 'bg-[#3C6E71] hover:bg-[#3C6E71]/90 text-white shadow-sm active:scale-95'
+                    }`}
+                  >
+                    <span className="hidden sm:inline">Siguiente</span>
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
                 </div>
-
-                <button
-                  type="button"
-                  disabled={page >= lastPage}
-                  onClick={() => handlePageChange(page + 1)}
-                  className={`px-4 py-2.5 rounded-xl text-xs font-bold font-display uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer ${
-                    page >= lastPage
-                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                      : 'bg-[#3C6E71] hover:bg-[#3C6E71]/90 text-white shadow-sm'
-                  }`}
-                >
-                  <span>Siguiente</span>
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-              </div>
-            )}
+              );
+            })()}
 
           </div>
 
