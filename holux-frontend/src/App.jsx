@@ -2414,7 +2414,7 @@ export default function App() {
             'Content-Type': 'application/json',
             'apikey': SUPABASE_ANON_KEY
           },
-          body: JSON.stringify({ email: authEmail, password: authPassword })
+          body: JSON.stringify({ email: authEmail.trim(), password: authPassword })
         });
         const data = await response.json();
         if (response.ok && data.access_token) {
@@ -2429,74 +2429,83 @@ export default function App() {
           setAuthPassword('');
           return;
         }
-        setAuthError(data.error_description || data.msg || 'Email o contraseña incorrectos.');
+
+        const rawErr = (data.error_description || data.msg || data.message || '').toLowerCase();
+        if (rawErr.includes('email not confirmed') || rawErr.includes('not confirmed')) {
+          setAuthError('Tu cuenta está registrada pero aún no ha sido confirmada por correo. Por favor revisa tu bandeja de entrada o spam para verificarla.');
+        } else if (rawErr.includes('invalid login credentials') || rawErr.includes('invalid credentials')) {
+          setAuthError('Email o contraseña incorrectos.');
+        } else {
+          setAuthError(data.error_description || data.msg || data.message || 'Error al iniciar sesión.');
+        }
       } catch (err) {
         console.error(err);
-        setAuthError('Error de red al iniciar sesión.');
+        setAuthError('Error de conexión al iniciar sesión.');
       }
     } else {
-      // Register (Instant auto-confirmed account creation via backend API)
+      // Register directly via Supabase Auth
       try {
-        // 1. Create auto-confirmed user via backend
-        const createRes = await fetch(`${API_BASE_URL}/api/register`, {
+        const siteOrigin = typeof window !== 'undefined' ? `${window.location.origin}/#/` : 'https://ecommerce-holux.vercel.app/#/';
+        const response = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Accept': 'application/json'
+            'apikey': SUPABASE_ANON_KEY
           },
           body: JSON.stringify({
-            email: authEmail,
+            email: authEmail.trim(),
             password: authPassword,
-            full_name: authFullName,
-            phone: authPhone
+            options: {
+              emailRedirectTo: siteOrigin,
+              data: {
+                full_name: authFullName.trim(),
+                phone: authPhone.trim()
+              }
+            }
           })
         });
 
-        const createdUser = await createRes.json();
+        const data = await response.json();
 
-        // Check if user already exists
-        if (!createRes.ok) {
-          const msg = (createdUser.msg || createdUser.message || '').toLowerCase();
-          if (msg.includes('already') || msg.includes('registered') || msg.includes('exists') || msg.includes('unique')) {
-            setAuthError('Este correo electrónico ya se encuentra registrado. Por favor inicia sesión.');
+        if (response.ok && (data.id || data.access_token)) {
+          // If session is immediately active (auto-confirm enabled)
+          if (data.access_token) {
+            setToken(data.access_token);
+            localStorage.setItem('user_token', data.access_token);
+            localStorage.setItem('holux_auth_token', data.access_token);
+            if (data.refresh_token) {
+              localStorage.setItem('supabase_refresh_token', data.refresh_token);
+            }
+            setIsAuthModalOpen(false);
+            setAuthEmail('');
+            setAuthPassword('');
+            setAuthFullName('');
+            setAuthPhone('');
+            alert('¡Bienvenido a HOLUX! Tu cuenta ha sido creada e iniciaste sesión con éxito.');
             return;
           }
-        }
 
-        // 2. Immediately log the user in
-        const loginRes = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
-          method: 'POST',
-          headers: {
-            'apikey': SUPABASE_ANON_KEY,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            email: authEmail,
-            password: authPassword
-          })
-        });
-
-        const loginData = await loginRes.json();
-
-        if (loginRes.ok && loginData.access_token) {
-          setToken(loginData.access_token);
-          localStorage.setItem('user_token', loginData.access_token);
-          localStorage.setItem('holux_auth_token', loginData.access_token);
-          if (loginData.refresh_token) {
-            localStorage.setItem('supabase_refresh_token', loginData.refresh_token);
-          }
+          // If email confirmation is required by Supabase
           setIsAuthModalOpen(false);
+          const registeredEmail = authEmail.trim();
           setAuthEmail('');
           setAuthPassword('');
           setAuthFullName('');
           setAuthPhone('');
-          alert('¡Bienvenido a HOLUX! Tu cuenta ha sido creada e iniciaste sesión con éxito.');
+          alert(`¡Cuenta registrada con éxito! Te enviamos un correo de confirmación a ${registeredEmail}. Por favor revisa tu bandeja de entrada o spam para activarla.`);
           return;
         }
 
-        // Fallback: switch to login
-        setAuthMode('login');
-        alert('Cuenta creada exitosamente. Ya puedes ingresar con tu correo y contraseña.');
+        const rawErr = (data.msg || data.message || data.error_description || '').toLowerCase();
+        if (rawErr.includes('already') || rawErr.includes('registered') || rawErr.includes('exists')) {
+          setAuthError('Este correo electrónico ya se encuentra registrado. Por favor inicia sesión.');
+        } else if (rawErr.includes('rate limit')) {
+          setAuthError('Límite temporal de correos excedido. Por favor aguarda unos minutos o intenta iniciar sesión.');
+        } else if (rawErr.includes('password') && rawErr.includes('least')) {
+          setAuthError('La contraseña debe tener al menos 6 caracteres.');
+        } else {
+          setAuthError(data.msg || data.message || data.error_description || 'Error al registrar la cuenta.');
+        }
       } catch (err) {
         console.error('Registration error:', err);
         setAuthError('Error de red al crear la cuenta. Por favor intenta nuevamente.');
