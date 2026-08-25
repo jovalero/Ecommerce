@@ -43,7 +43,8 @@ import {
   FileText,
   CheckCircle2,
   AlertTriangle,
-  Ruler
+  Ruler,
+  RefreshCw
 } from 'lucide-react';
 
 import DashboardCharts from './components/Admin/DashboardCharts';
