@@ -2459,11 +2459,15 @@ export default function App() {
           body: JSON.stringify({
             email: authEmail.trim(),
             password: authPassword,
+            data: {
+              full_name: authFullName.trim() || 'Cliente HOLUX',
+              phone: authPhone.trim() || null
+            },
             options: {
               emailRedirectTo: siteOrigin,
               data: {
-                full_name: authFullName.trim(),
-                phone: authPhone.trim()
+                full_name: authFullName.trim() || 'Cliente HOLUX',
+                phone: authPhone.trim() || null
               }
             }
           })
@@ -2471,7 +2475,9 @@ export default function App() {
 
         const data = await response.json();
 
-        if (response.ok && (data.id || data.access_token)) {
+        if (response.ok && (data.id || data.access_token || data.user)) {
+          const userId = data.user?.id || data.id;
+
           // If session is immediately active (auto-confirm enabled)
           if (data.access_token) {
             setToken(data.access_token);
@@ -2480,6 +2486,22 @@ export default function App() {
             if (data.refresh_token) {
               localStorage.setItem('supabase_refresh_token', data.refresh_token);
             }
+
+            if (userId && authFullName.trim()) {
+              fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}`, {
+                method: 'PATCH',
+                headers: {
+                  'apikey': SUPABASE_ANON_KEY,
+                  'Authorization': `Bearer ${data.access_token}`,
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                  full_name: authFullName.trim(),
+                  phone: authPhone.trim() || null
+                })
+              }).catch(() => {});
+            }
+
             setIsAuthModalOpen(false);
             setAuthEmail('');
             setAuthPassword('');
@@ -6191,10 +6213,45 @@ export default function App() {
           <CustomerEditModal
             customer={selectedCustomerModal}
             onClose={() => setIsCustomerModalOpen(false)}
-            onSave={(updatedCust) => {
+            onSave={async (updatedCust) => {
               setAdminCustomersList(prev => prev.map(c => c.id === updatedCust.id ? updatedCust : c));
               setIsCustomerModalOpen(false);
               setSelectedCustomerModal(null);
+
+              try {
+                // 1. Update Supabase profiles table
+                await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${updatedCust.id}`, {
+                  method: 'PATCH',
+                  headers: {
+                    'apikey': SUPABASE_ANON_KEY,
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                  },
+                  body: JSON.stringify({
+                    full_name: updatedCust.full_name,
+                    phone: updatedCust.phone,
+                    active: updatedCust.active !== false
+                  })
+                });
+
+                // 2. Update tier / notes in backend API
+                if (updatedCust.tier) {
+                  await fetch(`${API_BASE_URL}/api/admin/customers/${updatedCust.id}/tier`, {
+                    method: 'PATCH',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                      tier: updatedCust.tier,
+                      notes: updatedCust.notes
+                    })
+                  });
+                }
+                fetchAdminCustomers();
+              } catch (err) {
+                console.error('Error saving customer profile:', err);
+              }
             }}
           />
         )}
