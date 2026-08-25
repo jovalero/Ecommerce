@@ -1898,8 +1898,11 @@ export default function App() {
 
   const fetchAdminCustomers = async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/admin/customers`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+      const res = await fetch(`${API_BASE_URL}/api/admin/customers?_t=${Date.now()}`, {
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        }
       });
       if (res.ok) {
         const data = await res.json();
@@ -6002,6 +6005,14 @@ export default function App() {
                           Administrá los niveles de membresía, estado y órdenes de cada cliente.
                         </p>
                       </div>
+                      <button
+                        type="button"
+                        onClick={fetchAdminCustomers}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-gray-200 bg-gray-50 hover:bg-gray-100 text-gray-700 text-xs font-bold font-display uppercase tracking-wider transition-all cursor-pointer shadow-2xs self-start sm:self-auto"
+                      >
+                        <RefreshCw className="w-3.5 h-3.5" />
+                        <span>Actualizar Clientes</span>
+                      </button>
                     </div>
 
                     <div className="overflow-x-auto">
