@@ -55,6 +55,7 @@ import BannerEditor from './components/Admin/BannerEditor';
 import CouponManager from './components/Admin/CouponManager';
 import ProductEditModal from './components/Admin/ProductEditModal';
 import CustomerEditModal from './components/Admin/CustomerEditModal';
+import SendCouponModal from './components/Admin/SendCouponModal';
 import SupportManager from './components/Admin/SupportManager';
 import CheckoutView from './components/Checkout/CheckoutView';
 import ProductCatalogManager from './components/Admin/ProductCatalogManager';
@@ -1062,6 +1063,7 @@ export default function App() {
   const [selectedProductModal, setSelectedProductModal] = useState(null);
   const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
   const [selectedCustomerModal, setSelectedCustomerModal] = useState(null);
+  const [selectedCouponCustomer, setSelectedCouponCustomer] = useState(null);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [productReviews, setProductReviews] = useState([]);
   const [reviewsAverage, setReviewsAverage] = useState(0);
@@ -6070,7 +6072,33 @@ export default function App() {
                                       </span>
                                     )}
                                   </div>
-                                  <div className="text-[10px] text-gray-400 font-mono-custom">{cust.phone || 'Sin teléfono'}</div>
+                                  <div className="flex items-center gap-1.5 mt-0.5">
+                                    {cust.phone ? (
+                                      <a
+                                        href={`https://wa.me/${cust.phone.replace(/[^0-9]/g, '')}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-1 text-[10px] font-mono-custom text-emerald-700 hover:text-emerald-900 font-bold bg-emerald-50 hover:bg-emerald-100 px-1.5 py-0.5 rounded border border-emerald-200 transition-colors"
+                                        title="Enviar WhatsApp directo al cliente"
+                                      >
+                                        <span>📱 {cust.phone}</span>
+                                        <span className="text-[8px] uppercase font-sans font-black bg-emerald-600 text-white px-1 rounded">WA</span>
+                                      </a>
+                                    ) : (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setSelectedCustomerModal(cust);
+                                          setIsCustomerModalOpen(true);
+                                        }}
+                                        className="text-[10px] text-gray-400 font-mono-custom hover:text-[#3C6E71] hover:underline cursor-pointer flex items-center gap-1 text-left"
+                                        title="Hacé clic para agregar teléfono"
+                                      >
+                                        <span>📞 Sin teléfono</span>
+                                        <span className="text-[9px] text-[#3C6E71] font-bold">(+ agregar)</span>
+                                      </button>
+                                    )}
+                                  </div>
                                 </td>
                                 <td className="p-3 font-mono-custom text-gray-600">{cust.email}</td>
                                 <td className="p-3 font-mono-custom font-bold text-gray-800">{cust.orders_count ?? cust.total_orders ?? 0} pedidos</td>
@@ -6100,6 +6128,15 @@ export default function App() {
                                   </span>
                                 </td>
                                 <td className="p-3 text-right space-x-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => setSelectedCouponCustomer(cust)}
+                                    className="px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-[10px] font-display font-bold tracking-wider cursor-pointer shadow-xs inline-flex items-center gap-1 transition-all"
+                                    title="Enviar cupón de descuento a este cliente"
+                                  >
+                                    <Gift className="w-3 h-3" />
+                                    <span>ENVIAR CUPÓN</span>
+                                  </button>
                                   <button
                                     type="button"
                                     onClick={() => {
@@ -6253,6 +6290,13 @@ export default function App() {
                 console.error('Error saving customer profile:', err);
               }
             }}
+          />
+        )}
+        {selectedCouponCustomer && (
+          <SendCouponModal
+            customer={selectedCouponCustomer}
+            onClose={() => setSelectedCouponCustomer(null)}
+            token={token}
           />
         )}
 
