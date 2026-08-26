@@ -27,6 +27,7 @@ import {
   Eye
 } from 'lucide-react';
 import ConfirmationModal from './ConfirmationModal';
+import { productsMetadata } from '../../config/productsMetadata';
 
 export default function ProductCatalogManager({
   catalog, // hook return object from useProductCatalog
@@ -643,15 +644,21 @@ export default function ProductCatalogManager({
                           className="w-12 h-12 rounded-xl bg-gray-100 border border-gray-200 overflow-hidden flex items-center justify-center relative shadow-sm hover:border-[#3C6E71] hover:ring-2 hover:ring-[#3C6E71]/20 transition-all block cursor-pointer group/thumb"
                           title="Ver en la tienda (abre en nueva pestaña)"
                         >
-                          <img
-                            src={prod.image_url || (prod.images && prod.images[0]) || 'https://images.unsplash.com/photo-1551028719-00167b16eac5?w=200'}
-                            alt={prod.name}
-                            onError={(e) => {
-                              e.target.onerror = null;
-                              e.target.src = 'https://images.unsplash.com/photo-1551028719-00167b16eac5?w=200';
-                            }}
-                            className="w-full h-full object-cover group-hover/thumb:scale-105 transition-transform"
-                          />
+                          {(() => {
+                            const meta = productsMetadata[prod.id] || {};
+                            const prodImg = prod.image_url || (meta.images && meta.images[0]) || meta.image_url || (prod.images && prod.images[0]) || 'https://images.unsplash.com/photo-1541643600914-78b084683601?w=200';
+                            return (
+                              <img
+                                src={prodImg}
+                                alt={prod.name}
+                                onError={(e) => {
+                                  e.target.onerror = null;
+                                  e.target.src = 'https://images.unsplash.com/photo-1541643600914-78b084683601?w=200';
+                                }}
+                                className="w-full h-full object-cover group-hover/thumb:scale-105 transition-transform"
+                              />
+                            );
+                          })()}
                           {prod.video_url && (
                             <span className="absolute bottom-0 right-0 bg-red-600 text-white px-1 rounded-tl text-[8px] font-bold" title="Tiene Video Demostrativo">
                               ▶
@@ -951,15 +958,21 @@ export default function ProductCatalogManager({
                       {/* Product Info & Thumbnail */}
                       <div className="flex items-center gap-3 min-w-0 flex-grow">
                         <div className="w-11 h-11 rounded-lg bg-gray-100 border border-gray-200 overflow-hidden flex-shrink-0 shadow-sm">
-                          <img
-                            src={prod.image_url}
-                            alt={prod.name}
-                            onError={(e) => {
-                              e.target.onerror = null;
-                              e.target.src = 'https://images.unsplash.com/photo-1551028719-00167b16eac5?w=200';
-                            }}
-                            className="w-full h-full object-cover"
-                          />
+                          {(() => {
+                            const meta = productsMetadata[prod.id] || {};
+                            const prodImg = prod.image_url || (meta.images && meta.images[0]) || meta.image_url || 'https://images.unsplash.com/photo-1541643600914-78b084683601?w=200';
+                            return (
+                              <img
+                                src={prodImg}
+                                alt={prod.name}
+                                onError={(e) => {
+                                  e.target.onerror = null;
+                                  e.target.src = 'https://images.unsplash.com/photo-1541643600914-78b084683601?w=200';
+                                }}
+                                className="w-full h-full object-cover"
+                              />
+                            );
+                          })()}
                         </div>
                         <div className="min-w-0">
                           <p className="font-bold text-gray-900 text-xs truncate" title={prod.name}>

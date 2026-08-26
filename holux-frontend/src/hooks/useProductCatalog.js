@@ -1,6 +1,36 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 
 import { API_BASE_URL as API_BASE } from '../config/api';
+import { productsMetadata } from '../config/productsMetadata';
+
+export const enrichAdminProduct = (p) => {
+  if (!p || typeof p !== 'object') return p;
+  const meta = productsMetadata[p.id] || {};
+  const resolveImg = (url) => {
+    if (!url || typeof url !== 'string') return null;
+    if (url.includes('localhost:8000/storage/uploads/')) {
+      return '/uploads/' + url.split('localhost:8000/storage/uploads/')[1];
+    }
+    return url;
+  };
+  const images = (Array.isArray(p.images) && p.images.length > 0)
+    ? p.images.map(resolveImg).filter(Boolean)
+    : (Array.isArray(meta.images) && meta.images.length > 0
+        ? meta.images.map(resolveImg).filter(Boolean)
+        : (p.image_url ? [resolveImg(p.image_url)].filter(Boolean) : (meta.image_url ? [resolveImg(meta.image_url)].filter(Boolean) : [])));
+
+  const image_url = resolveImg(p.image_url) || (images && images[0]) || resolveImg(meta.image_url) || null;
+
+  return {
+    ...p,
+    brand: p.brand || meta.brand || (p.name ? p.name.split(' ')[0] : 'HOLUX'),
+    description: p.description || meta.description || '',
+    specs: (Array.isArray(p.specs) && p.specs.length > 0) ? p.specs : (meta.specs || []),
+    tags: (Array.isArray(p.tags) && p.tags.length > 0) ? p.tags : (meta.tags || []),
+    image_url,
+    images
+  };
+};
 
 export function useProductCatalog(token) {
   // Filters and Query State
@@ -101,7 +131,7 @@ export function useProductCatalog(token) {
       }
 
       const json = await res.json();
-      setProducts(json.data || []);
+      setProducts((json.data || []).map(enrichAdminProduct));
       setPagination({
         total: json.total || 0,
         current_page: json.current_page || 1,
