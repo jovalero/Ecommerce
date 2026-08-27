@@ -576,7 +576,7 @@ export default function App() {
   const [copiedCouponId, setCopiedCouponId] = useState(null);
   const [appliedCoupon, setAppliedCoupon] = useState(null);
 
-  // Customer coupons wallet logic - Isolated per authenticated user ID & Email
+  // Customer coupons wallet logic - Isolated per authenticated user ID & Email (0 by default)
   const getSyncedCustomerCoupons = () => {
     const currentUserId = userProfile?.id || (token ? 'auth_user' : 'guest');
     const userWalletKey = `holux_customer_coupons_wallet_${currentUserId}`;
@@ -596,46 +596,7 @@ export default function App() {
       }
     }
 
-    // Read admin database of coupons
-    const adminSaved = localStorage.getItem('holux_coupons_database');
-    let adminCouponsMap = new Map();
-    if (adminSaved) {
-      try {
-        const parsed = JSON.parse(adminSaved);
-        parsed.forEach(c => {
-          if (c && c.code) {
-            adminCouponsMap.set(c.code.toUpperCase().trim(), c);
-          }
-        });
-      } catch (e) {
-        console.error(e);
-      }
-    }
-
-    const validatedWallet = myWallet.filter(myC => {
-      if (myC.status === 'usado') return true;
-      const adminCoupon = adminCouponsMap.get((myC.code || '').toUpperCase().trim());
-      if (adminCoupon && adminCoupon.active === false) return false;
-      return true;
-    }).map(myC => {
-      const adminCoupon = adminCouponsMap.get((myC.code || '').toUpperCase().trim());
-      if (adminCoupon) {
-        const isExpired = adminCoupon.expiry_timestamp && adminCoupon.expiry_timestamp < Date.now();
-        return {
-          ...myC,
-          value: adminCoupon.value,
-          type: adminCoupon.type === 'percent' ? 'percentage' : (adminCoupon.type || 'percentage'),
-          min_spend: adminCoupon.minPurchase || adminCoupon.min_spend || 0,
-          origin: adminCoupon.origin || myC.origin || 'Promoción Redes 🏷️',
-          description: adminCoupon.description || myC.description,
-          expiry_timestamp: adminCoupon.expiry_timestamp || myC.expiry_timestamp,
-          status: myC.status === 'usado' ? 'usado' : (isExpired ? 'vencido' : 'disponible')
-        };
-      }
-      return myC;
-    });
-
-    return validatedWallet;
+    return Array.isArray(myWallet) ? myWallet : [];
   };
 
   const [customerCoupons, setCustomerCoupons] = useState(getSyncedCustomerCoupons);
@@ -690,7 +651,7 @@ export default function App() {
       window.removeEventListener('holux_coupons_updated', handleSyncCoupons);
       window.removeEventListener('storage', handleSyncCoupons);
     };
-  }, [userProfile?.id]);
+  }, [userProfile?.id, userProfile?.email]);
 
   // Sync assigned coupons from API for current customer
   useEffect(() => {
@@ -703,33 +664,31 @@ export default function App() {
     })
       .then(res => res.ok ? res.json() : [])
       .then(serverCoupons => {
-        if (Array.isArray(serverCoupons) && serverCoupons.length > 0) {
+        if (Array.isArray(serverCoupons)) {
           setCustomerCoupons(prev => {
             const currentUserId = userProfile?.id || (token ? 'auth_user' : 'guest');
-            const merged = [...prev];
-            serverCoupons.forEach(sc => {
-              const code = (sc.code || '').toUpperCase().trim();
-              if (!code) return;
-              const existingIdx = merged.findIndex(m => (m.code || '').toUpperCase().trim() === code);
-              const mapped = {
-                id: sc.id || ('coup-' + code),
-                code: code,
-                type: sc.type || 'percentage',
-                value: parseFloat(sc.value),
-                min_spend: parseFloat(sc.min_spend || sc.minPurchase || 0),
-                origin: sc.origin || 'Regalo Exclusivo 🎁',
-                description: sc.description || 'Descuento especial en tienda',
-                status: sc.status || 'disponible',
-                expiry_timestamp: sc.expiry_timestamp || (Date.now() + 14 * 86400000)
-              };
-              if (existingIdx >= 0) {
-                merged[existingIdx] = { ...merged[existingIdx], ...mapped };
-              } else {
-                merged.unshift(mapped);
+            const mapped = serverCoupons.map(sc => ({
+              id: sc.id || ('coup-' + sc.code),
+              code: (sc.code || '').toUpperCase().trim(),
+              type: sc.type || 'percentage',
+              value: parseFloat(sc.value),
+              min_spend: parseFloat(sc.min_spend || sc.minPurchase || 0),
+              origin: sc.origin || 'Regalo Exclusivo 🎁',
+              description: sc.description || 'Descuento especial en tienda',
+              status: sc.status || 'disponible',
+              expiry_timestamp: sc.expiry_timestamp || (Date.now() + 14 * 86400000)
+            })).filter(c => Boolean(c.code));
+
+            // Merge with local wallet
+            const combined = [...mapped];
+            prev.forEach(p => {
+              if (p && p.code && !combined.some(c => c.code === p.code)) {
+                combined.push(p);
               }
             });
-            localStorage.setItem(`holux_customer_coupons_wallet_${currentUserId}`, JSON.stringify(merged));
-            return merged;
+
+            localStorage.setItem(`holux_customer_coupons_wallet_${currentUserId}`, JSON.stringify(combined));
+            return combined;
           });
         }
       })
@@ -4266,44 +4225,44 @@ export default function App() {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {filteredCoupons.map(coupon => {
                           const isCopied = copiedCouponId === coupon.id;
-                          const daysLeft = Math.ceil((coupon.expiry_timestamp - Date.now()) / (1000 * 60 * 60 * 24));
+                          const daysLeft = Math.ceil(((coupon.expiry_timestamp || (Date.now() + 14 * 86400000)) - Date.now()) / (1000 * 60 * 60 * 24));
                           
-                          let urgencyColor = 'bg-emerald-100 text-emerald-800 border-emerald-300';
+                          let urgencyColor = 'bg-emerald-50 text-emerald-800 border-emerald-200';
                           let urgencyLabel = `Vence en ${daysLeft} días`;
                           if (daysLeft <= 1) {
-                            urgencyColor = 'bg-red-100 text-red-800 border-red-300 animate-pulse';
+                            urgencyColor = 'bg-rose-50 text-rose-700 border-rose-200';
                             urgencyLabel = '¡Vence HOY!';
                           } else if (daysLeft <= 7) {
-                            urgencyColor = 'bg-amber-100 text-amber-800 border-amber-300';
+                            urgencyColor = 'bg-amber-50 text-amber-800 border-amber-200';
                             urgencyLabel = `Vence en ${daysLeft} días`;
                           }
 
                           if (coupon.status === 'usado') {
                             return (
-                              <div key={coupon.id} className="relative bg-gray-50 border-2 border-dashed border-gray-300 p-5 rounded-2xl opacity-70 flex flex-col justify-between space-y-4 text-gray-700">
+                              <div key={coupon.id} className="relative bg-slate-50 border border-dashed border-slate-300 p-5 rounded-2xl opacity-70 flex flex-col justify-between space-y-4 text-slate-700">
                                 <div className="space-y-2">
                                   <div className="flex items-center justify-between">
-                                    <span className="text-[10px] font-bold bg-gray-200 text-gray-600 px-2.5 py-1 rounded font-mono-custom uppercase">
+                                    <span className="text-[10px] font-bold bg-slate-200 text-slate-600 px-2.5 py-1 rounded-lg font-mono-custom uppercase">
                                       {coupon.origin || 'Promoción'}
                                     </span>
-                                    <span className="text-[10px] font-bold bg-gray-300 text-gray-700 px-2.5 py-0.5 rounded font-mono-custom uppercase">
+                                    <span className="text-[10px] font-bold bg-slate-300 text-slate-700 px-2.5 py-0.5 rounded-md font-mono-custom uppercase">
                                       USADO
                                     </span>
                                   </div>
 
                                   <div className="flex items-baseline justify-between">
-                                    <span className="font-mono-custom text-xl font-extrabold text-gray-500 line-through">
+                                    <span className="font-mono-custom text-xl font-extrabold text-slate-400 line-through">
                                       {coupon.code}
                                     </span>
-                                    <span className="font-mono-custom text-lg font-bold text-gray-500">
-                                      {coupon.type === 'percentage' ? `${coupon.value}% OFF` : `${coupon.value.toLocaleString('es-AR')} OFF`}
+                                    <span className="font-mono-custom text-lg font-bold text-slate-400">
+                                      {coupon.type === 'percentage' ? `${coupon.value}% OFF` : `ARS $${Number(coupon.value).toLocaleString('es-AR')} OFF`}
                                     </span>
                                   </div>
 
-                                  <p className="text-[11px] text-gray-500 leading-relaxed">{coupon.description}</p>
+                                  <p className="text-[11px] text-slate-500 leading-relaxed">{coupon.description}</p>
                                 </div>
 
-                                <div className="pt-3 border-t border-gray-200 flex items-center justify-between text-[11px] font-mono-custom text-gray-500">
+                                <div className="pt-3 border-t border-slate-200 flex items-center justify-between text-[11px] font-mono-custom text-slate-500">
                                   <span>Usado el: {coupon.used_date || 'Recientemente'}</span>
                                   {coupon.used_order_id && (
                                     <button
@@ -4320,81 +4279,82 @@ export default function App() {
 
                           if (coupon.status === 'vencido') {
                             return (
-                              <div key={coupon.id} className="relative bg-gray-50 border-2 border-dashed border-gray-300 p-5 rounded-2xl opacity-60 flex flex-col justify-between space-y-4 text-gray-700">
+                              <div key={coupon.id} className="relative bg-slate-50 border border-dashed border-slate-300 p-5 rounded-2xl opacity-60 flex flex-col justify-between space-y-4 text-slate-700">
                                 <div className="space-y-2">
                                   <div className="flex items-center justify-between">
-                                    <span className="text-[10px] font-bold bg-gray-200 text-gray-600 px-2.5 py-1 rounded font-mono-custom uppercase">
+                                    <span className="text-[10px] font-bold bg-slate-200 text-slate-600 px-2.5 py-1 rounded-lg font-mono-custom uppercase">
                                       {coupon.origin || 'Promoción Expirada'}
                                     </span>
-                                    <span className="text-[10px] font-bold bg-red-100 text-red-700 border border-red-300 px-2.5 py-0.5 rounded font-mono-custom uppercase">
+                                    <span className="text-[10px] font-bold bg-red-100 text-red-700 border border-red-200 px-2.5 py-0.5 rounded-md font-mono-custom uppercase">
                                       VENCIDO
                                     </span>
                                   </div>
 
                                   <div className="flex items-baseline justify-between">
-                                    <span className="font-mono-custom text-xl font-extrabold text-gray-400 line-through">
+                                    <span className="font-mono-custom text-xl font-extrabold text-slate-400 line-through">
                                       {coupon.code}
                                     </span>
-                                    <span className="font-mono-custom text-lg font-bold text-gray-400 line-through">
-                                      {coupon.type === 'percentage' ? `${coupon.value}% OFF` : `${coupon.value.toLocaleString('es-AR')} OFF`}
+                                    <span className="font-mono-custom text-lg font-bold text-slate-400 line-through">
+                                      {coupon.type === 'percentage' ? `${coupon.value}% OFF` : `ARS $${Number(coupon.value).toLocaleString('es-AR')} OFF`}
                                     </span>
                                   </div>
 
-                                  <p className="text-[11px] text-gray-400 leading-relaxed">{coupon.description}</p>
+                                  <p className="text-[11px] text-slate-400 leading-relaxed">{coupon.description}</p>
                                 </div>
 
-                                <div className="pt-3 border-t border-gray-200 text-[11px] font-mono-custom text-gray-400 text-right">
+                                <div className="pt-3 border-t border-slate-200 text-[11px] font-mono-custom text-slate-400 text-right">
                                   Expiró el {new Date(coupon.expiry_timestamp).toLocaleDateString('es-AR')}
                                 </div>
                               </div>
                             );
                           }
 
-                          // DISPONIBLES (Ticket Style Premium)
+                          // DISPONIBLES (Clean Modern Cold Light / White Card)
                           return (
-                            <div key={coupon.id} className="relative bg-[#1C2321] text-white border-2 border-dashed border-[#3C6E71]/60 p-5 rounded-2xl shadow-lg flex flex-col justify-between space-y-4 hover:border-[#3C6E71] transition-all">
+                            <div key={coupon.id} className="relative bg-white border border-slate-200 hover:border-[#3C6E71]/70 p-5 rounded-2xl shadow-xs hover:shadow-md transition-all flex flex-col justify-between space-y-4 text-slate-800">
                               <div className="space-y-3">
-                                <div className="flex items-center justify-between">
-                                  <span className="text-[10px] font-bold bg-[#3C6E71]/30 text-[#F2EFE9] px-2.5 py-1 rounded border border-[#3C6E71]/40 font-mono-custom uppercase">
-                                    {coupon.origin || 'Beneficio Exclusivo'}
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="text-[10px] font-bold bg-slate-100 text-slate-700 px-2.5 py-1 rounded-lg border border-slate-200 font-mono-custom uppercase flex items-center gap-1.5">
+                                    <span>🎁</span>
+                                    <span>{coupon.origin || 'Cupón de Regalo'}</span>
                                   </span>
-                                  <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded border font-mono-custom uppercase ${urgencyColor}`}>
+                                  <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border font-mono-custom uppercase ${urgencyColor}`}>
                                     {urgencyLabel}
                                   </span>
                                 </div>
 
-                                <div className="flex items-baseline justify-between gap-2 border-b border-[#3C6E71]/30 pb-3">
+                                <div className="flex items-baseline justify-between gap-2 border-b border-slate-100 pb-3">
                                   <div className="flex items-center gap-2">
-                                    <span className="font-mono-custom text-2xl font-black text-[#F2EFE9] tracking-wider">
+                                    <span className="font-mono-custom text-2xl font-black text-slate-900 tracking-wider">
                                       {coupon.code}
                                     </span>
                                     <button
                                       onClick={() => handleCopyCouponCode(coupon.id, coupon.code)}
-                                      className={`p-1.5 rounded-lg transition-all cursor-pointer ${isCopied ? 'bg-emerald-600 text-white' : 'bg-white/10 hover:bg-white/20 text-gray-300'}`}
+                                      className={`p-1.5 rounded-lg transition-all cursor-pointer border ${isCopied ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-slate-50 hover:bg-slate-100 text-slate-600 border-slate-200'}`}
                                       title="Copiar Código"
                                     >
                                       {isCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                                     </button>
                                   </div>
 
-                                  <span className="font-display text-xl font-extrabold text-[#B85C38] shrink-0">
-                                    {coupon.type === 'percentage' ? `${coupon.value}% OFF` : `${coupon.value.toLocaleString('es-AR')} OFF`}
+                                  <span className="font-display text-lg font-black text-emerald-800 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-xl shrink-0">
+                                    {coupon.type === 'percentage' ? `${coupon.value}% OFF` : `ARS $${Number(coupon.value).toLocaleString('es-AR')} OFF`}
                                   </span>
                                 </div>
 
-                                <p className="text-xs text-gray-300 leading-relaxed font-sans">
+                                <p className="text-xs text-slate-600 leading-relaxed font-sans">
                                   {coupon.description}
                                 </p>
                               </div>
 
-                              <div className="pt-3 border-t border-[#3C6E71]/30 flex items-center justify-between gap-3">
-                                <span className="text-[10px] text-gray-400 font-mono-custom">
-                                  Min. compra: ${coupon.min_spend.toLocaleString('es-AR')}
+                              <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-3">
+                                <span className="text-[10px] text-slate-500 font-mono-custom font-medium">
+                                  {coupon.min_spend > 0 ? `Min. compra: $${Number(coupon.min_spend).toLocaleString('es-AR')}` : 'Sin mínimo de compra'}
                                 </span>
                                 
                                 <button
                                   onClick={() => handleUseCouponNow(coupon)}
-                                  className="px-4 py-2 bg-[#3C6E71] hover:bg-[#3C6E71]/90 text-white font-display text-xs font-bold uppercase tracking-wider rounded-xl transition-all shadow-md cursor-pointer flex items-center gap-1.5"
+                                  className="px-4 py-2 bg-[#3C6E71] hover:bg-[#3C6E71]/90 text-white font-display text-xs font-bold uppercase tracking-wider rounded-xl transition-all shadow-xs hover:shadow-sm cursor-pointer flex items-center gap-1.5 active:scale-[0.98]"
                                 >
                                   <span>USAR AHORA</span>
                                   <Sparkles className="w-3.5 h-3.5" />

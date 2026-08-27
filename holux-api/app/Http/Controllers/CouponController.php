@@ -15,26 +15,19 @@ class CouponController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $globalCoupons = CouponService::all();
         $userId = $request->attributes->get('user_id') ?? $request->user()?->id;
 
-        if ($userId) {
-            $userCoupons = CustomerMetadataService::getCoupons($userId);
-            if (!empty($userCoupons)) {
-                $merged = array_merge($userCoupons, $globalCoupons);
-                $seen = [];
-                $unique = [];
-                foreach ($merged as $c) {
-                    $code = strtoupper(trim($c['code'] ?? ''));
-                    if (!isset($seen[$code])) {
-                        $seen[$code] = true;
-                        $unique[] = $c;
-                    }
-                }
-                return response()->json($unique);
+        // If request is from customer /me/coupons endpoint
+        if ($request->is('api/me/coupons') || $request->is('me/coupons')) {
+            if ($userId) {
+                $userCoupons = CustomerMetadataService::getCoupons($userId);
+                return response()->json($userCoupons);
             }
+            return response()->json([]);
         }
 
+        // Otherwise (Admin / store-wide list)
+        $globalCoupons = CouponService::all();
         return response()->json($globalCoupons);
     }
 
