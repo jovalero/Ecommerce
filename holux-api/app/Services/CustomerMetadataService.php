@@ -89,6 +89,52 @@ class CustomerMetadataService
         return $data['tier'] ?? 'standard';
     }
 
+    public static function addCoupon(string $customerId, array $coupon): array
+    {
+        $meta = self::get($customerId);
+        $coupons = $meta['coupons'] ?? [];
+
+        $cleanCode = strtoupper(trim($coupon['code'] ?? ''));
+        $existingIndex = -1;
+        foreach ($coupons as $idx => $c) {
+            if (strtoupper(trim($c['code'] ?? '')) === $cleanCode) {
+                $existingIndex = $idx;
+                break;
+            }
+        }
+
+        $now = time();
+        $daysValid = (int) ($coupon['daysValid'] ?? 14);
+        $couponEntry = [
+            'id' => $coupon['id'] ?? ('coup-usr-' . uniqid()),
+            'code' => $cleanCode,
+            'type' => $coupon['type'] ?? 'percentage',
+            'value' => (float) ($coupon['value'] ?? 15),
+            'min_spend' => (float) ($coupon['min_spend'] ?? 0),
+            'origin' => $coupon['origin'] ?? 'Regalo Especial de Administración 🎁',
+            'description' => $coupon['description'] ?? 'Cupón de regalo exclusivo para tu cuenta.',
+            'status' => 'disponible',
+            'assigned_at' => date('Y-m-d H:i:s'),
+            'expiry_timestamp' => $coupon['expiry_timestamp'] ?? ($now + ($daysValid * 86400)),
+            'daysValid' => $daysValid,
+        ];
+
+        if ($existingIndex >= 0) {
+            $coupons[$existingIndex] = $couponEntry;
+        } else {
+            $coupons[] = $couponEntry;
+        }
+
+        self::set($customerId, ['coupons' => $coupons]);
+        return $couponEntry;
+    }
+
+    public static function getCoupons(string $customerId): array
+    {
+        $meta = self::get($customerId);
+        return $meta['coupons'] ?? [];
+    }
+
     public static function attach(array $customer): array
     {
         $id = $customer['id'] ?? null;
@@ -102,6 +148,7 @@ class CustomerMetadataService
         $customer['is_super_vip'] = ($tier === 'super_vip');
         $customer['customer_notes'] = $meta['notes'] ?? '';
         $customer['customer_tags'] = $meta['tags'] ?? [];
+        $customer['assigned_coupons'] = $meta['coupons'] ?? [];
 
         // Attach dynamic benefits
         $customer['benefits'] = VipSettingsService::getBenefitsForTier($tier);

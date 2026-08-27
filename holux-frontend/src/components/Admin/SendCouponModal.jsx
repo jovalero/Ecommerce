@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Tag, Gift, Send, Copy, Check, Percent, DollarSign, Calendar, MessageCircle, AlertCircle, Sparkles } from 'lucide-react';
+import { X, Tag, Gift, Send, Copy, Check, Percent, DollarSign, Calendar, MessageCircle, AlertCircle, Sparkles, CheckCircle2 } from 'lucide-react';
 import { API_BASE_URL } from '../../config/api';
 
 export default function SendCouponModal({ customer, onClose, token }) {
@@ -13,16 +13,19 @@ export default function SendCouponModal({ customer, onClose, token }) {
   // New coupon creation fields
   const [customCode, setCustomCode] = useState('');
   const [customType, setCustomType] = useState('percentage'); // 'percentage' | 'fixed'
-  const [customValue, setCustomValue] = useState(15);
+  const [customValue, setCustomValue] = useState(20);
   const [customMinSpend, setCustomMinSpend] = useState(0);
-  const [customDaysValid, setCustomDaysValid] = useState(7);
+  const [customDaysValid, setCustomDaysValid] = useState(14);
   const [customDescription, setCustomDescription] = useState('Cupón exclusivo para tu próxima compra.');
 
   // Phone input for sending
   const [targetPhone, setTargetPhone] = useState(customer?.phone || '');
   const [copied, setCopied] = useState(false);
   const [statusMessage, setStatusMessage] = useState(null);
+  const [assignedSuccess, setAssignedSuccess] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const customerName = customer?.full_name || customer?.name || 'Cliente';
 
   // Initialize custom code with customer name when opening
   useEffect(() => {
@@ -31,7 +34,7 @@ export default function SendCouponModal({ customer, onClose, token }) {
         .split(' ')[0]
         .toUpperCase()
         .replace(/[^A-Z0-9]/g, '');
-      setCustomCode(`${cleanName}15`);
+      setCustomCode(`${cleanName}20`);
       setTargetPhone(customer.phone || '');
     }
   }, [customer]);
@@ -71,7 +74,8 @@ export default function SendCouponModal({ customer, onClose, token }) {
         type: customType,
         value: customValue,
         min_spend: customMinSpend,
-        daysValid: customDaysValid
+        daysValid: customDaysValid,
+        description: customDescription
       };
 
   const discountText = activeCoupon?.type === 'percentage' 
@@ -79,8 +83,79 @@ export default function SendCouponModal({ customer, onClose, token }) {
     : `ARS $${(activeCoupon?.value || 0).toLocaleString('es-AR')} OFF`;
 
   // WhatsApp Message Generator
-  const customerName = customer?.full_name || customer?.name || 'Cliente';
-  const whatsappMessage = `¡Hola ${customerName}! ✨\n\nDesde *HOLUX* te enviamos un regalo exclusivo para tu próxima compra:\n\n🎟️ Cupón: *${activeCoupon?.code || 'HOLUX'}*\n🎁 Descuento: *${discountText}*${activeCoupon?.min_spend > 0 ? ` (En compras mayores a ARS $${activeCoupon.min_spend.toLocaleString('es-AR')})` : ''}\n🌐 Usalo acá: https://ecommerce-holux.vercel.app\n\n¡Esperamos que lo disfrutes! 🛍️✨`;
+  const whatsappMessage = `¡Hola ${customerName}! ✨\n\nDesde *HOLUX* te enviamos un regalo exclusivo para tu próxima compra:\n\n🎟️ Cupón: *${activeCoupon?.code || 'HOLUX'}*\n🎁 Descuento: *${discountText}*${activeCoupon?.min_spend > 0 ? ` (En compras mayores a ARS $${Number(activeCoupon.min_spend).toLocaleString('es-AR')})` : ''}\n🌐 Usalo acá: https://ecommerce-holux.vercel.app\n\n¡Esperamos que lo disfrutes! 🛍️✨`;
+
+  // 1. Assign Directly to Customer Account
+  const handleAssignDirectlyToAccount = async () => {
+    if (!activeCoupon?.code) {
+      alert('Por favor selecciona o crea un código de cupón.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    setStatusMessage(null);
+    setAssignedSuccess(false);
+
+    try {
+      // Step A: If mode is new, create it in global store coupons first
+      if (mode === 'new') {
+        const ok = await handleCreateCustomCoupon();
+        if (!ok) {
+          setIsSubmitting(false);
+          return;
+        }
+      }
+
+      // Step B: Assign to customer account via Backend API
+      const res = await fetch(`${API_BASE_URL}/api/admin/customers/${customer.id}/coupons`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token || localStorage.getItem('holux_auth_token')}`,
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          code: activeCoupon.code,
+          type: activeCoupon.type,
+          value: parseFloat(activeCoupon.value),
+          min_spend: parseFloat(activeCoupon.min_spend || 0),
+          daysValid: parseInt(activeCoupon.daysValid || 14),
+          origin: `Regalo Especial de Administración a ${customerName} 🎁`,
+          description: activeCoupon.description || 'Cupón exclusivo asignado por administración.'
+        })
+      });
+
+      // Step C: Also store in local client wallet for immediate view
+      try {
+        const walletKey = `holux_customer_coupons_wallet_${customer.id}`;
+        const existingWallet = JSON.parse(localStorage.getItem(walletKey) || '[]');
+        const newEntry = {
+          id: 'coup-assigned-' + Date.now(),
+          code: activeCoupon.code,
+          type: activeCoupon.type,
+          value: parseFloat(activeCoupon.value),
+          min_spend: parseFloat(activeCoupon.min_spend || 0),
+          origin: `Regalo Especial HOLUX 🎁`,
+          description: activeCoupon.description || 'Descuento exclusivo para tu cuenta.',
+          status: 'disponible',
+          expiry_timestamp: Date.now() + (parseInt(activeCoupon.daysValid || 14) * 86400000)
+        };
+        const updatedWallet = [newEntry, ...existingWallet.filter(c => c.code !== activeCoupon.code)];
+        localStorage.setItem(walletKey, JSON.stringify(updatedWallet));
+        window.dispatchEvent(new Event('storage'));
+      } catch (e) {
+        console.error(e);
+      }
+
+      setAssignedSuccess(true);
+      setStatusMessage(`¡Cupón "${activeCoupon.code}" asignado con éxito a la cuenta de ${customerName}! Cuando ingrese a la tienda le aparecerá listo para usar.`);
+    } catch (err) {
+      console.error(err);
+      alert('Error al asignar el cupón: ' + (err.message || 'Error de conexión'));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const handleCopyMessage = () => {
     navigator.clipboard.writeText(whatsappMessage);
@@ -88,12 +163,10 @@ export default function SendCouponModal({ customer, onClose, token }) {
     setStatusMessage('¡Mensaje y cupón copiados al portapapeles!');
     setTimeout(() => {
       setCopied(false);
-      setStatusMessage(null);
     }, 3000);
   };
 
   const handleSendWhatsApp = async () => {
-    // If creating a new coupon, save it first
     if (mode === 'new') {
       const ok = await handleCreateCustomCoupon();
       if (!ok) return;
@@ -113,7 +186,6 @@ export default function SendCouponModal({ customer, onClose, token }) {
       alert('Por favor ingresa un código de cupón.');
       return false;
     }
-    setIsSubmitting(true);
     try {
       const res = await fetch(`${API_BASE_URL}/api/admin/coupons`, {
         method: 'POST',
@@ -130,24 +202,20 @@ export default function SendCouponModal({ customer, onClose, token }) {
           allowed_tier: 'all',
           origin: `Regalo Directo a ${customerName}`,
           description: customDescription,
-          max_uses: 1,
-          daysValid: parseInt(customDaysValid) || 7
+          max_uses: 10,
+          daysValid: parseInt(customDaysValid) || 14
         })
       });
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.message || 'Error al guardar el cupón en la tienda.');
+        throw new Error(data.message || 'Error al guardar el cupón.');
       }
-
-      setStatusMessage(`¡Cupón ${customCode.toUpperCase().trim()} creado con éxito!`);
       return true;
     } catch (err) {
       console.error(err);
       alert(err.message || 'Error al crear cupón');
       return false;
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -316,16 +384,16 @@ export default function SendCouponModal({ customer, onClose, token }) {
             </div>
           )}
 
-          {/* Contact phone field */}
-          <div className="bg-white p-4 rounded-xl border border-gray-200 space-y-2">
+          {/* Target Phone input */}
+          <div className="bg-white p-3.5 rounded-xl border border-gray-200 space-y-1.5">
             <label className="text-[10px] font-bold text-gray-600 uppercase tracking-wider block">
-              📱 Teléfono / WhatsApp del Cliente (Opcional para envío directo)
+              📱 Teléfono / WhatsApp del Cliente (Opcional para aviso directo)
             </label>
             <input
               type="text"
               value={targetPhone}
               onChange={(e) => setTargetPhone(e.target.value)}
-              placeholder="Ej: +54 9 11 1234-5678"
+              placeholder="Ej: +54 9 11 2345-6789"
               className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:border-emerald-500 outline-none font-mono-custom font-bold text-gray-800"
             />
           </div>
@@ -335,7 +403,7 @@ export default function SendCouponModal({ customer, onClose, token }) {
             <div className="flex items-center justify-between text-emerald-900 font-bold text-[11px]">
               <span className="flex items-center gap-1.5">
                 <MessageCircle className="w-4 h-4 text-emerald-600" />
-                <span>Vista Previa del Mensaje:</span>
+                <span>Vista Previa del Mensaje de Aviso:</span>
               </span>
               <span className="text-[9px] uppercase bg-emerald-200/60 text-emerald-800 px-1.5 py-0.5 rounded font-mono-custom">
                 WhatsApp
@@ -346,32 +414,55 @@ export default function SendCouponModal({ customer, onClose, token }) {
             </div>
           </div>
 
+          {/* Feedback Status */}
           {statusMessage && (
-            <div className="bg-emerald-100 border border-emerald-300 text-emerald-900 p-2.5 rounded-lg text-center font-bold animate-in fade-in">
-              {statusMessage}
+            <div className={`p-3 rounded-xl text-center font-bold animate-in fade-in flex items-center justify-center gap-2 ${
+              assignedSuccess 
+                ? 'bg-emerald-100 border border-emerald-300 text-emerald-900 shadow-sm' 
+                : 'bg-blue-100 border border-blue-300 text-blue-900'
+            }`}>
+              {assignedSuccess && <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />}
+              <span>{statusMessage}</span>
             </div>
           )}
 
-          {/* Action Buttons */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+          {/* PRIMARY ACTION BUTTON: Assign directly to client account */}
+          <div className="space-y-3 pt-1">
             <button
               type="button"
-              onClick={handleSendWhatsApp}
+              onClick={handleAssignDirectlyToAccount}
               disabled={isSubmitting}
-              className="py-3 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-display font-bold text-xs tracking-wider uppercase transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer"
+              className="w-full py-3.5 px-4 bg-gradient-to-r from-amber-500 via-amber-600 to-amber-500 hover:from-amber-600 hover:to-amber-700 text-white rounded-xl font-display font-black text-xs tracking-wider uppercase transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2 cursor-pointer border border-amber-400/30 active:scale-[0.99] disabled:opacity-50"
             >
-              <MessageCircle className="w-4 h-4" />
-              <span>Enviar por WhatsApp</span>
+              <Sparkles className="w-4 h-4 fill-white text-white animate-pulse" />
+              <span>
+                {isSubmitting 
+                  ? 'ASIGNANDO AL CLIENTE...' 
+                  : `🎁 ASIGNAR Y ENVIAR DIRECTO A LA CUENTA DE ${customerName.toUpperCase()}`}
+              </span>
             </button>
 
-            <button
-              type="button"
-              onClick={handleCopyMessage}
-              className="py-3 px-4 bg-gray-800 hover:bg-gray-900 text-white rounded-xl font-display font-bold text-xs tracking-wider uppercase transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer"
-            >
-              {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-              <span>{copied ? '¡Copiado!' : 'Copiar Mensaje y Código'}</span>
-            </button>
+            {/* Secondary Notification Actions */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <button
+                type="button"
+                onClick={handleSendWhatsApp}
+                disabled={isSubmitting}
+                className="py-2.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-display font-bold text-xs tracking-wider uppercase transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <MessageCircle className="w-4 h-4" />
+                <span>Enviar por WhatsApp</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleCopyMessage}
+                className="py-2.5 px-3 bg-gray-800 hover:bg-gray-900 text-white rounded-xl font-display font-bold text-xs tracking-wider uppercase transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer"
+              >
+                {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                <span>{copied ? '¡Copiado!' : 'Copiar Mensaje y Código'}</span>
+              </button>
+            </div>
           </div>
 
         </div>

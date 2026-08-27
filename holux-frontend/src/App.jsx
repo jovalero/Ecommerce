@@ -686,6 +686,50 @@ export default function App() {
     };
   }, [userProfile?.id]);
 
+  // Sync assigned coupons from API for current customer
+  useEffect(() => {
+    if (!token) return;
+    fetch(`${API_BASE_URL}/api/me/coupons`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json'
+      }
+    })
+      .then(res => res.ok ? res.json() : [])
+      .then(serverCoupons => {
+        if (Array.isArray(serverCoupons) && serverCoupons.length > 0) {
+          setCustomerCoupons(prev => {
+            const currentUserId = userProfile?.id || (token ? 'auth_user' : 'guest');
+            const merged = [...prev];
+            serverCoupons.forEach(sc => {
+              const code = (sc.code || '').toUpperCase().trim();
+              if (!code) return;
+              const existingIdx = merged.findIndex(m => (m.code || '').toUpperCase().trim() === code);
+              const mapped = {
+                id: sc.id || ('coup-' + code),
+                code: code,
+                type: sc.type || 'percentage',
+                value: parseFloat(sc.value),
+                min_spend: parseFloat(sc.min_spend || sc.minPurchase || 0),
+                origin: sc.origin || 'Regalo Exclusivo 🎁',
+                description: sc.description || 'Descuento especial en tienda',
+                status: sc.status || 'disponible',
+                expiry_timestamp: sc.expiry_timestamp || (Date.now() + 14 * 86400000)
+              };
+              if (existingIdx >= 0) {
+                merged[existingIdx] = { ...merged[existingIdx], ...mapped };
+              } else {
+                merged.unshift(mapped);
+              }
+            });
+            localStorage.setItem(`holux_customer_coupons_wallet_${currentUserId}`, JSON.stringify(merged));
+            return merged;
+          });
+        }
+      })
+      .catch(() => {});
+  }, [token, userProfile?.id]);
+
   // Global Favorites State
   const [favorites, setFavorites] = useState(() => {
     try {

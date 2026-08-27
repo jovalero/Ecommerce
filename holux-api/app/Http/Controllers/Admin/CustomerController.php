@@ -248,4 +248,70 @@ class CustomerController extends Controller
             'settings' => VipSettingsService::get(),
         ]);
     }
+
+    /**
+     * Assign a gift/promo coupon directly to a customer account.
+     */
+    public function assignCoupon(Request $request, string $id, SupabaseService $supabase): JsonResponse
+    {
+        $request->validate([
+            'code' => ['required', 'string', 'min:2', 'max:50'],
+            'type' => ['nullable', 'string', 'in:percentage,fixed,percent'],
+            'value' => ['required', 'numeric', 'min:0.01'],
+            'min_spend' => ['nullable', 'numeric', 'min:0'],
+            'daysValid' => ['nullable', 'integer', 'min:1'],
+            'origin' => ['nullable', 'string'],
+            'description' => ['nullable', 'string'],
+        ]);
+
+        $code = strtoupper(trim($request->input('code')));
+        $type = $request->input('type') === 'fixed' ? 'fixed' : 'percentage';
+        $value = (float) $request->input('value', 15);
+        $minSpend = (float) $request->input('min_spend', 0);
+        $daysValid = (int) $request->input('daysValid', 14);
+        $description = $request->input('description', 'Cupón exclusivo asignado por administración.');
+        $origin = $request->input('origin', 'Regalo Especial de Administración 🎁');
+
+        // Ensure coupon exists in global CouponService as well so it is recognized at checkout
+        $globalCoupon = \App\Services\CouponService::findByCode($code);
+        if (!$globalCoupon) {
+            try {
+                \App\Services\CouponService::create([
+                    'code' => $code,
+                    'type' => $type,
+                    'value' => $value,
+                    'min_spend' => $minSpend,
+                    'allowed_tier' => 'all',
+                    'origin' => $origin,
+                    'description' => $description,
+                    'max_uses' => 10,
+                    'daysValid' => $daysValid,
+                ]);
+            } catch (\Throwable $e) {
+                // Ignore if already exists
+            }
+        }
+
+        $assigned = CustomerMetadataService::addCoupon($id, [
+            'code' => $code,
+            'type' => $type,
+            'value' => $value,
+            'min_spend' => $minSpend,
+            'daysValid' => $daysValid,
+            'origin' => $origin,
+            'description' => $description,
+        ]);
+
+        $adminUser = $request->user()?->email ?? 'admin@holux.com';
+        AdminLog::record($adminUser, 'CUSTOMER_COUPON_ASSIGNED', 'customers', [
+            'customer_id' => $id,
+            'coupon' => $assigned,
+        ]);
+
+        return response()->json([
+            'message' => "¡Cupón {$code} asignado con éxito a la cuenta del cliente!",
+            'coupon' => $assigned,
+            'coupons' => CustomerMetadataService::getCoupons($id),
+        ]);
+    }
 }

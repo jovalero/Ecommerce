@@ -181,6 +181,7 @@ Route::prefix('admin')->middleware(['throttle:api', 'auth.supabase', 'auth.admin
     Route::patch('/customers/{id}', [AdminCustomerController::class, 'update']); // activate/deactivate account
     Route::patch('/customers/{id}/tier', [AdminCustomerController::class, 'updateTier']); // set tier: standard, vip, super_vip
     Route::patch('/customers/{id}/vip', [AdminCustomerController::class, 'toggleVip']); // retrocompatible toggle
+    Route::post('/customers/{id}/coupons', [AdminCustomerController::class, 'assignCoupon']); // assign gift coupon to customer
     Route::get('/vip-settings', [AdminCustomerController::class, 'getVipSettings']);
     Route::put('/vip-settings', [AdminCustomerController::class, 'saveVipSettings']);
 
