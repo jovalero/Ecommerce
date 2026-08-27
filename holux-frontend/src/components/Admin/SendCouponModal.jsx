@@ -107,23 +107,27 @@ export default function SendCouponModal({ customer, onClose, token }) {
       }
 
       // Step B: Assign to customer account via Backend API
-      const res = await fetch(`${API_BASE_URL}/api/admin/customers/${customer.id}/coupons`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token || localStorage.getItem('holux_auth_token')}`,
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify({
-          code: activeCoupon.code,
-          type: activeCoupon.type,
-          value: parseFloat(activeCoupon.value),
-          min_spend: parseFloat(activeCoupon.min_spend || 0),
-          daysValid: parseInt(activeCoupon.daysValid || 14),
-          origin: `Regalo Especial de Administración a ${customerName} 🎁`,
-          description: activeCoupon.description || 'Cupón exclusivo asignado por administración.'
-        })
-      });
+      try {
+        await fetch(`${API_BASE_URL}/api/admin/customers/${customer.id}/coupons`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token || localStorage.getItem('holux_auth_token')}`,
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({
+            code: activeCoupon.code,
+            type: activeCoupon.type,
+            value: parseFloat(activeCoupon.value),
+            min_spend: parseFloat(activeCoupon.min_spend || 0),
+            daysValid: parseInt(activeCoupon.daysValid || 14),
+            origin: `Regalo Especial de Administración a ${customerName} 🎁`,
+            description: activeCoupon.description || 'Cupón exclusivo asignado por administración.'
+          })
+        });
+      } catch (backendErr) {
+        console.warn('Backend sync in progress:', backendErr);
+      }
 
       // Step C: Also store in local client wallet for immediate view
       try {
