@@ -99,40 +99,34 @@ export default function SendCouponModal({ customer, onClose, token }) {
     try {
       // Step A: If mode is new, create it in global store coupons first
       if (mode === 'new') {
-        const ok = await handleCreateCustomCoupon();
-        if (!ok) {
-          setIsSubmitting(false);
-          return;
-        }
+        await handleCreateCustomCoupon();
       }
 
-      // Step B: Assign to customer account via Backend API
+      // Step B: Save/ensure in global store database (holux_coupons_database)
       try {
-        await fetch(`${API_BASE_URL}/api/admin/customers/${customer.id}/coupons`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token || localStorage.getItem('holux_auth_token')}`,
-            'Accept': 'application/json'
-          },
-          body: JSON.stringify({
-            code: activeCoupon.code,
-            type: activeCoupon.type,
-            value: parseFloat(activeCoupon.value),
-            min_spend: parseFloat(activeCoupon.min_spend || 0),
-            daysValid: parseInt(activeCoupon.daysValid || 14),
-            origin: `Regalo Especial de Administración a ${customerName} 🎁`,
-            description: activeCoupon.description || 'Cupón exclusivo asignado por administración.'
-          })
-        });
-      } catch (backendErr) {
-        console.warn('Backend sync in progress:', backendErr);
+        const dbKey = 'holux_coupons_database';
+        const existingDb = JSON.parse(localStorage.getItem(dbKey) || '[]');
+        const globalEntry = {
+          id: 'coup-admin-' + Date.now(),
+          code: activeCoupon.code,
+          type: activeCoupon.type,
+          value: parseFloat(activeCoupon.value),
+          minPurchase: parseFloat(activeCoupon.min_spend || 0),
+          origin: `Regalo Especial HOLUX 🎁`,
+          description: activeCoupon.description || 'Descuento exclusivo para tu cuenta.',
+          active: true,
+          maxUses: 100,
+          usedCount: 0,
+          expiry_timestamp: Date.now() + (parseInt(activeCoupon.daysValid || 14) * 86400000)
+        };
+        const updatedDb = [globalEntry, ...existingDb.filter(c => c.code !== activeCoupon.code)];
+        localStorage.setItem(dbKey, JSON.stringify(updatedDb));
+      } catch (e) {
+        console.error(e);
       }
 
-      // Step C: Also store in local client wallet for immediate view
+      // Step C: Store in customer wallet by both User ID and User Email
       try {
-        const walletKey = `holux_customer_coupons_wallet_${customer.id}`;
-        const existingWallet = JSON.parse(localStorage.getItem(walletKey) || '[]');
         const newEntry = {
           id: 'coup-assigned-' + Date.now(),
           code: activeCoupon.code,
@@ -144,8 +138,25 @@ export default function SendCouponModal({ customer, onClose, token }) {
           status: 'disponible',
           expiry_timestamp: Date.now() + (parseInt(activeCoupon.daysValid || 14) * 86400000)
         };
-        const updatedWallet = [newEntry, ...existingWallet.filter(c => c.code !== activeCoupon.code)];
-        localStorage.setItem(walletKey, JSON.stringify(updatedWallet));
+
+        // 1. By customer ID
+        if (customer?.id) {
+          const idKey = `holux_customer_coupons_wallet_${customer.id}`;
+          const currentIdWallet = JSON.parse(localStorage.getItem(idKey) || '[]');
+          const updatedIdWallet = [newEntry, ...currentIdWallet.filter(c => c.code !== activeCoupon.code)];
+          localStorage.setItem(idKey, JSON.stringify(updatedIdWallet));
+        }
+
+        // 2. By customer Email
+        if (customer?.email) {
+          const emailKey = `holux_customer_coupons_wallet_${customer.email}`;
+          const currentEmailWallet = JSON.parse(localStorage.getItem(emailKey) || '[]');
+          const updatedEmailWallet = [newEntry, ...currentEmailWallet.filter(c => c.code !== activeCoupon.code)];
+          localStorage.setItem(emailKey, JSON.stringify(updatedEmailWallet));
+        }
+
+        // Dispatch events for immediate UI reactivity
+        window.dispatchEvent(new CustomEvent('holux_coupons_updated'));
         window.dispatchEvent(new Event('storage'));
       } catch (e) {
         console.error(e);

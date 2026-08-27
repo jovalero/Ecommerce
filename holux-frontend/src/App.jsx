@@ -576,11 +576,17 @@ export default function App() {
   const [copiedCouponId, setCopiedCouponId] = useState(null);
   const [appliedCoupon, setAppliedCoupon] = useState(null);
 
-  // Customer coupons wallet logic - Isolated per authenticated user ID
+  // Customer coupons wallet logic - Isolated per authenticated user ID & Email
   const getSyncedCustomerCoupons = () => {
     const currentUserId = userProfile?.id || (token ? 'auth_user' : 'guest');
     const userWalletKey = `holux_customer_coupons_wallet_${currentUserId}`;
-    const savedWallet = localStorage.getItem(userWalletKey);
+    let savedWallet = localStorage.getItem(userWalletKey);
+
+    // If not found by ID, try finding by email
+    if (!savedWallet && userProfile?.email) {
+      savedWallet = localStorage.getItem(`holux_customer_coupons_wallet_${userProfile.email}`);
+    }
+
     let myWallet = [];
     if (savedWallet) {
       try {
@@ -608,18 +614,18 @@ export default function App() {
 
     const validatedWallet = myWallet.filter(myC => {
       if (myC.status === 'usado') return true;
-      const adminCoupon = adminCouponsMap.get(myC.code.toUpperCase().trim());
-      if (!adminCoupon || adminCoupon.active === false) return false;
+      const adminCoupon = adminCouponsMap.get((myC.code || '').toUpperCase().trim());
+      if (adminCoupon && adminCoupon.active === false) return false;
       return true;
     }).map(myC => {
-      const adminCoupon = adminCouponsMap.get(myC.code.toUpperCase().trim());
+      const adminCoupon = adminCouponsMap.get((myC.code || '').toUpperCase().trim());
       if (adminCoupon) {
         const isExpired = adminCoupon.expiry_timestamp && adminCoupon.expiry_timestamp < Date.now();
         return {
           ...myC,
           value: adminCoupon.value,
-          type: adminCoupon.type === 'percent' ? 'percentage' : 'fixed',
-          min_spend: adminCoupon.minPurchase || 0,
+          type: adminCoupon.type === 'percent' ? 'percentage' : (adminCoupon.type || 'percentage'),
+          min_spend: adminCoupon.minPurchase || adminCoupon.min_spend || 0,
           origin: adminCoupon.origin || myC.origin || 'Promoción Redes 🏷️',
           description: adminCoupon.description || myC.description,
           expiry_timestamp: adminCoupon.expiry_timestamp || myC.expiry_timestamp,
