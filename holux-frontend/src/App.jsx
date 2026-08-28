@@ -576,6 +576,22 @@ export default function App() {
   const [copiedCouponId, setCopiedCouponId] = useState(null);
   const [appliedCoupon, setAppliedCoupon] = useState(null);
 
+  // Helper to normalize timestamp to milliseconds (supports seconds from PHP and ms from JS)
+  const normalizeCouponTimestamp = (ts) => {
+    if (!ts) return Date.now() + (14 * 86400000);
+    const num = typeof ts === 'string' ? Number(ts) : ts;
+    if (!num || isNaN(num)) return Date.now() + (14 * 86400000);
+    return num < 10000000000 ? num * 1000 : num;
+  };
+
+  const getCouponDynamicStatus = (coupon) => {
+    if (!coupon) return 'disponible';
+    if (coupon.status === 'usado') return 'usado';
+    const expiryMs = normalizeCouponTimestamp(coupon.expiry_timestamp);
+    if (expiryMs < Date.now()) return 'vencido';
+    return 'disponible';
+  };
+
   // Customer coupons wallet logic - Isolated per authenticated user ID & Email (0 by default)
   const getSyncedCustomerCoupons = () => {
     const currentUserId = userProfile?.id || (token ? 'auth_user' : 'guest');
@@ -591,6 +607,12 @@ export default function App() {
     if (savedWallet) {
       try {
         myWallet = JSON.parse(savedWallet);
+        if (Array.isArray(myWallet)) {
+          myWallet = myWallet.map(c => ({
+            ...c,
+            expiry_timestamp: normalizeCouponTimestamp(c.expiry_timestamp)
+          }));
+        }
       } catch (e) {
         console.error(e);
       }
@@ -676,7 +698,7 @@ export default function App() {
               origin: sc.origin || 'Regalo Exclusivo 🎁',
               description: sc.description || 'Descuento especial en tienda',
               status: sc.status || 'disponible',
-              expiry_timestamp: sc.expiry_timestamp || (Date.now() + 14 * 86400000)
+              expiry_timestamp: normalizeCouponTimestamp(sc.expiry_timestamp)
             })).filter(c => Boolean(c.code));
 
             // Merge with local wallet
@@ -4169,9 +4191,9 @@ export default function App() {
                   {/* Status Tabs (Disponibles, Usados, Vencidos) */}
                   <div className="flex items-center gap-2 text-xs font-display">
                     {[
-                      { key: 'disponibles', label: 'Disponibles', count: customerCoupons.filter(c => c.status === 'disponible').length },
-                      { key: 'usados', label: 'Usados', count: customerCoupons.filter(c => c.status === 'usado').length },
-                      { key: 'vencidos', label: 'Vencidos', count: customerCoupons.filter(c => c.status === 'vencido').length }
+                      { key: 'disponibles', label: 'Disponibles', count: customerCoupons.filter(c => getCouponDynamicStatus(c) === 'disponible').length },
+                      { key: 'usados', label: 'Usados', count: customerCoupons.filter(c => getCouponDynamicStatus(c) === 'usado').length },
+                      { key: 'vencidos', label: 'Vencidos', count: customerCoupons.filter(c => getCouponDynamicStatus(c) === 'vencido').length }
                     ].map(tab => (
                       <button
                         key={tab.key}
@@ -4190,15 +4212,16 @@ export default function App() {
                   {(() => {
                     const filteredCoupons = customerCoupons
                       .filter(c => {
-                        if (couponsTabFilter === 'disponibles') return c.status === 'disponible';
-                        if (couponsTabFilter === 'usados') return c.status === 'usado';
-                        if (couponsTabFilter === 'vencidos') return c.status === 'vencido';
+                        const dynStatus = getCouponDynamicStatus(c);
+                        if (couponsTabFilter === 'disponibles') return dynStatus === 'disponible';
+                        if (couponsTabFilter === 'usados') return dynStatus === 'usado';
+                        if (couponsTabFilter === 'vencidos') return dynStatus === 'vencido';
                         return true;
                       })
                       .filter(c => {
                         if (!couponSearchQuery.trim()) return true;
                         const q = couponSearchQuery.toLowerCase();
-                        return c.code.toLowerCase().includes(q) || (c.origin && c.origin.toLowerCase().includes(q));
+                        return (c.code || '').toLowerCase().includes(q) || (c.origin && c.origin.toLowerCase().includes(q));
                       });
 
                     if (filteredCoupons.length === 0) {
@@ -4225,19 +4248,28 @@ export default function App() {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {filteredCoupons.map(coupon => {
                           const isCopied = copiedCouponId === coupon.id;
-                          const daysLeft = Math.ceil(((coupon.expiry_timestamp || (Date.now() + 14 * 86400000)) - Date.now()) / (1000 * 60 * 60 * 24));
+                          const dynStatus = getCouponDynamicStatus(coupon);
+                          const expiryMs = normalizeCouponTimestamp(coupon.expiry_timestamp);
+                          const msLeft = expiryMs - Date.now();
+                          const daysLeft = Math.ceil(msLeft / (1000 * 60 * 60 * 24));
                           
                           let urgencyColor = 'bg-emerald-50 text-emerald-800 border-emerald-200';
                           let urgencyLabel = `Vence en ${daysLeft} días`;
-                          if (daysLeft <= 1) {
-                            urgencyColor = 'bg-rose-50 text-rose-700 border-rose-200';
+                          if (daysLeft <= 0 || dynStatus === 'vencido') {
+                            urgencyColor = 'bg-slate-100 text-slate-500 border-slate-200';
+                            urgencyLabel = 'Vencido';
+                          } else if (daysLeft === 1) {
+                            urgencyColor = 'bg-rose-50 text-rose-700 border-rose-200 animate-pulse';
                             urgencyLabel = '¡Vence HOY!';
                           } else if (daysLeft <= 7) {
                             urgencyColor = 'bg-amber-50 text-amber-800 border-amber-200';
                             urgencyLabel = `Vence en ${daysLeft} días`;
+                          } else {
+                            urgencyColor = 'bg-emerald-50 text-emerald-800 border-emerald-200';
+                            urgencyLabel = `Vence en ${daysLeft} días`;
                           }
 
-                          if (coupon.status === 'usado') {
+                          if (dynStatus === 'usado') {
                             return (
                               <div key={coupon.id} className="relative bg-slate-50 border border-dashed border-slate-300 p-5 rounded-2xl opacity-70 flex flex-col justify-between space-y-4 text-slate-700">
                                 <div className="space-y-2">
@@ -4277,7 +4309,7 @@ export default function App() {
                             );
                           }
 
-                          if (coupon.status === 'vencido') {
+                          if (dynStatus === 'vencido') {
                             return (
                               <div key={coupon.id} className="relative bg-slate-50 border border-dashed border-slate-300 p-5 rounded-2xl opacity-60 flex flex-col justify-between space-y-4 text-slate-700">
                                 <div className="space-y-2">
@@ -4303,7 +4335,7 @@ export default function App() {
                                 </div>
 
                                 <div className="pt-3 border-t border-slate-200 text-[11px] font-mono-custom text-slate-400 text-right">
-                                  Expiró el {new Date(coupon.expiry_timestamp).toLocaleDateString('es-AR')}
+                                  Expiró el {new Date(expiryMs).toLocaleDateString('es-AR')}
                                 </div>
                               </div>
                             );
