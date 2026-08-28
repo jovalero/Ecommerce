@@ -44,7 +44,7 @@ class MediaUploadController extends Controller
                     Log::warning("Supabase storage upload failed, saving to local public disk: " . $e->getMessage());
                     // Fallback to local Laravel public uploads folder
                     $localPath = $file->storeAs('uploads', $fullPath, 'public');
-                    $publicUrl = asset('storage/' . $localPath);
+                    $publicUrl = str_replace('http://', 'https://', asset('storage/' . $localPath));
                     return response()->json([
                         'url' => $publicUrl,
                         'storage' => 'local_cdn',
@@ -78,7 +78,7 @@ class MediaUploadController extends Controller
                         } catch (\Throwable $e) {
                             Log::warning("Supabase base64 upload failed, saving to local public disk: " . $e->getMessage());
                             \Illuminate\Support\Facades\Storage::disk('public')->put("uploads/{$fullPath}", $base64Decoded);
-                            $publicUrl = asset('storage/uploads/' . $fullPath);
+                            $publicUrl = str_replace('http://', 'https://', asset('storage/uploads/' . $fullPath));
                             return response()->json([
                                 'url' => $publicUrl,
                                 'storage' => 'local_cdn',

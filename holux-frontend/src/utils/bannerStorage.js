@@ -146,7 +146,11 @@ export async function uploadOrCompressBanner(file, API_BASE_URL, token) {
       if (res.ok) {
         const data = await res.json();
         if (data && data.url) {
-          return data.url;
+          let cleanUrl = String(data.url).trim();
+          if (cleanUrl.startsWith('http://holux-api.onrender.com')) {
+            cleanUrl = cleanUrl.replace('http://holux-api.onrender.com', 'https://holux-api.onrender.com');
+          }
+          return cleanUrl;
         }
       }
     } catch (err) {

@@ -356,10 +356,14 @@ export const enrichProductItem = (p) => {
   const meta = productsMetadata[p.id] || {};
   const resolveImg = (url) => {
     if (!url || typeof url !== 'string') return null;
-    if (url.includes('localhost:8000/storage/uploads/')) {
-      return '/uploads/' + url.split('localhost:8000/storage/uploads/')[1];
+    let clean = url.trim();
+    if (clean.startsWith('http://holux-api.onrender.com')) {
+      clean = clean.replace('http://holux-api.onrender.com', 'https://holux-api.onrender.com');
     }
-    return url;
+    if (clean.includes('localhost:8000/storage/uploads/')) {
+      return '/uploads/' + clean.split('localhost:8000/storage/uploads/')[1];
+    }
+    return clean;
   };
   const images = (Array.isArray(p.images) && p.images.length > 0)
     ? p.images.map(resolveImg).filter(Boolean)
@@ -1246,10 +1250,14 @@ export default function App() {
         const meta = productsMetadata[p.id] || {};
         const resolveImg = (url) => {
           if (!url || typeof url !== 'string') return null;
-          if (url.includes('localhost:8000/storage/uploads/')) {
-            return '/uploads/' + url.split('localhost:8000/storage/uploads/')[1];
+          let clean = url.trim();
+          if (clean.startsWith('http://holux-api.onrender.com')) {
+            clean = clean.replace('http://holux-api.onrender.com', 'https://holux-api.onrender.com');
           }
-          return url;
+          if (clean.includes('localhost:8000/storage/uploads/')) {
+            return '/uploads/' + clean.split('localhost:8000/storage/uploads/')[1];
+          }
+          return clean;
         };
         const images = (Array.isArray(p.images) && p.images.length > 0)
           ? p.images.map(resolveImg)
@@ -7274,10 +7282,14 @@ export default function App() {
                   const meta = productsMetadata[selectedDetailProduct.id] || {};
                   const resolveImg = (url) => {
                     if (!url || typeof url !== 'string') return null;
-                    if (url.includes('localhost:8000/storage/uploads/')) {
-                      return '/uploads/' + url.split('localhost:8000/storage/uploads/')[1];
+                    let clean = url.trim();
+                    if (clean.startsWith('http://holux-api.onrender.com')) {
+                      clean = clean.replace('http://holux-api.onrender.com', 'https://holux-api.onrender.com');
                     }
-                    return url;
+                    if (clean.includes('localhost:8000/storage/uploads/')) {
+                      return '/uploads/' + clean.split('localhost:8000/storage/uploads/')[1];
+                    }
+                    return clean;
                   };
 
                   let imgList = [];

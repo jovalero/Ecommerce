@@ -51,14 +51,23 @@ export default function ProductEditModal({ product, categories = [], onClose, on
   const [stock, setStock] = useState(product?.stock ?? 10);
   const [installments, setInstallments] = useState(product?.installments || 6);
 
+  const normalizeHttpsUrl = (url) => {
+    if (!url || typeof url !== 'string') return url;
+    let clean = url.trim();
+    if (clean.startsWith('http://holux-api.onrender.com')) {
+      clean = clean.replace('http://holux-api.onrender.com', 'https://holux-api.onrender.com');
+    }
+    return clean;
+  };
+
   // Media (Images & Video)
   const [images, setImages] = useState(
     Array.isArray(product?.images) && product.images.length > 0
-      ? product.images
-      : (product?.image_url ? [product.image_url] : ['https://images.unsplash.com/photo-1551028719-00167b16eac5?w=800&auto=format&fit=crop&q=80'])
+      ? product.images.map(normalizeHttpsUrl)
+      : (product?.image_url ? [normalizeHttpsUrl(product.image_url)] : ['https://images.unsplash.com/photo-1551028719-00167b16eac5?w=800&auto=format&fit=crop&q=80'])
   );
   const [newImageUrl, setNewImageUrl] = useState('');
-  const [videoUrl, setVideoUrl] = useState(product?.video_url || '');
+  const [videoUrl, setVideoUrl] = useState(normalizeHttpsUrl(product?.video_url || ''));
 
   // Variants State & Drag & Drop Reordering
   const [variants, setVariants] = useState(
@@ -263,10 +272,11 @@ export default function ProductEditModal({ product, categories = [], onClose, on
         if (res.ok) {
           const data = await res.json();
           if (data.url) {
+            const cleanUrl = normalizeHttpsUrl(data.url);
             if (file.type.startsWith('video/')) {
-              setVideoUrl(data.url);
+              setVideoUrl(cleanUrl);
             } else {
-              setImages(prev => [...prev, data.url]);
+              setImages(prev => [...prev, cleanUrl]);
             }
             continue;
           }
@@ -311,10 +321,11 @@ export default function ProductEditModal({ product, categories = [], onClose, on
         if (res.ok) {
           const data = await res.json();
           if (data.url) {
+            const cleanUrl = normalizeHttpsUrl(data.url);
             if (file.type.startsWith('video/')) {
-              setVideoUrl(data.url);
+              setVideoUrl(cleanUrl);
             } else {
-              setImages(prev => [...prev, data.url]);
+              setImages(prev => [...prev, cleanUrl]);
             }
             continue;
           }
