@@ -660,36 +660,42 @@ export default function App() {
       }
     });
 
-    // Universal Cloud Store Settings Fetch (ensures mobile devices & customers get latest banners)
-    fetch(`${API_BASE_URL}/api/settings`).then(res => res.json()).then(data => {
-      if (data?.settings) {
-        const s = data.settings;
-        if (s.hero_slides && Array.isArray(s.hero_slides) && s.hero_slides.length > 0) {
-          setHeroSlides(s.hero_slides);
-          persistBannerData('holux_hero_slides', s.hero_slides);
-        }
-        if (s.grid_cards && Array.isArray(s.grid_cards) && s.grid_cards.length > 0) {
-          setGridPromoCards(s.grid_cards);
-          persistBannerData('holux_grid_promo_cards', s.grid_cards);
-        }
-        if (s.promo_banner && typeof s.promo_banner === 'object') {
-          setPromoBanner(s.promo_banner);
-          persistBannerData('holux_promo_banner', s.promo_banner);
-        }
-        if (s.section_titles && typeof s.section_titles === 'object') {
-          setHomeSectionTitles(s.section_titles);
-          persistBannerData('holux_home_section_titles', s.section_titles);
-        }
-        if (s.ticker_phrases && Array.isArray(s.ticker_phrases) && s.ticker_phrases.length > 0) {
-          setTickerPhrases(s.ticker_phrases);
-          persistBannerData('holux_ticker_phrases', s.ticker_phrases);
-        }
-        if (s.header_nav && Array.isArray(s.header_nav) && s.header_nav.length > 0) {
-          setHeaderNavItems(s.header_nav);
-          persistBannerData('holux_header_nav_items', s.header_nav);
-        }
+    // Universal Cloud Store Settings Fetch (ensures mobile devices & customers get latest banners from Supabase)
+    const applyStoreSettings = (s) => {
+      if (!s || typeof s !== 'object') return;
+      if (s.hero_slides && Array.isArray(s.hero_slides) && s.hero_slides.length > 0) {
+        setHeroSlides(s.hero_slides);
       }
-    }).catch(() => {});
+      if (s.grid_cards && Array.isArray(s.grid_cards) && s.grid_cards.length > 0) {
+        setGridPromoCards(s.grid_cards);
+      }
+      if (s.promo_banner && typeof s.promo_banner === 'object') {
+        setPromoBanner(s.promo_banner);
+      }
+      if (s.section_titles && typeof s.section_titles === 'object') {
+        setHomeSectionTitles(s.section_titles);
+      }
+      if (s.ticker_phrases && Array.isArray(s.ticker_phrases) && s.ticker_phrases.length > 0) {
+        setTickerPhrases(s.ticker_phrases);
+      }
+      if (s.header_nav && Array.isArray(s.header_nav) && s.header_nav.length > 0) {
+        setHeaderNavItems(s.header_nav);
+      }
+    };
+
+    // 1. Fetch direct from Supabase CDN (0ms, ultra-fast global CDN)
+    fetch('https://fmbhcfsrsfkglmvgbnlm.supabase.co/storage/v1/object/public/product-images/config/store_settings.json')
+      .then(r => r.json())
+      .then(applyStoreSettings)
+      .catch(() => {});
+
+    // 2. Fetch from backend API
+    fetch(`${API_BASE_URL}/api/settings`)
+      .then(res => res.json())
+      .then(data => {
+        if (data?.settings) applyStoreSettings(data.settings);
+      })
+      .catch(() => {});
   }, []);
 
   // Real-time synchronization for banner updates across tabs/modals

@@ -60,21 +60,46 @@ class StoreSettingService
 
     public static function getRaw(): array
     {
+        $defaults = self::defaults();
         $file = self::getStoragePath();
-        if (!File::exists($file)) {
-            $defaults = self::defaults();
-            self::saveRaw($defaults);
-            return $defaults;
+
+        // 1. Try fetching live from Supabase Storage CDN first (Universal Source of Truth)
+        try {
+            $supabaseUrl = config('services.supabase.url', 'https://fmbhcfsrsfkglmvgbnlm.supabase.co');
+            $client = new \GuzzleHttp\Client(['timeout' => 3.0]);
+            $res = $client->get(rtrim($supabaseUrl, '/') . '/storage/v1/object/public/product-images/config/store_settings.json');
+            if ($res->getStatusCode() === 200) {
+                $supabaseData = json_decode($res->getBody()->getContents(), true);
+                if (is_array($supabaseData) && !empty($supabaseData)) {
+                    File::put($file, json_encode($supabaseData, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+                    return array_merge($defaults, $supabaseData);
+                }
+            }
+        } catch (\Throwable $e) {
+            // Fallback to local cache if offline
         }
 
-        $content = File::get($file);
-        $saved = json_decode($content, true) ?: [];
-        return array_merge(self::defaults(), $saved);
+        if (File::exists($file)) {
+            $content = File::get($file);
+            $saved = json_decode($content, true) ?: [];
+            return array_merge($defaults, $saved);
+        }
+
+        return $defaults;
     }
 
     public static function saveRaw(array $data): void
     {
-        File::put(self::getStoragePath(), json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+        $json = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        File::put(self::getStoragePath(), $json);
+
+        // Upload to Supabase Storage CDN so all servers, devices and clients share the exact same state
+        try {
+            $supabase = app(\App\Services\SupabaseService::class);
+            $supabase->uploadStorageFile('product-images', 'config/store_settings.json', $json, 'application/json');
+        } catch (\Throwable $e) {
+            Log::warning("Failed to sync store_settings to Supabase Storage: " . $e->getMessage());
+        }
     }
 
     /**
