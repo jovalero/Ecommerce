@@ -240,7 +240,7 @@ const CheckoutView = memo(({
   const [checkoutCouponError, setCheckoutCouponError] = React.useState('');
 
   // Dynamic Payment Methods Configuration from Admin Settings
-  const [paymentMethodsConfig] = React.useState(() => {
+  const [paymentMethodsConfig, setPaymentMethodsConfig] = React.useState(() => {
     try {
       const saved = localStorage.getItem('holux_payment_methods_config');
       if (saved) return JSON.parse(saved);
@@ -250,6 +250,19 @@ const CheckoutView = memo(({
       { id: 'mercadopago_checkout_pro', name: 'PAGAR CON TU CUENTA DE MERCADO PAGO (CHECKOUT PRO)', description: 'Paga con Dinero en Cuenta MP, Mercado Crédito, QR, Rapipago o Pago Fácil. Redirección oficial 100% segura.', badge: 'OFICIAL MP', icon: 'mp', isEnabled: true },
       { id: 'mercadopago', name: 'TARJETA DE CRÉDITO / DÉBITO (MERCADO PAGO BRICKS)', description: 'Formulario directo en la web con tokenización oficial PCI-DSS', badge: 'TARJETAS', icon: 'card', isEnabled: true }
     ];
+  });
+
+  const [bankSettings, setBankSettings] = React.useState(() => {
+    try {
+      const saved = localStorage.getItem('holux_bank_settings');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return {
+      cbu: '0170098520000001234567',
+      alias: 'HOLUX.OFICIAL.MP',
+      holder: 'HOLUX OFICIAL',
+      cuit: '30-71829304-9'
+    };
   });
 
   const activePaymentMethods = React.useMemo(() => {
@@ -404,15 +417,37 @@ const CheckoutView = memo(({
   React.useEffect(() => {
     const fetchLatestRates = async () => {
       try {
-        const saved = localStorage.getItem('holux_shipping_rates');
-        if (saved) {
-          setShippingRates(JSON.parse(saved));
+        const savedRates = localStorage.getItem('holux_shipping_rates');
+        if (savedRates) {
+          setShippingRates(JSON.parse(savedRates));
+        }
+        const savedMethods = localStorage.getItem('holux_payment_methods_config');
+        if (savedMethods) {
+          setPaymentMethodsConfig(JSON.parse(savedMethods));
+        }
+        const savedBank = localStorage.getItem('holux_bank_settings');
+        if (savedBank) {
+          setBankSettings(JSON.parse(savedBank));
         }
 
         const res = await fetch(`${API_BASE_URL}/api/settings`);
         if (res.ok) {
           const data = await res.json();
           if (data.settings) {
+            if (data.settings.payment_methods_config && Array.isArray(data.settings.payment_methods_config) && data.settings.payment_methods_config.length > 0) {
+              setPaymentMethodsConfig(data.settings.payment_methods_config);
+              localStorage.setItem('holux_payment_methods_config', JSON.stringify(data.settings.payment_methods_config));
+            }
+            if (data.settings.bank_cbu || data.settings.bank_alias) {
+              const b = {
+                cbu: data.settings.bank_cbu || '0170098520000001234567',
+                alias: data.settings.bank_alias || 'HOLUX.OFICIAL.MP',
+                holder: data.settings.bank_holder || 'HOLUX OFICIAL',
+                cuit: data.settings.bank_cuit || '30-71829304-9'
+              };
+              setBankSettings(b);
+              localStorage.setItem('holux_bank_settings', JSON.stringify(b));
+            }
             setShippingRates(prev => {
               const updated = {
                 ...prev,
@@ -435,11 +470,26 @@ const CheckoutView = memo(({
       } catch {}
     };
 
+    const handlePaymentMethodsUpdate = (e) => {
+      try {
+        if (e?.detail && Array.isArray(e.detail)) {
+          setPaymentMethodsConfig(e.detail);
+        } else {
+          const saved = localStorage.getItem('holux_payment_methods_config');
+          if (saved) setPaymentMethodsConfig(JSON.parse(saved));
+        }
+      } catch {}
+    };
+
     window.addEventListener('holux_shipping_rates_updated', handleRatesUpdate);
+    window.addEventListener('holux_payment_methods_updated', handlePaymentMethodsUpdate);
     window.addEventListener('storage', handleRatesUpdate);
+    window.addEventListener('storage', handlePaymentMethodsUpdate);
     return () => {
       window.removeEventListener('holux_shipping_rates_updated', handleRatesUpdate);
+      window.removeEventListener('holux_payment_methods_updated', handlePaymentMethodsUpdate);
       window.removeEventListener('storage', handleRatesUpdate);
+      window.removeEventListener('storage', handlePaymentMethodsUpdate);
     };
   }, []);
 
@@ -859,8 +909,10 @@ const CheckoutView = memo(({
                             <div className="p-4 bg-emerald-50/60 border border-emerald-200 rounded-xl space-y-4 text-xs text-emerald-900 font-sans">
                               <div className="space-y-1">
                                 <p className="font-bold uppercase tracking-wider text-emerald-800">Datos Bancarios para Transferir:</p>
-                                <p className="font-mono-custom text-[11px] text-gray-800">CBU: 0170098520000001234567</p>
-                                <p className="font-mono-custom text-[11px] text-gray-800">Alias: HOLUX.OFICIAL.MP</p>
+                                <p className="font-mono-custom text-[11px] text-gray-800">CBU: {bankSettings.cbu || '0170098520000001234567'}</p>
+                                <p className="font-mono-custom text-[11px] text-gray-800">Alias: {bankSettings.alias || 'HOLUX.OFICIAL.MP'}</p>
+                                {bankSettings.holder && <p className="font-mono-custom text-[11px] text-gray-800">Titular: {bankSettings.holder}</p>}
+                                {bankSettings.cuit && <p className="font-mono-custom text-[11px] text-gray-800">CUIT: {bankSettings.cuit}</p>}
                                 <p className="text-[11px] text-emerald-800 font-bold">Total a Transferir: ${Math.round(subtotalAfterDiscount + shippingCost).toLocaleString('es-AR')}</p>
                               </div>
 

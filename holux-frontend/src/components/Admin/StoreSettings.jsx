@@ -212,6 +212,8 @@ export default function StoreSettings({ API_BASE_URL, token }) {
     });
     setPaymentMethodsConfig(updated);
     localStorage.setItem('holux_payment_methods_config', JSON.stringify(updated));
+    window.dispatchEvent(new CustomEvent('holux_payment_methods_updated', { detail: updated }));
+    window.dispatchEvent(new Event('storage'));
   };
 
   const handleMovePaymentMethod = (index, direction) => {
@@ -222,6 +224,8 @@ export default function StoreSettings({ API_BASE_URL, token }) {
     updated.splice(newIndex, 0, moved);
     setPaymentMethodsConfig(updated);
     localStorage.setItem('holux_payment_methods_config', JSON.stringify(updated));
+    window.dispatchEvent(new CustomEvent('holux_payment_methods_updated', { detail: updated }));
+    window.dispatchEvent(new Event('storage'));
   };
 
   // Handle Copy Webhook URL
