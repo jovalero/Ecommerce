@@ -112,17 +112,46 @@ export function compressImageFile(file, maxWidth = 1920, maxHeight = 1080, quali
 }
 
 /**
-/**
- * Instant, high-quality client-side image compression for banners.
- * Returns optimized DataURL (<200KB) that persists permanently in IndexedDB and localStorage without server 400/404 errors.
+ * Uploads banner image directly to Supabase Storage CDN via backend upload API
+ * with instant client-side canvas compression fallback.
  */
-export async function uploadOrCompressBanner(file) {
+export async function uploadOrCompressBanner(file, API_BASE, token) {
   if (!file) return '';
+
+  const apiBase = API_BASE || API_BASE_URL;
+
+  // 1. Try uploading directly to Supabase Storage Bucket via API
+  if (apiBase) {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('bucket', 'banners');
+
+      const authToken = token || localStorage.getItem('user_token') || localStorage.getItem('holux_auth_token') || '';
+      const headers = {};
+      if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
+
+      const res = await fetch(`${apiBase}/api/admin/upload`, {
+        method: 'POST',
+        headers,
+        body: formData
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.url) {
+          return data.url;
+        }
+      }
+    } catch (err) {
+      console.warn('[BannerStorage] Direct Supabase upload failed, using local compression:', err);
+    }
+  }
+
+  // 2. High-quality client-side compression fallback
   const compressed = await compressImageFile(file);
   return compressed || '';
 }
-
-import { API_BASE_URL } from '../config/api';
 
 /**
  * Universal safe persistent save (localStorage + IndexedDB + Cloud Sync)
