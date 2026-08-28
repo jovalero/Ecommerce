@@ -7,8 +7,8 @@ export const initialStoreData = {
       "desc": "",
       "highlight": "",
       "cta": "",
-      "image": "/banners/hero_slide_1.png",
-      "mobileImage": "/banners/hero_slide_mobile_1.png",
+      "image": "https://fmbhcfsrsfkglmvgbnlm.supabase.co/storage/v1/object/public/banners/hero_slide_1_desktop.jpg",
+      "mobileImage": "https://fmbhcfsrsfkglmvgbnlm.supabase.co/storage/v1/object/public/banners/hero_slide_1_mobile.png",
       "overlayOpacity": 0,
       "link": "#/catalogo",
       "isActive": true
@@ -19,8 +19,8 @@ export const initialStoreData = {
       "desc": "",
       "highlight": "",
       "cta": "",
-      "image": "/banners/9ecd7e63-6fd3-4e05-bd72-dd6f1d56478b.png",
-      "mobileImage": "/banners/03d6b0b2-dde6-4e12-91bc-00beca35362d.png",
+      "image": "https://fmbhcfsrsfkglmvgbnlm.supabase.co/storage/v1/object/public/banners/hero_slide_2_desktop.jpg",
+      "mobileImage": "https://fmbhcfsrsfkglmvgbnlm.supabase.co/storage/v1/object/public/banners/hero_slide_2_mobile.jpg",
       "overlayOpacity": 0,
       "link": "#/catalogo",
       "isActive": true
