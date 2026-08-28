@@ -1103,7 +1103,7 @@ const CheckoutView = memo(({
 
                 {/* Automatic VIP / Super VIP Membership Discount */}
                 {tierDiscount > 0 && (
-                  <div className="flex items-center justify-between text-purple-700 font-bold bg-purple-50/90 px-3 py-2 rounded-xl border border-purple-200/60 font-mono-custom">
+                  <div className="flex items-center justify-between text-emerald-800 font-bold bg-emerald-50 px-3 py-2 rounded-xl border border-emerald-200 font-mono-custom shadow-2xs">
                     <span className="flex items-center gap-1.5">
                       <span>Descuento {tierBadge} ({tierPercent}% OFF):</span>
                     </span>
@@ -1112,16 +1112,20 @@ const CheckoutView = memo(({
                 )}
 
                 {appliedCoupon && couponDiscount > 0 && (
-                  <div className="flex items-center justify-between text-emerald-600 font-bold font-mono-custom">
-                    <span>Descuento por Cupón ({appliedCoupon.code}):</span>
-                    <span className="font-bold">-${couponDiscount.toLocaleString('es-AR')}</span>
+                  <div className="flex items-center justify-between text-emerald-800 font-bold bg-emerald-50 px-3 py-2 rounded-xl border border-emerald-200 font-mono-custom shadow-2xs">
+                    <span className="flex items-center gap-1.5">
+                      <span>🎟️ Descuento por Cupón ({appliedCoupon.code}):</span>
+                    </span>
+                    <span className="font-black text-sm">-${couponDiscount.toLocaleString('es-AR')}</span>
                   </div>
                 )}
 
                 {paymentMethod === 'transfer' && transferDiscount > 0 && (
-                  <div className="flex items-center justify-between text-emerald-600 font-bold">
-                    <span>Descuento Transferencia:</span>
-                    <span className="font-mono-custom">-${transferDiscount.toLocaleString('es-AR')}</span>
+                  <div className="flex items-center justify-between text-emerald-800 font-bold bg-emerald-50 px-3 py-2 rounded-xl border border-emerald-200 font-mono-custom shadow-2xs">
+                    <span className="flex items-center gap-1.5">
+                      <span>💳 Descuento Transferencia:</span>
+                    </span>
+                    <span className="font-black text-sm">-${transferDiscount.toLocaleString('es-AR')}</span>
                   </div>
                 )}
 

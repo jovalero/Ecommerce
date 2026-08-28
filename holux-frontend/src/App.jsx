@@ -8265,9 +8265,9 @@ export default function App() {
 
                             {/* Automatic Tier Discount row */}
                             {tierDiscount > 0 && (
-                              <div className="flex items-center justify-between text-purple-700 font-bold bg-purple-50/80 px-2.5 py-1 rounded-lg border border-purple-200/60">
+                              <div className="flex items-center justify-between text-emerald-800 font-bold bg-emerald-50 px-2.5 py-1.5 rounded-lg border border-emerald-200 shadow-2xs">
                                 <span className="flex items-center gap-1">
-                                  <span>{tierBadge} ({tierPercent}% OFF Auto):</span>
+                                  <span>Descuento {tierBadge} ({tierPercent}% OFF):</span>
                                 </span>
                                 <span className="font-mono-custom font-black">-${tierDiscount.toLocaleString('es-AR')}</span>
                               </div>
@@ -8275,9 +8275,11 @@ export default function App() {
 
                             {/* Coupon Discount row */}
                             {couponDiscount > 0 && (
-                              <div className="flex items-center justify-between text-emerald-700 font-semibold">
-                                <span>Descuento Cupón ({appliedCoupon.code})</span>
-                                <span className="font-mono-custom font-bold">-${couponDiscount.toLocaleString('es-AR')}</span>
+                              <div className="flex items-center justify-between text-emerald-800 font-bold bg-emerald-50 px-2.5 py-1.5 rounded-lg border border-emerald-200 shadow-2xs">
+                                <span className="flex items-center gap-1">
+                                  <span>🎟️ Descuento Cupón ({appliedCoupon.code}):</span>
+                                </span>
+                                <span className="font-mono-custom font-black">-${couponDiscount.toLocaleString('es-AR')}</span>
                               </div>
                             )}
 
