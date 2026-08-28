@@ -112,15 +112,42 @@ export function compressImageFile(file, maxWidth = 1920, maxHeight = 1080, quali
 }
 
 /**
- * Uploads to backend media API or falls back to canvas compression
+ * Uploads to Supabase Storage CDN or backend media API or falls back to canvas compression
  */
 export async function uploadOrCompressBanner(file, API_BASE_URL, token) {
   if (!file) return '';
 
-  // 1. High-quality Canvas compression first (< 200KB)
+  // 1. High-quality Canvas compression (< 300KB)
   const compressedDataUrl = await compressImageFile(file);
 
-  // 2. Try uploading to backend API if available to get permanent CDN URL
+  // 2. Try direct Supabase Storage Bucket upload (permanent fast global CDN)
+  try {
+    const supabaseUrl = 'https://fmbhcfsrsfkglmvgbnlm.supabase.co';
+    const supabaseAnonKey = 'sb_publishable_aAzQcAqCATpYDGBVRNJRQQ_1CKarnEb';
+    const ext = file.name ? file.name.split('.').pop().toLowerCase() : 'jpg';
+    const fileName = `banner_${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${ext}`;
+    const bucket = 'product-images';
+
+    const res = await fetch(`${supabaseUrl}/storage/v1/object/${bucket}/${fileName}`, {
+      method: 'POST',
+      headers: {
+        'apikey': supabaseAnonKey,
+        'Authorization': `Bearer ${supabaseAnonKey}`,
+        'Content-Type': file.type || 'image/jpeg',
+        'x-upsert': 'true'
+      },
+      body: file
+    });
+
+    if (res.ok) {
+      const publicUrl = `${supabaseUrl}/storage/v1/object/public/${bucket}/${fileName}`;
+      return publicUrl;
+    }
+  } catch (supaErr) {
+    console.warn('Direct Supabase banner upload failed, trying backend / local:', supaErr);
+  }
+
+  // 3. Try backend API upload
   if (API_BASE_URL && compressedDataUrl) {
     try {
       const headers = {
@@ -139,7 +166,7 @@ export async function uploadOrCompressBanner(file, API_BASE_URL, token) {
         headers,
         body: JSON.stringify({
           base64: compressedDataUrl,
-          bucket: 'banners'
+          bucket: 'product-images'
         })
       });
 
@@ -150,7 +177,9 @@ export async function uploadOrCompressBanner(file, API_BASE_URL, token) {
           if (cleanUrl.startsWith('http://holux-api.onrender.com')) {
             cleanUrl = cleanUrl.replace('http://holux-api.onrender.com', 'https://holux-api.onrender.com');
           }
-          return cleanUrl;
+          if (cleanUrl.includes('supabase.co')) {
+            return cleanUrl;
+          }
         }
       }
     } catch (err) {
@@ -158,8 +187,8 @@ export async function uploadOrCompressBanner(file, API_BASE_URL, token) {
     }
   }
 
-  // 3. Fallback to optimized compressed Data URL
-  return compressedDataUrl;
+  // 4. Guaranteed reliable fallback: compressed Data URL (persists in IndexedDB, never breaks/404s!)
+  return compressedDataUrl || '';
 }
 
 /**
