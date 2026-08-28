@@ -453,10 +453,10 @@ export default function App() {
   });
   const [currentView, setCurrentView] = useState(() => {
     const hash = window.location.hash || '';
+    if (hash.startsWith('#/checkout') || hash.startsWith('#/compra-confirmada')) return 'checkout';
     if (hash.startsWith('#/mi-cuenta')) return 'customer_panel';
     if (hash.startsWith('#/admin')) return 'admin';
     if (hash.startsWith('#/catalogo')) return 'category';
-    if (hash.startsWith('#/compra-confirmada')) return 'checkout';
     if (hash.startsWith('#/info/')) return 'info_page';
     if (hash.startsWith('#/producto/')) return 'product-detail';
     return 'home';
@@ -1704,11 +1704,13 @@ export default function App() {
         const sec = params.get('seccion');
         if (sec) setCustomerPanelSection(sec);
         setCurrentView('customer_panel');
+      } else if (hash.startsWith('#/checkout') || hash.startsWith('#/compra-confirmada')) {
+        setCurrentView('checkout');
+        setSelectedDetailProduct(null);
+        window.scrollTo({ top: 0, behavior: 'instant' });
+        return;
       } else if (hash.startsWith('#/admin')) {
         setCurrentView('admin');
-      } else if (hash.startsWith('#/compra-confirmada')) {
-        setCurrentView('checkout');
-        return;
       } else if (hash.startsWith('#/info/')) {
         const slug = hash.replace('#/info/', '').split('?')[0];
         setInfoPageSlug(slug || 'terminos');
