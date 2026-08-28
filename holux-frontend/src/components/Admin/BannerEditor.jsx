@@ -1285,13 +1285,13 @@ export default function BannerEditor({
                 <div className="flex items-center justify-between gap-1 flex-wrap">
                   <label className="text-[10px] font-bold text-gray-700 uppercase tracking-wider block">IMAGEN DESKTOP</label>
                   <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 font-mono-custom">
-                    📐 Medida: 1920 × 800 px (Horizontal)
+                    📐 Medida: 1920 × 1080 px (16:9 Panorámica)
                   </span>
                 </div>
                 
                 {desktopImage && (
-                  <div className="relative w-full h-24 rounded-lg overflow-hidden bg-white border border-gray-200 mb-2">
-                    <img src={desktopImage} alt="Desktop Preview" className="w-full h-full object-cover" />
+                  <div className="relative w-full h-28 rounded-lg overflow-hidden bg-black/90 border border-gray-200 mb-2 flex items-center justify-center">
+                    <img src={desktopImage} alt="Desktop Preview" className="max-h-full max-w-full object-contain" />
                     {overlayOpacity > 0 && (
                       <div 
                         className="absolute inset-0 transition-opacity duration-300 pointer-events-none"
@@ -1343,8 +1343,8 @@ export default function BannerEditor({
                 </div>
                 
                 {mobileImage && (
-                  <div className="relative w-full h-24 rounded-lg overflow-hidden bg-white border border-gray-200 mb-2">
-                    <img src={mobileImage} alt="Mobile Preview" className="w-full h-full object-cover" />
+                  <div className="relative w-full h-28 rounded-lg overflow-hidden bg-black/90 border border-gray-200 mb-2 flex items-center justify-center">
+                    <img src={mobileImage} alt="Mobile Preview" className="max-h-full max-w-full object-contain" />
                     {overlayOpacity > 0 && (
                       <div 
                         className="absolute inset-0 transition-opacity duration-300 pointer-events-none"
