@@ -112,83 +112,14 @@ export function compressImageFile(file, maxWidth = 1920, maxHeight = 1080, quali
 }
 
 /**
- * Uploads to Supabase Storage CDN or backend media API or falls back to canvas compression
+/**
+ * Instant, high-quality client-side image compression for banners.
+ * Returns optimized DataURL (<200KB) that persists permanently in IndexedDB and localStorage without server 400/404 errors.
  */
-export async function uploadOrCompressBanner(file, API_BASE_URL, token) {
+export async function uploadOrCompressBanner(file) {
   if (!file) return '';
-
-  // 1. High-quality Canvas compression (< 300KB)
-  const compressedDataUrl = await compressImageFile(file);
-
-  // 2. Try direct Supabase Storage Bucket upload (permanent fast global CDN)
-  try {
-    const supabaseUrl = 'https://fmbhcfsrsfkglmvgbnlm.supabase.co';
-    const supabaseAnonKey = 'sb_publishable_aAzQcAqCATpYDGBVRNJRQQ_1CKarnEb';
-    const ext = file.name ? file.name.split('.').pop().toLowerCase() : 'jpg';
-    const fileName = `banner_${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${ext}`;
-    const bucket = 'product-images';
-
-    const res = await fetch(`${supabaseUrl}/storage/v1/object/${bucket}/${fileName}`, {
-      method: 'POST',
-      headers: {
-        'apikey': supabaseAnonKey,
-        'Authorization': `Bearer ${supabaseAnonKey}`,
-        'Content-Type': file.type || 'image/jpeg',
-        'x-upsert': 'true'
-      },
-      body: file
-    });
-
-    if (res.ok) {
-      const publicUrl = `${supabaseUrl}/storage/v1/object/public/${bucket}/${fileName}`;
-      return publicUrl;
-    }
-  } catch (supaErr) {
-    console.warn('Direct Supabase banner upload failed, trying backend / local:', supaErr);
-  }
-
-  // 3. Try backend API upload
-  if (API_BASE_URL && compressedDataUrl) {
-    try {
-      const headers = {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      };
-      if (token) headers['Authorization'] = `Bearer ${token}`;
-
-      const baseUrlClean = API_BASE_URL.replace(/\/+$/, '');
-      const endpoint = baseUrlClean.endsWith('/api')
-        ? `${baseUrlClean}/admin/upload`
-        : `${baseUrlClean}/api/admin/upload`;
-
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          base64: compressedDataUrl,
-          bucket: 'product-images'
-        })
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        if (data && data.url) {
-          let cleanUrl = String(data.url).trim();
-          if (cleanUrl.startsWith('http://holux-api.onrender.com')) {
-            cleanUrl = cleanUrl.replace('http://holux-api.onrender.com', 'https://holux-api.onrender.com');
-          }
-          if (cleanUrl.includes('supabase.co')) {
-            return cleanUrl;
-          }
-        }
-      }
-    } catch (err) {
-      console.warn('Backend media upload failed, using compressed image:', err);
-    }
-  }
-
-  // 4. Guaranteed reliable fallback: compressed Data URL (persists in IndexedDB, never breaks/404s!)
-  return compressedDataUrl || '';
+  const compressed = await compressImageFile(file);
+  return compressed || '';
 }
 
 /**
