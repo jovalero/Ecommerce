@@ -67,27 +67,49 @@ class CouponService
 
     public static function all(): array
     {
+        $defaults = self::getDefaultCoupons();
         $file = self::getFilePath();
-        if (!File::exists($file)) {
-            $defaults = self::getDefaultCoupons();
-            self::saveAll($defaults);
-            return $defaults;
+
+        // 1. Try fetching from Supabase Storage CDN first (Universal Source of Truth)
+        try {
+            $supabaseUrl = config('services.supabase.url', 'https://fmbhcfsrsfkglmvgbnlm.supabase.co');
+            $client = new \GuzzleHttp\Client(['timeout' => 3.0]);
+            $res = $client->get(rtrim($supabaseUrl, '/') . '/storage/v1/object/public/product-images/config/coupons.json');
+            if ($res->getStatusCode() === 200) {
+                $supabaseCoupons = json_decode($res->getBody()->getContents(), true);
+                if (is_array($supabaseCoupons) && !empty($supabaseCoupons)) {
+                    File::put($file, json_encode($supabaseCoupons, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+                    return $supabaseCoupons;
+                }
+            }
+        } catch (\Throwable $e) {
+            // Fallback to local cache if offline
         }
 
-        try {
-            $json = json_decode(File::get($file), true);
-            return is_array($json) ? $json : self::getDefaultCoupons();
-        } catch (\Throwable $e) {
-            Log::error("Failed to read coupons.json: " . $e->getMessage());
-            return self::getDefaultCoupons();
+        if (File::exists($file)) {
+            $content = File::get($file);
+            $saved = json_decode($content, true) ?: [];
+            return is_array($saved) && !empty($saved) ? $saved : $defaults;
         }
+
+        return $defaults;
     }
 
     public static function saveAll(array $coupons): bool
     {
         try {
             $file = self::getFilePath();
-            File::put($file, json_encode(array_values($coupons), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+            $json = json_encode(array_values($coupons), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+            File::put($file, $json);
+
+            // Upload to Supabase Storage CDN so all servers, devices and clients share the exact same state
+            try {
+                $supabase = app(\App\Services\SupabaseService::class);
+                $supabase->uploadStorageFile('product-images', 'config/coupons.json', $json, 'application/json');
+            } catch (\Throwable $e) {
+                Log::warning("Failed to sync coupons to Supabase Storage: " . $e->getMessage());
+            }
+
             return true;
         } catch (\Throwable $e) {
             Log::error("Failed to save coupons.json: " . $e->getMessage());

@@ -474,55 +474,22 @@ export default function App() {
   const [isSizeGuideOpen, setIsSizeGuideOpen] = useState(false);
   const [sizeGuideCategory, setSizeGuideCategory] = useState('tops'); // 'tops' | 'bottoms' | 'footwear'
 
-  // Cart & Orders
-  const [heroSlides, setHeroSlides] = useState(() => {
-    try {
-      const saved = localStorage.getItem('holux_hero_slides');
-      return saved ? JSON.parse(saved) : slides;
-    } catch (e) {
-      return slides;
-    }
+  // Cart & Orders (100% Supabase-driven marketing and settings)
+  const [heroSlides, setHeroSlides] = useState(slides);
+  const [homeSectionTitles, setHomeSectionTitles] = useState(initialStoreData?.section_titles || {
+    novedadesTitle: 'NOVEDADES EN PERFUMERÍA',
+    novedadesSubtitle: 'Descubrí los últimos lanzamientos y fragancias exclusivas',
+    destacadosTitle: 'FRAGANCIAS DESTACADAS',
+    destacadosSubtitle: 'Una selección especial recomendada por nuestros expertos'
   });
-  const [homeSectionTitles, setHomeSectionTitles] = useState(() => {
-    try {
-      const saved = localStorage.getItem('holux_home_section_titles');
-      return saved ? JSON.parse(saved) : (initialStoreData?.section_titles || {
-        novedadesTitle: 'NOVEDADES EN PERFUMERÍA',
-        novedadesSubtitle: 'Descubrí los últimos lanzamientos y fragancias exclusivas',
-        destacadosTitle: 'FRAGANCIAS DESTACADAS',
-        destacadosSubtitle: 'Una selección especial recomendada por nuestros expertos'
-      });
-    } catch (e) {
-      return initialStoreData?.section_titles || {
-        novedadesTitle: 'NOVEDADES EN PERFUMERÍA',
-        novedadesSubtitle: 'Descubrí los últimos lanzamientos y fragancias exclusivas',
-        destacadosTitle: 'FRAGANCIAS DESTACADAS',
-        destacadosSubtitle: 'Una selección especial recomendada por nuestros expertos'
-      };
-    }
-  });
-  const [gridPromoCards, setGridPromoCards] = useState(() => {
-    try {
-      const saved = localStorage.getItem('holux_grid_promo_cards');
-      return saved ? JSON.parse(saved) : (initialStoreData?.grid_cards || PROMO_BANNERS);
-    } catch (e) {
-      return initialStoreData?.grid_cards || PROMO_BANNERS;
-    }
-  });
+  const [gridPromoCards, setGridPromoCards] = useState(initialStoreData?.grid_cards || PROMO_BANNERS);
   const defaultHeaderNavItems = initialStoreData?.header_nav || [
     { id: 'cat_dropdown', type: 'dropdown', label: 'CATEGORÍAS', isVisible: true, isDropdown: true, link: '#/catalogo' },
     { id: 'cat_perfumes-hombre', type: 'category', label: 'PERFUMES HOMBRE', slug: 'perfumes-hombre', link: '#/catalogo?categoria=perfumes-hombre', isVisible: true },
     { id: 'cat_perfumes-mujer', type: 'category', label: 'PERFUMES MUJER', slug: 'perfumes-mujer', link: '#/catalogo?categoria=perfumes-mujer', isVisible: true },
     { id: 'outlet', type: 'special', label: 'OUTLET', link: '#/catalogo?genero=outlet', isVisible: true, isButton: true }
   ];
-  const [headerNavItems, setHeaderNavItems] = useState(() => {
-    try {
-      const saved = localStorage.getItem('holux_header_nav_items');
-      return saved ? JSON.parse(saved) : defaultHeaderNavItems;
-    } catch (e) {
-      return defaultHeaderNavItems;
-    }
-  });
+  const [headerNavItems, setHeaderNavItems] = useState(defaultHeaderNavItems);
   const [selectedPrintOrder, setSelectedPrintOrder] = useState(null);
   const [selectedOrderDetail, setSelectedOrderDetail] = useState(null);
   const [adminOrderSearchQuery, setAdminOrderSearchQuery] = useState('');
@@ -1080,14 +1047,7 @@ export default function App() {
     '| GARANTÍA OFICIAL HOLUX EN TODAS TUS EXPEDICIONES',
     '| 15% OFF PAGANDO CON TRANSFERENCIA BANCARIA'
   ];
-  const [tickerPhrases, setTickerPhrases] = useState(() => {
-    try {
-      const saved = localStorage.getItem('holux_ticker_phrases');
-      return saved ? JSON.parse(saved) : defaultTickerPhrases;
-    } catch (e) {
-      return defaultTickerPhrases;
-    }
-  });
+  const [tickerPhrases, setTickerPhrases] = useState(defaultTickerPhrases);
 
   // Mouse drag scrolling for Novedades (Zero React re-renders)
   const isNovedadesDraggingRef = useRef(false);
@@ -1144,14 +1104,7 @@ export default function App() {
     description: 'Equípate hoy mismo y paga en cómodas cuotas fijas sin interés. Realizamos envíos de forma rápida a todo el territorio nacional.',
     isVisible: true
   };
-  const [promoBanner, setPromoBanner] = useState(() => {
-    try {
-      const saved = localStorage.getItem('holux_promo_banner');
-      return saved ? JSON.parse(saved) : defaultPromoBanner;
-    } catch (e) {
-      return defaultPromoBanner;
-    }
-  });
+  const [promoBanner, setPromoBanner] = useState(defaultPromoBanner);
 
   // Product Edit Floating Modal State
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
