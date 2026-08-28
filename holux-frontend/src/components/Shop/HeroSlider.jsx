@@ -129,20 +129,22 @@ export const HeroSlider = memo(function HeroSlider({
             } ${!hasText ? 'cursor-pointer' : ''}`}
             style={{ transform: 'translate3d(0, 0, 0)' }}
           >
-            {/* Background Image with async decoding */}
-            <picture key={`${slide.image}_${slide.mobileImage || ''}_${idx}`} className="absolute inset-0 w-full h-full">
-              {slide.mobileImage && (
-                <source media="(max-width: 768px)" srcSet={slide.mobileImage} />
-              )}
-              <img
-                src={slide.image}
-                alt={slide.title || 'Banner Holux'}
-                decoding="async"
-                loading="eager"
-                fetchPriority={idx === 0 ? "high" : "auto"}
-                className="absolute inset-0 w-full h-full object-cover object-center opacity-100"
-              />
-            </picture>
+            {/* Mobile / Tablet Portrait Image (100% Guaranteed on all phones) */}
+            <img
+              src={slide.mobileImage || slide.image}
+              alt={slide.title || 'Banner Holux Mobile'}
+              decoding="async"
+              loading="eager"
+              className="absolute inset-0 w-full h-full object-cover object-center block md:hidden opacity-100"
+            />
+            {/* Desktop / Laptop Horizontal Image */}
+            <img
+              src={slide.image || slide.mobileImage}
+              alt={slide.title || 'Banner Holux Desktop'}
+              decoding="async"
+              loading="eager"
+              className="absolute inset-0 w-full h-full object-cover object-center hidden md:block opacity-100"
+            />
 
             {/* Black Overlay and gradients ONLY when overlayDarkness > 0 */}
             {overlayDarkness > 0 && (
