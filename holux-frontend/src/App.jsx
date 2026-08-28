@@ -4313,11 +4313,25 @@ export default function App() {
                           return (
                             <div key={coupon.id} className="relative bg-white border border-slate-200 hover:border-[#3C6E71]/70 p-5 rounded-2xl shadow-xs hover:shadow-md transition-all flex flex-col justify-between space-y-4 text-slate-800">
                               <div className="space-y-3">
-                                <div className="flex items-center justify-between gap-2">
-                                  <span className="text-[10px] font-bold bg-slate-100 text-slate-700 px-2.5 py-1 rounded-lg border border-slate-200 font-mono-custom uppercase flex items-center gap-1.5">
-                                    <span>🎁</span>
-                                    <span>{coupon.origin || 'Cupón de Regalo'}</span>
-                                  </span>
+                                <div className="flex items-center justify-between gap-2 flex-wrap">
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    {((coupon.allowed_tier === 'super_vip') || (coupon.code || '').includes('SUPERVIP')) ? (
+                                      <span className="text-[10px] font-black bg-purple-100 text-purple-900 px-2 py-0.5 rounded-lg border border-purple-300 font-mono-custom uppercase">
+                                        👑 SUPER VIP
+                                      </span>
+                                    ) : ((coupon.allowed_tier === 'vip') || (coupon.code || '').includes('VIP')) ? (
+                                      <span className="text-[10px] font-black bg-amber-100 text-amber-900 px-2 py-0.5 rounded-lg border border-amber-300 font-mono-custom uppercase">
+                                        ⭐ VIP
+                                      </span>
+                                    ) : (
+                                      <span className="text-[10px] font-bold bg-slate-100 text-slate-700 px-2 py-0.5 rounded-lg border border-slate-200 font-mono-custom uppercase">
+                                        🎁 GENERAL
+                                      </span>
+                                    )}
+                                    <span className="text-[10px] font-bold bg-slate-50 text-slate-600 px-2 py-0.5 rounded-lg border border-slate-200 font-mono-custom uppercase">
+                                      {coupon.origin || 'Cupón'}
+                                    </span>
+                                  </div>
                                   <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border font-mono-custom uppercase ${urgencyColor}`}>
                                     {urgencyLabel}
                                   </span>
