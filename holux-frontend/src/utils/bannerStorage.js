@@ -142,10 +142,9 @@ export async function persistBannerData(key, data) {
     window.dispatchEvent(new Event('storage'));
   }
 
-  // Asynchronously sync to backend /api/admin/settings so all devices worldwide see the changes
+  // Asynchronously sync to backend /api/settings so all devices worldwide see the changes
   try {
-    const token = localStorage.getItem('user_token') || localStorage.getItem('holux_auth_token') || '';
-    if (token && API_BASE_URL) {
+    if (API_BASE_URL) {
       let field = null;
       if (key === 'holux_hero_slides') field = 'hero_slides';
       if (key === 'holux_grid_promo_cards') field = 'grid_cards';
@@ -153,17 +152,23 @@ export async function persistBannerData(key, data) {
       if (key === 'holux_home_section_titles') field = 'section_titles';
       if (key === 'holux_ticker_phrases') field = 'ticker_phrases';
       if (key === 'holux_header_nav_items') field = 'header_nav';
+      if (key === 'holux_payment_methods_config') field = 'payment_methods_config';
 
       if (field) {
-        fetch(`${API_BASE_URL}/api/admin/settings`, {
+        const token = localStorage.getItem('user_token') || localStorage.getItem('holux_auth_token') || '';
+        const headers = {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        };
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+
+        fetch(`${API_BASE_URL}/api/settings`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
+          headers,
           body: JSON.stringify({ [field]: data })
-        }).catch(() => {});
+        }).catch((err) => {
+          console.warn('[BannerStorage] Cloud settings sync failed:', err);
+        });
       }
     }
   } catch (syncErr) {}
