@@ -1106,9 +1106,14 @@ export default function BannerEditor({
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">
-                    IMAGEN
-                  </label>
+                  <div className="flex items-center justify-between gap-1 flex-wrap">
+                    <label className="text-[10px] font-bold text-gray-700 uppercase tracking-wider block">
+                      IMAGEN
+                    </label>
+                    <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 font-mono-custom">
+                      📐 Medida: 800 × 1000 px
+                    </span>
+                  </div>
                   <div className="flex gap-2">
                     <input
                       type="text"
@@ -1346,7 +1351,12 @@ export default function BannerEditor({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* DESKTOP IMAGE PICKER */}
               <div className="space-y-2 bg-gray-50 p-4 border border-gray-200 rounded-xl">
-                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">IMAGEN DESKTOP</label>
+                <div className="flex items-center justify-between gap-1 flex-wrap">
+                  <label className="text-[10px] font-bold text-gray-700 uppercase tracking-wider block">IMAGEN DESKTOP</label>
+                  <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 font-mono-custom">
+                    📐 Medida: 1920 × 800 px (Horizontal)
+                  </span>
+                </div>
                 
                 {desktopImage && (
                   <div className="relative w-full h-24 rounded-lg overflow-hidden bg-white border border-gray-200 mb-2">
@@ -1394,7 +1404,12 @@ export default function BannerEditor({
 
               {/* MOBILE IMAGE PICKER */}
               <div className="space-y-2 bg-gray-50 p-4 border border-gray-200 rounded-xl">
-                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">IMAGEN MOBILE</label>
+                <div className="flex items-center justify-between gap-1 flex-wrap">
+                  <label className="text-[10px] font-bold text-gray-700 uppercase tracking-wider block">IMAGEN MOBILE</label>
+                  <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 font-mono-custom">
+                    📐 Medida: 1080 × 1350 px (Vertical)
+                  </span>
+                </div>
                 
                 {mobileImage && (
                   <div className="relative w-full h-24 rounded-lg overflow-hidden bg-white border border-gray-200 mb-2">
