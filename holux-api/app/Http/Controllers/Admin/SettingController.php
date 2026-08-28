@@ -165,6 +165,9 @@ class SettingController extends Controller
         if (isset($data['caba_cost']) || isset($data['free_shipping_threshold'])) {
             StoreSettingService::updateShipping($data, $admin);
         }
+        if (isset($data['hero_slides']) || isset($data['grid_cards']) || isset($data['promo_banner']) || isset($data['section_titles']) || isset($data['ticker_phrases']) || isset($data['header_nav']) || isset($data['payment_methods_config'])) {
+            StoreSettingService::updateMarketing($data, $admin);
+        }
 
         return response()->json([
             'message' => 'Configuración de tienda actualizada exitosamente.',

@@ -142,11 +142,17 @@ class StoreSettingService
             'patagonia_free' => (bool) ($raw['patagonia_free'] ?? false),
             'patagonia_enabled' => (bool) ($raw['patagonia_enabled'] ?? true),
             'patagonia_cp_min' => (int) ($raw['patagonia_cp_min'] ?? 8000),
-            'patagonia_cp_max' => (int) ($raw['patagonia_cp_max'] ?? 9999),
-
             'pickup_enabled' => (bool) ($raw['pickup_enabled'] ?? true),
             'pickup_address' => $raw['pickup_address'] ?? 'Av. Corrientes 1234, CABA',
             'pickup_schedule' => $raw['pickup_schedule'] ?? 'Lunes a Viernes de 10:00 a 18:00 hs',
+
+            // 4. Marketing & Banners (Universal Sync across all devices)
+            'hero_slides' => $raw['hero_slides'] ?? null,
+            'grid_cards' => $raw['grid_cards'] ?? null,
+            'promo_banner' => $raw['promo_banner'] ?? null,
+            'section_titles' => $raw['section_titles'] ?? null,
+            'ticker_phrases' => $raw['ticker_phrases'] ?? null,
+            'header_nav' => $raw['header_nav'] ?? null,
         ];
     }
 
@@ -316,6 +322,33 @@ class StoreSettingService
                 'patagonia_cost' => $raw['patagonia_cost'],
                 'free_shipping_threshold' => $raw['free_shipping_threshold']
             ],
+            $admin
+        );
+
+        return self::getPublicSafe();
+    }
+
+    /**
+     * Update Marketing & Banners Block
+     */
+    public static function updateMarketing(array $data, ?array $admin = null): array
+    {
+        $raw = self::getRaw();
+
+        if (isset($data['hero_slides'])) $raw['hero_slides'] = $data['hero_slides'];
+        if (isset($data['grid_cards'])) $raw['grid_cards'] = $data['grid_cards'];
+        if (isset($data['promo_banner'])) $raw['promo_banner'] = $data['promo_banner'];
+        if (isset($data['section_titles'])) $raw['section_titles'] = $data['section_titles'];
+        if (isset($data['ticker_phrases'])) $raw['ticker_phrases'] = $data['ticker_phrases'];
+        if (isset($data['header_nav'])) $raw['header_nav'] = $data['header_nav'];
+        if (isset($data['payment_methods_config'])) $raw['payment_methods_config'] = $data['payment_methods_config'];
+
+        self::saveRaw($raw);
+
+        AdminAuditLogService::log(
+            'UPDATE_MARKETING_BANNERS',
+            'Banners y Marketing de Tienda',
+            ['updated_fields' => array_keys($data)],
             $admin
         );
 
