@@ -134,6 +134,11 @@ export async function persistBannerData(key, data) {
 
   // Always sync to IndexedDB for unlimited capacity
   await setToIndexedDB(key, data);
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('holux_banners_updated', { detail: { key, data } }));
+    window.dispatchEvent(new Event('storage'));
+  }
 }
 
 /**

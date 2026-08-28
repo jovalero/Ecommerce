@@ -661,6 +661,29 @@ export default function App() {
     });
   }, []);
 
+  // Real-time synchronization for banner updates across tabs/modals
+  useEffect(() => {
+    const handleBannersSync = (e) => {
+      if (e?.detail?.key === 'holux_hero_slides' && Array.isArray(e.detail.data)) {
+        setHeroSlides(e.detail.data);
+      }
+      if (e?.detail?.key === 'holux_grid_promo_cards' && Array.isArray(e.detail.data)) {
+        setGridPromoCards(e.detail.data);
+      }
+      if (e?.detail?.key === 'holux_promo_banner' && e.detail.data) {
+        setPromoBanner(e.detail.data);
+      }
+      if (e?.detail?.key === 'holux_header_nav_items' && Array.isArray(e.detail.data)) {
+        setHeaderNavItems(e.detail.data);
+      }
+      if (e?.detail?.key === 'holux_ticker_phrases' && Array.isArray(e.detail.data)) {
+        setTickerPhrases(e.detail.data);
+      }
+    };
+    window.addEventListener('holux_banners_updated', handleBannersSync);
+    return () => window.removeEventListener('holux_banners_updated', handleBannersSync);
+  }, []);
+
   // Sync wallet to user-specific localStorage key
   useEffect(() => {
     const currentUserId = userProfile?.id || (token ? 'auth_user' : 'guest');

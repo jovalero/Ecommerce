@@ -32,6 +32,13 @@ export const HeroSlider = memo(function HeroSlider({
           img.decode().catch(() => {});
         }
       }
+      if (slide.mobileImage) {
+        const mImg = new Image();
+        mImg.src = slide.mobileImage;
+        if (mImg.decode) {
+          mImg.decode().catch(() => {});
+        }
+      }
     });
   }, [slides]);
 
@@ -123,9 +130,9 @@ export const HeroSlider = memo(function HeroSlider({
             style={{ transform: 'translate3d(0, 0, 0)' }}
           >
             {/* Background Image with async decoding */}
-            <picture className="absolute inset-0 w-full h-full">
+            <picture key={`${slide.image}_${slide.mobileImage || ''}_${idx}`} className="absolute inset-0 w-full h-full">
               {slide.mobileImage && (
-                <source media="(max-width: 640px)" srcSet={slide.mobileImage} />
+                <source media="(max-width: 768px)" srcSet={slide.mobileImage} />
               )}
               <img
                 src={slide.image}
