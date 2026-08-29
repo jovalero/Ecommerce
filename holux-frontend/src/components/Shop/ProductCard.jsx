@@ -1,6 +1,7 @@
 import React, { memo } from 'react';
 import { Heart, Star, Zap } from 'lucide-react';
 import { productsMetadata } from '../../config/productsMetadata';
+import { resolveProductImage } from '../../utils/bannerStorage';
 
 export const ProductCard = memo(function ProductCard({
   product,
@@ -51,13 +52,7 @@ export const ProductCard = memo(function ProductCard({
     return 'https://images.unsplash.com/photo-1541643600914-78b084683601?w=600&auto=format&fit=crop&q=80';
   };
 
-  const resolveImg = (url) => {
-    if (!url || typeof url !== 'string') return null;
-    if (url.includes('localhost:8000/storage/uploads/')) {
-      return '/uploads/' + url.split('localhost:8000/storage/uploads/')[1];
-    }
-    return url;
-  };
+  const resolveImg = resolveProductImage;
 
   const meta = productsMetadata[product.id] || {};
   const imageUrl = resolveImg(product.image_url)

@@ -1,6 +1,7 @@
 import React from 'react';
 import { X, Package, MapPin, CreditCard, Clock, Truck, ShieldCheck, CheckCircle2 } from 'lucide-react';
 import { getOrderStatusInfo, parseOrderItems, formatMoney, formatDate } from '../../utils/orderConstants';
+import { resolveProductImage } from '../../utils/bannerStorage';
 
 export default function CustomerOrderDetailModal({
   order,
@@ -83,7 +84,7 @@ export default function CustomerOrderDetailModal({
               <div key={idx} className="py-2.5 flex items-center justify-between gap-3 text-xs">
                 <div className="flex items-center gap-3">
                   <img
-                    src={item.image_url || getProductImage?.(item.name) || "https://images.unsplash.com/photo-1551632811-561732d1e306?w=100"}
+                    src={resolveProductImage(item.image_url) || (item.images && resolveProductImage(item.images[0])) || resolveProductImage(item.image) || getProductImage?.(item.name) || "https://images.unsplash.com/photo-1551632811-561732d1e306?w=100"}
                     alt={item.name}
                     className="w-12 h-12 rounded object-cover border border-gray-200 bg-gray-50 shrink-0"
                   />

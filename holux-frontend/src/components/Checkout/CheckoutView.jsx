@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { SmoothInput } from '../Common/SmoothInput';
 import { API_BASE_URL } from '../../config/api';
+import { resolveProductImage } from '../../utils/bannerStorage';
 
 const getProductImage = (name) => {
   if (!name) return 'https://images.unsplash.com/photo-1541643600914-78b084683601?w=600&auto=format&fit=crop&q=80';
@@ -1059,7 +1060,7 @@ const CheckoutView = memo(({
 
               <div className="divide-y divide-gray-100">
                 {cart.map((item, idx) => {
-                  const imgSrc = item.image_url || (item.images && item.images[0]) || item.image || item.icon || getProductImage(item.name);
+                  const imgSrc = resolveProductImage(item.image_url) || (item.images && resolveProductImage(item.images[0])) || resolveProductImage(item.image) || resolveProductImage(item.icon) || getProductImage(item.name);
                   return (
                     <div key={idx} className="py-3 flex items-center gap-4">
                       <img

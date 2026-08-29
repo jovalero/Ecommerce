@@ -227,3 +227,47 @@ export async function loadPersistedBannerData(key, fallback) {
 
   return fallback;
 }
+
+export const SUPABASE_PRODUCT_IMAGES_CDN = 'https://fmbhcfsrsfkglmvgbnlm.supabase.co/storage/v1/object/public/product-images';
+export const SUPABASE_BANNERS_CDN = 'https://fmbhcfsrsfkglmvgbnlm.supabase.co/storage/v1/object/public/banners';
+
+/**
+ * Resolves any product image reference (relative path, old backend URL, local upload)
+ * directly to the high-speed, permanent Supabase Storage CDN.
+ */
+export function resolveProductImage(url) {
+  if (!url || typeof url !== 'string') return null;
+  let clean = url.trim();
+
+  // If already a Data URL or external image from Unsplash, etc.
+  if (clean.startsWith('data:image/') || (clean.startsWith('https://') && !clean.includes('onrender.com/storage/uploads/'))) {
+    return clean;
+  }
+
+  // Extract clean filename from any legacy storage format
+  let filename = clean;
+  if (clean.includes('/storage/uploads/')) {
+    filename = clean.split('/storage/uploads/')[1];
+  } else if (clean.startsWith('/uploads/')) {
+    filename = clean.replace(/^\/uploads\//, '');
+  } else if (clean.includes('localhost:8000/storage/uploads/')) {
+    filename = clean.split('localhost:8000/storage/uploads/')[1];
+  }
+
+  // Remove leading slashes and parameters
+  filename = filename.replace(/^\/+/, '').split('?')[0];
+
+  // If it's a valid media file, route to Supabase CDN
+  if (filename && filename.includes('.') && !filename.startsWith('http')) {
+    if (filename.startsWith('banners/') || filename.startsWith('hero_slide')) {
+      return `${SUPABASE_BANNERS_CDN}/${filename.replace(/^banners\//, '')}`;
+    }
+    return `${SUPABASE_PRODUCT_IMAGES_CDN}/${filename}`;
+  }
+
+  if (clean.startsWith('http://')) {
+    return clean.replace('http://', 'https://');
+  }
+
+  return clean;
+}

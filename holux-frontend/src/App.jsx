@@ -71,7 +71,7 @@ import InfoPagesView from './components/Shop/InfoPagesView';
 import Footer from './components/Shop/Footer';
 import MobileMenuDrawer from './components/Navigation/MobileMenuDrawer';
 import { useProductCatalog } from './hooks/useProductCatalog';
-import { loadPersistedBannerData } from './utils/bannerStorage';
+import { loadPersistedBannerData, resolveProductImage } from './utils/bannerStorage';
 import { initialStoreData } from './config/initialStoreData';
 import { productsMetadata } from './config/productsMetadata';
 
@@ -354,17 +354,7 @@ const getProductImage = (name = '') => {
 export const enrichProductItem = (p) => {
   if (!p || typeof p !== 'object') return p;
   const meta = productsMetadata[p.id] || {};
-  const resolveImg = (url) => {
-    if (!url || typeof url !== 'string') return null;
-    let clean = url.trim();
-    if (clean.startsWith('http://holux-api.onrender.com')) {
-      clean = clean.replace('http://holux-api.onrender.com', 'https://holux-api.onrender.com');
-    }
-    if (clean.includes('localhost:8000/storage/uploads/')) {
-      return '/uploads/' + clean.split('localhost:8000/storage/uploads/')[1];
-    }
-    return clean;
-  };
+  const resolveImg = resolveProductImage;
   const images = (Array.isArray(p.images) && p.images.length > 0)
     ? p.images.map(resolveImg).filter(Boolean)
     : (Array.isArray(meta.images) && meta.images.length > 0
@@ -1261,21 +1251,11 @@ export default function App() {
       // 2. Fetch Products (try Laravel API first, then Supabase directly)
       const enrichProd = (p) => {
         const meta = productsMetadata[p.id] || {};
-        const resolveImg = (url) => {
-          if (!url || typeof url !== 'string') return null;
-          let clean = url.trim();
-          if (clean.startsWith('http://holux-api.onrender.com')) {
-            clean = clean.replace('http://holux-api.onrender.com', 'https://holux-api.onrender.com');
-          }
-          if (clean.includes('localhost:8000/storage/uploads/')) {
-            return '/uploads/' + clean.split('localhost:8000/storage/uploads/')[1];
-          }
-          return clean;
-        };
+        const resolveImg = resolveProductImage;
         const images = (Array.isArray(p.images) && p.images.length > 0)
-          ? p.images.map(resolveImg)
-          : (Array.isArray(meta.images) ? meta.images.map(resolveImg) : (p.image_url ? [resolveImg(p.image_url)] : []));
-        const image_url = resolveImg(p.image_url) || (images && images[0]) || meta.image_url || null;
+          ? p.images.map(resolveImg).filter(Boolean)
+          : (Array.isArray(meta.images) ? meta.images.map(resolveImg).filter(Boolean) : (p.image_url ? [resolveImg(p.image_url)].filter(Boolean) : (meta.image_url ? [resolveImg(meta.image_url)].filter(Boolean) : [])));
+        const image_url = resolveImg(p.image_url) || (images && images[0]) || resolveImg(meta.image_url) || null;
 
         return {
           ...p,
@@ -7293,17 +7273,7 @@ export default function App() {
               <div className="lg:col-span-7 flex flex-col items-center">
                 {(() => {
                   const meta = productsMetadata[selectedDetailProduct.id] || {};
-                  const resolveImg = (url) => {
-                    if (!url || typeof url !== 'string') return null;
-                    let clean = url.trim();
-                    if (clean.startsWith('http://holux-api.onrender.com')) {
-                      clean = clean.replace('http://holux-api.onrender.com', 'https://holux-api.onrender.com');
-                    }
-                    if (clean.includes('localhost:8000/storage/uploads/')) {
-                      return '/uploads/' + clean.split('localhost:8000/storage/uploads/')[1];
-                    }
-                    return clean;
-                  };
+                  const resolveImg = resolveProductImage;
 
                   let imgList = [];
                   if (Array.isArray(selectedDetailProduct.images) && selectedDetailProduct.images.length > 0) {
@@ -8144,7 +8114,7 @@ export default function App() {
                             {/* Icon block */}
                             <div className="w-16 h-16 bg-gray-50 border border-gray-100 rounded overflow-hidden flex items-center justify-center">
                               <img 
-                                src={item.image_url || (item.images && item.images[0]) || getProductImage(item.name)} 
+                                src={resolveProductImage(item.image_url) || (item.images && resolveProductImage(item.images[0])) || resolveProductImage(item.image) || getProductImage(item.name)} 
                                 alt={item.name} 
                                 onError={(e) => {
                                   e.target.onerror = null;

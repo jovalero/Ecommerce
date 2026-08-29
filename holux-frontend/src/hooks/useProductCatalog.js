@@ -2,17 +2,12 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 
 import { API_BASE_URL as API_BASE } from '../config/api';
 import { productsMetadata } from '../config/productsMetadata';
+import { resolveProductImage } from '../utils/bannerStorage';
 
 export const enrichAdminProduct = (p) => {
   if (!p || typeof p !== 'object') return p;
   const meta = productsMetadata[p.id] || {};
-  const resolveImg = (url) => {
-    if (!url || typeof url !== 'string') return null;
-    if (url.includes('localhost:8000/storage/uploads/')) {
-      return '/uploads/' + url.split('localhost:8000/storage/uploads/')[1];
-    }
-    return url;
-  };
+  const resolveImg = resolveProductImage;
   const images = (Array.isArray(p.images) && p.images.length > 0)
     ? p.images.map(resolveImg).filter(Boolean)
     : (Array.isArray(meta.images) && meta.images.length > 0

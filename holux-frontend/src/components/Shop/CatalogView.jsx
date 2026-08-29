@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import ProductCard from './ProductCard';
 import { productsMetadata } from '../../config/productsMetadata';
+import { resolveProductImage } from '../../utils/bannerStorage';
 
 const TOP_PERFUME_BRANDS = [
   'Antonio Banderas',
@@ -370,16 +371,10 @@ export default function CatalogView({
           if (Array.isArray(allProds)) {
             const enrichProd = (p) => {
               const meta = productsMetadata[p.id] || {};
-              const resolveImg = (url) => {
-                if (!url || typeof url !== 'string') return null;
-                if (url.includes('localhost:8000/storage/uploads/')) {
-                  return '/uploads/' + url.split('localhost:8000/storage/uploads/')[1];
-                }
-                return url;
-              };
+              const resolveImg = resolveProductImage;
               const images = (Array.isArray(p.images) && p.images.length > 0)
-                ? p.images.map(resolveImg)
-                : (Array.isArray(meta.images) ? meta.images.map(resolveImg) : (p.image_url ? [resolveImg(p.image_url)] : []));
+                ? p.images.map(resolveImg).filter(Boolean)
+                : (Array.isArray(meta.images) ? meta.images.map(resolveImg).filter(Boolean) : (p.image_url ? [resolveImg(p.image_url)] : []));
               const image_url = resolveImg(p.image_url) || (images && images[0]) || meta.image_url || null;
 
               return {
