@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ShoppingBag, Star, Ruler, ChevronLeft, ChevronRight, Check, AlertCircle } from 'lucide-react';
+import { ShoppingBag, Star, Ruler, ChevronLeft, ChevronRight, Check, AlertCircle, ZoomIn, X } from 'lucide-react';
 import { formatMoney } from '../../utils/orderConstants';
 
 export default function ProductDetailView({
@@ -31,6 +31,7 @@ export default function ProductDetailView({
   if (!product) return null;
 
   const [activeImageIdx, setActiveImageIdx] = useState(0);
+  const [isZoomOpen, setIsZoomOpen] = useState(false);
 
   const discount = product.offer_price > 0 && product.price > product.offer_price
     ? Math.round(((product.price - product.offer_price) / product.price) * 100)
@@ -129,12 +130,22 @@ export default function ProductDetailView({
 
               return (
                 <div className="w-full flex flex-col items-center space-y-3">
-                  <div className="relative w-full aspect-4/3 sm:aspect-square bg-gray-50 rounded-xl overflow-hidden border border-gray-150 group shadow-2xs">
+                  <div 
+                    onClick={() => setIsZoomOpen(true)}
+                    className="relative w-full aspect-4/3 sm:aspect-square bg-gray-50 rounded-xl overflow-hidden border border-gray-150 group shadow-2xs cursor-zoom-in select-none"
+                    title="Haz clic para ampliar la imagen"
+                  >
                     {discount > 0 && (
                       <span className="absolute top-4 left-4 bg-[#3C6E71] text-white text-xs sm:text-sm font-sans font-semibold tracking-wider px-3 py-1 rounded-full shadow-sm z-10 select-none border border-white/15">
                         {discount}%
                       </span>
                     )}
+
+                    {/* Floating Zoom Badge */}
+                    <div className="absolute bottom-3 right-3 bg-black/60 hover:bg-black/85 text-white px-2.5 py-1.5 rounded-lg backdrop-blur-xs transition-all opacity-80 group-hover:opacity-100 flex items-center gap-1.5 text-[11px] font-sans font-medium shadow-md pointer-events-none z-10">
+                      <ZoomIn className="w-3.5 h-3.5 text-white" />
+                      <span className="hidden sm:inline">Ampliar</span>
+                    </div>
 
                     {imgList.length > 1 && (
                       <>
@@ -170,7 +181,7 @@ export default function ProductDetailView({
                         e.target.onerror = null;
                         e.target.src = getProductImage(product.name);
                       }}
-                      className="w-full h-full object-cover transition-opacity duration-300"
+                      className="w-full h-full object-contain p-2 group-hover:scale-105 transition-transform duration-300"
                     />
                   </div>
 
@@ -198,6 +209,95 @@ export default function ProductDetailView({
                           </button>
                         );
                       })}
+                    </div>
+                  )}
+
+                  {/* Lightbox Zoom Modal */}
+                  {isZoomOpen && (
+                    <div 
+                      className="fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex flex-col items-center justify-between p-4 sm:p-6 animate-fade-in select-none"
+                      onClick={() => setIsZoomOpen(false)}
+                    >
+                      {/* Top Bar */}
+                      <div className="w-full max-w-6xl flex items-center justify-between text-white py-2 z-20" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center gap-3">
+                          <h3 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-gray-200 truncate max-w-[220px] sm:max-w-md">
+                            {product.name}
+                          </h3>
+                          {imgList.length > 1 && (
+                            <span className="text-xs font-mono-custom bg-white/10 px-2.5 py-0.5 rounded-full text-gray-300 border border-white/10">
+                              {activeImageIdx + 1} / {imgList.length}
+                            </span>
+                          )}
+                        </div>
+                        
+                        <button
+                          type="button"
+                          onClick={() => setIsZoomOpen(false)}
+                          className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-all cursor-pointer hover:scale-110"
+                          title="Cerrar (Esc)"
+                        >
+                          <X className="w-6 h-6" />
+                        </button>
+                      </div>
+
+                      {/* Image Container with navigation */}
+                      <div 
+                        className="relative flex-1 w-full max-w-6xl flex items-center justify-center my-auto overflow-hidden"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {imgList.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => setActiveImageIdx((prev) => (prev > 0 ? prev - 1 : imgList.length - 1))}
+                            className="absolute left-2 sm:left-6 z-20 w-12 h-12 rounded-full bg-black/60 hover:bg-black/90 text-white border border-white/20 flex items-center justify-center transition-all hover:scale-110 cursor-pointer shadow-lg"
+                            title="Anterior (Flecha izquierda)"
+                          >
+                            <ChevronLeft className="w-7 h-7" />
+                          </button>
+                        )}
+
+                        <img 
+                          src={activeImgUrl} 
+                          alt={product.name}
+                          className="max-h-[75vh] max-w-[90vw] sm:max-w-[80vw] object-contain rounded-xl drop-shadow-2xl transition-all duration-200"
+                        />
+
+                        {imgList.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => setActiveImageIdx((prev) => (prev < imgList.length - 1 ? prev + 1 : 0))}
+                            className="absolute right-2 sm:right-6 z-20 w-12 h-12 rounded-full bg-black/60 hover:bg-black/90 text-white border border-white/20 flex items-center justify-center transition-all hover:scale-110 cursor-pointer shadow-lg"
+                            title="Siguiente (Flecha derecha)"
+                          >
+                            <ChevronRight className="w-7 h-7" />
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Bottom Thumbnail Strip */}
+                      {imgList.length > 1 && (
+                        <div 
+                          className="w-full max-w-xl flex items-center justify-center gap-2.5 overflow-x-auto py-2 z-20 no-scrollbar"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {imgList.map((thumbUrl, idx) => {
+                            const isSelected = activeImageIdx === idx;
+                            return (
+                              <button
+                                key={idx}
+                                type="button"
+                                onClick={() => setActiveImageIdx(idx)}
+                                className={`w-14 h-14 rounded-lg overflow-hidden border-2 transition-all cursor-pointer bg-white/5 shrink-0 ${
+                                  isSelected ? 'border-[#3C6E71] ring-2 ring-emerald-400 scale-105 opacity-100' : 'border-white/20 opacity-50 hover:opacity-90'
+                                }`}
+                              >
+                                <img src={thumbUrl} alt={`Thumb ${idx + 1}`} className="w-full h-full object-contain p-1" />
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
