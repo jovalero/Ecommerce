@@ -18,20 +18,28 @@ class ReviewController extends Controller
      */
     public function index(string $productId, SupabaseService $supabase): JsonResponse
     {
-        $reviews = $supabase->get('reviews', [
-            'select' => '*,profiles(full_name)',
-            'product_id' => 'eq.' . $productId,
-            'approved' => 'eq.true',
-            'order' => 'created_at.desc',
-        ]);
+        try {
+            $reviews = $supabase->get('reviews', [
+                'select' => '*,profiles(full_name)',
+                'product_id' => 'eq.' . $productId,
+                'approved' => 'eq.true',
+                'order' => 'created_at.desc',
+            ]);
 
-        $average = count($reviews) > 0 ? collect($reviews)->avg('rating') : 0.0;
+            $average = count($reviews) > 0 ? collect($reviews)->avg('rating') : 0.0;
 
-        return response()->json([
-            'reviews' => $reviews,
-            'rating_average' => round($average, 1),
-            'total_reviews' => count($reviews),
-        ]);
+            return response()->json([
+                'reviews' => $reviews ?: [],
+                'rating_average' => round($average, 1),
+                'total_reviews' => count($reviews ?: []),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'reviews' => [],
+                'rating_average' => 0.0,
+                'total_reviews' => 0,
+            ]);
+        }
     }
 
     /**

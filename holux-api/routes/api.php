@@ -43,6 +43,7 @@ Route::middleware('throttle:api')->group(function () {
     Route::get('/categories', [CategoryController::class, 'index']);
     Route::get('/products', [ProductController::class, 'index']);
     Route::get('/products/{id}', [ProductController::class, 'show']);
+    Route::get('/products/{id}/reviews', [ReviewController::class, 'index']);
     Route::get('/settings', [\App\Http\Controllers\Admin\SettingController::class, 'index']); // Public store & shipping settings
     Route::post('/settings', [\App\Http\Controllers\Admin\SettingController::class, 'update']); // Sync store settings & banners
     Route::put('/settings', [\App\Http\Controllers\Admin\SettingController::class, 'update']);
