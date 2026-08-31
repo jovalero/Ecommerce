@@ -7419,7 +7419,7 @@ export default function App() {
                       {/* Lightbox Zoom Modal */}
                       {isProductImageZoomOpen && (
                         <div 
-                          className="fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex flex-col items-center justify-between p-4 sm:p-6 animate-fade-in select-none"
+                          className="fixed inset-0 z-[9999] bg-black/95 backdrop-blur-md flex flex-col items-center justify-between p-4 sm:p-6 animate-fade-in select-none"
                           onClick={() => setIsProductImageZoomOpen(false)}
                         >
                           {/* Top Bar */}
