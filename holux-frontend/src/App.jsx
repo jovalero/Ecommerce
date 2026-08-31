@@ -1844,17 +1844,38 @@ export default function App() {
     setNewComment('');
     setReviewError('');
     setReviewSuccess('');
+    // 1. Fetch product reviews: query Supabase directly for instant speed
+    try {
+      if (SUPABASE_URL && SUPABASE_ANON_KEY) {
+        const supaRes = await fetch(`${SUPABASE_URL}/rest/v1/reviews?product_id=eq.${product.id}&approved=eq.true&select=*,profiles(full_name)&order=created_at.desc`, {
+          headers: {
+            'apikey': SUPABASE_ANON_KEY,
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+          }
+        });
+        if (supaRes.ok) {
+          const revs = await supaRes.json();
+          if (Array.isArray(revs)) {
+            const avg = revs.length > 0 ? revs.reduce((acc, r) => acc + (Number(r.rating) || 0), 0) / revs.length : 0;
+            setProductReviews(revs);
+            setReviewsAverage(Math.round(avg * 10) / 10);
+            setReviewsTotal(revs.length);
+            return;
+          }
+        }
+      }
+    } catch (e) {}
+
+    // 2. Secondary fallback to API
     try {
       const res = await fetch(`${API_BASE_URL}/api/products/${product.id}/reviews`);
       if (res.ok) {
         const data = await res.json();
-        setProductReviews(data.reviews);
-        setReviewsAverage(data.rating_average);
-        setReviewsTotal(data.total_reviews);
+        setProductReviews(Array.isArray(data.reviews) ? data.reviews : []);
+        setReviewsAverage(Number(data.rating_average) || 0);
+        setReviewsTotal(Number(data.total_reviews) || 0);
       }
-    } catch (err) {
-      console.error(err);
-    }
+    } catch (err) {}
   };
 
   const handlePostReview = async (e) => {
