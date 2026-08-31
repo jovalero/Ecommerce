@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import {
   ShoppingBag,
   User,
@@ -461,6 +462,31 @@ export default function App() {
   const [selectedDetailProduct, setSelectedDetailProduct] = useState(null);
   const [selectedProductImageIndex, setSelectedProductImageIndex] = useState(0);
   const [isProductImageZoomOpen, setIsProductImageZoomOpen] = useState(false);
+
+  const detailImgList = useMemo(() => {
+    if (!selectedDetailProduct) return [];
+    const meta = productsMetadata[selectedDetailProduct.id] || {};
+    let list = [];
+    if (Array.isArray(selectedDetailProduct.images) && selectedDetailProduct.images.length > 0) {
+      list = selectedDetailProduct.images.map(resolveProductImage).filter(Boolean);
+    }
+    if (list.length === 0 && selectedDetailProduct.image_url) {
+      const resolved = resolveProductImage(selectedDetailProduct.image_url);
+      if (resolved) list = [resolved];
+    }
+    if (list.length === 0 && Array.isArray(meta.images) && meta.images.length > 0) {
+      list = meta.images.map(resolveProductImage).filter(Boolean);
+    }
+    if (list.length === 0 && meta.image_url) {
+      const resolved = resolveProductImage(meta.image_url);
+      if (resolved) list = [resolved];
+    }
+    if (list.length === 0) {
+      list = [getProductImage(selectedDetailProduct.name)];
+    }
+    return list;
+  }, [selectedDetailProduct]);
+
   const [detailQuantity, setDetailQuantity] = useState(1);
   const [selectedSize, setSelectedSize] = useState('');
   const [sizeError, setSizeError] = useState(false);
@@ -681,16 +707,20 @@ export default function App() {
     return () => window.removeEventListener('holux_banners_updated', handleBannersSync);
   }, []);
 
-  // Keyboard navigation for product image zoom modal
+  // Keyboard navigation & body scroll lock for product image zoom modal
   useEffect(() => {
     if (!isProductImageZoomOpen) return;
+    document.body.style.overflow = 'hidden';
     const handleZoomKeyDown = (e) => {
       if (e.key === 'Escape') {
         setIsProductImageZoomOpen(false);
       }
     };
     window.addEventListener('keydown', handleZoomKeyDown);
-    return () => window.removeEventListener('keydown', handleZoomKeyDown);
+    return () => {
+      document.body.style.overflow = '';
+      window.removeEventListener('keydown', handleZoomKeyDown);
+    };
   }, [isProductImageZoomOpen]);
 
   // Sync wallet to user-specific localStorage key
@@ -7415,95 +7445,6 @@ export default function App() {
                       <p className="text-[10px] text-gray-400 font-sans tracking-wide text-center">
                         Imagen ilustrativa oficial de HOLUX. Fragancia 100% original con garantía de autenticidad.
                       </p>
-
-                      {/* Lightbox Zoom Modal */}
-                      {isProductImageZoomOpen && (
-                        <div 
-                          className="fixed inset-0 z-[9999] bg-black/95 backdrop-blur-md flex flex-col items-center justify-between p-4 sm:p-6 animate-fade-in select-none"
-                          onClick={() => setIsProductImageZoomOpen(false)}
-                        >
-                          {/* Top Bar */}
-                          <div className="w-full max-w-6xl flex items-center justify-between text-white py-2 z-20" onClick={(e) => e.stopPropagation()}>
-                            <div className="flex items-center gap-3">
-                              <h3 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-gray-200 truncate max-w-[220px] sm:max-w-md">
-                                {selectedDetailProduct.name}
-                              </h3>
-                              {imgList.length > 1 && (
-                                <span className="text-xs font-mono-custom bg-white/10 px-2.5 py-0.5 rounded-full text-gray-300 border border-white/10">
-                                  {selectedProductImageIndex + 1} / {imgList.length}
-                                </span>
-                              )}
-                            </div>
-                            
-                            <button
-                              type="button"
-                              onClick={() => setIsProductImageZoomOpen(false)}
-                              className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-all cursor-pointer hover:scale-110"
-                              title="Cerrar (Esc)"
-                            >
-                              <X className="w-6 h-6" />
-                            </button>
-                          </div>
-
-                          {/* Image Container with navigation */}
-                          <div 
-                            className="relative flex-1 w-full max-w-6xl flex items-center justify-center my-auto overflow-hidden"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            {imgList.length > 1 && (
-                              <button
-                                type="button"
-                                onClick={() => setSelectedProductImageIndex((prev) => (prev > 0 ? prev - 1 : imgList.length - 1))}
-                                className="absolute left-2 sm:left-6 z-20 w-12 h-12 rounded-full bg-black/60 hover:bg-black/90 text-white border border-white/20 flex items-center justify-center transition-all hover:scale-110 cursor-pointer shadow-lg"
-                                title="Anterior (Flecha izquierda)"
-                              >
-                                <ChevronLeft className="w-7 h-7" />
-                              </button>
-                            )}
-
-                            <img 
-                              src={activeImgUrl} 
-                              alt={selectedDetailProduct.name}
-                              className="max-h-[75vh] max-w-[90vw] sm:max-w-[80vw] object-contain rounded-xl drop-shadow-2xl transition-all duration-200"
-                            />
-
-                            {imgList.length > 1 && (
-                              <button
-                                type="button"
-                                onClick={() => setSelectedProductImageIndex((prev) => (prev < imgList.length - 1 ? prev + 1 : 0))}
-                                className="absolute right-2 sm:right-6 z-20 w-12 h-12 rounded-full bg-black/60 hover:bg-black/90 text-white border border-white/20 flex items-center justify-center transition-all hover:scale-110 cursor-pointer shadow-lg"
-                                title="Siguiente (Flecha derecha)"
-                              >
-                                <ChevronRight className="w-7 h-7" />
-                              </button>
-                            )}
-                          </div>
-
-                          {/* Bottom Thumbnail Strip */}
-                          {imgList.length > 1 && (
-                            <div 
-                              className="w-full max-w-xl flex items-center justify-center gap-2.5 overflow-x-auto py-2 z-20 no-scrollbar"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              {imgList.map((thumbUrl, idx) => {
-                                const isSelected = selectedProductImageIndex === idx;
-                                return (
-                                  <button
-                                    key={idx}
-                                    type="button"
-                                    onClick={() => setSelectedProductImageIndex(idx)}
-                                    className={`w-14 h-14 rounded-lg overflow-hidden border-2 transition-all cursor-pointer bg-white/5 shrink-0 ${
-                                      isSelected ? 'border-[#3C6E71] ring-2 ring-emerald-400 scale-105 opacity-100' : 'border-white/20 opacity-50 hover:opacity-90'
-                                    }`}
-                                  >
-                                    <img src={thumbUrl} alt={`Thumb ${idx + 1}`} className="w-full h-full object-contain p-1" />
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </div>
-                      )}
                     </div>
                   );
                 })()}
@@ -9862,6 +9803,95 @@ export default function App() {
               </form>
             </div>
           </div>
+        )}
+        {/* --- PRODUCT IMAGE LIGHTBOX ZOOM MODAL (PORTAL DIRECTLY TO BODY) --- */}
+        {isProductImageZoomOpen && selectedDetailProduct && typeof document !== 'undefined' && createPortal(
+          <div 
+            className="fixed inset-0 z-[99999] bg-black/95 backdrop-blur-md flex flex-col items-center justify-between p-4 sm:p-6 animate-fade-in select-none"
+            onClick={() => setIsProductImageZoomOpen(false)}
+          >
+            {/* Top Bar */}
+            <div className="w-full max-w-6xl flex items-center justify-between text-white py-2 z-20" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center gap-3">
+                <h3 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-gray-200 truncate max-w-[220px] sm:max-w-md">
+                  {selectedDetailProduct.name}
+                </h3>
+                {detailImgList.length > 1 && (
+                  <span className="text-xs font-mono-custom bg-white/10 px-2.5 py-0.5 rounded-full text-gray-300 border border-white/10">
+                    {selectedProductImageIndex + 1} / {detailImgList.length}
+                  </span>
+                )}
+              </div>
+              
+              <button
+                type="button"
+                onClick={() => setIsProductImageZoomOpen(false)}
+                className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-all cursor-pointer hover:scale-110"
+                title="Cerrar (Esc)"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            {/* Image Container with navigation */}
+            <div 
+              className="relative flex-1 w-full max-w-6xl flex items-center justify-center my-auto overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {detailImgList.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedProductImageIndex((prev) => (prev > 0 ? prev - 1 : detailImgList.length - 1))}
+                  className="absolute left-2 sm:left-6 z-20 w-12 h-12 rounded-full bg-black/60 hover:bg-black/90 text-white border border-white/20 flex items-center justify-center transition-all hover:scale-110 cursor-pointer shadow-lg"
+                  title="Anterior (Flecha izquierda)"
+                >
+                  <ChevronLeft className="w-7 h-7" />
+                </button>
+              )}
+
+              <img 
+                src={detailImgList[selectedProductImageIndex] || detailImgList[0]} 
+                alt={selectedDetailProduct.name}
+                className="max-h-[75vh] max-w-[90vw] sm:max-w-[80vw] object-contain rounded-xl drop-shadow-2xl transition-all duration-200"
+              />
+
+              {detailImgList.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedProductImageIndex((prev) => (prev < detailImgList.length - 1 ? prev + 1 : 0))}
+                  className="absolute right-2 sm:right-6 z-20 w-12 h-12 rounded-full bg-black/60 hover:bg-black/90 text-white border border-white/20 flex items-center justify-center transition-all hover:scale-110 cursor-pointer shadow-lg"
+                  title="Siguiente (Flecha derecha)"
+                >
+                  <ChevronRight className="w-7 h-7" />
+                </button>
+              )}
+            </div>
+
+            {/* Bottom Thumbnail Strip */}
+            {detailImgList.length > 1 && (
+              <div 
+                className="w-full max-w-xl flex items-center justify-center gap-2.5 overflow-x-auto py-2 z-20 no-scrollbar"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {detailImgList.map((thumbUrl, idx) => {
+                  const isSelected = selectedProductImageIndex === idx;
+                  return (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setSelectedProductImageIndex(idx)}
+                      className={`w-14 h-14 rounded-lg overflow-hidden border-2 transition-all cursor-pointer bg-white/5 shrink-0 ${
+                        isSelected ? 'border-[#3C6E71] ring-2 ring-emerald-400 scale-105 opacity-100' : 'border-white/20 opacity-50 hover:opacity-90'
+                      }`}
+                    >
+                      <img src={thumbUrl} alt={`Thumb ${idx + 1}`} className="w-full h-full object-contain p-1" />
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>,
+          document.body
         )}
       </div>
 
