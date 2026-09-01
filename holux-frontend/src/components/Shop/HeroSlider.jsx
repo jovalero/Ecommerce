@@ -95,7 +95,7 @@ export const HeroSlider = memo(function HeroSlider({
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
-      className="group relative overflow-hidden bg-black text-[#F2EFE9] h-[550px] sm:h-[650px] lg:h-[calc(100vh-140px)] lg:min-h-[650px] flex items-center border-b border-[#3C6E71]/15 select-none cursor-default"
+      className="group relative overflow-hidden bg-black text-[#F2EFE9] h-[520px] sm:h-[600px] md:h-[50vw] md:max-h-[650px] lg:h-[48vw] lg:max-h-[720px] xl:h-[calc(100vh-130px)] xl:max-h-[800px] xl:min-h-[580px] flex items-center border-b border-[#3C6E71]/15 select-none cursor-default"
     >
       {/* Slide images with smooth GPU-accelerated crossfade transitions */}
       {slides.map((slide, idx) => {
