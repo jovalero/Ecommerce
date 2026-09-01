@@ -616,7 +616,7 @@ export default function App() {
   // Asynchronously sync persistent banners, 3 promo cards & section titles from IndexedDB
   useEffect(() => {
     loadPersistedBannerData('holux_hero_slides', null).then(saved => {
-      if (saved && Array.isArray(saved) && saved.length > 0) {
+      if (Array.isArray(saved)) {
         setHeroSlides(saved);
       }
     });
@@ -626,12 +626,12 @@ export default function App() {
       }
     });
     loadPersistedBannerData('holux_grid_promo_cards', null).then(saved => {
-      if (saved && Array.isArray(saved) && saved.length > 0) {
+      if (Array.isArray(saved) && saved.length > 0) {
         setGridPromoCards(saved);
       }
     });
     loadPersistedBannerData('holux_header_nav_items', null).then(saved => {
-      if (saved && Array.isArray(saved) && saved.length > 0) {
+      if (Array.isArray(saved) && saved.length > 0) {
         setHeaderNavItems(saved);
       }
     });
@@ -641,7 +641,7 @@ export default function App() {
       }
     });
     loadPersistedBannerData('holux_ticker_phrases', null).then(saved => {
-      if (saved && Array.isArray(saved) && saved.length > 0) {
+      if (Array.isArray(saved) && saved.length > 0) {
         setTickerPhrases(saved);
       }
     });
@@ -649,7 +649,7 @@ export default function App() {
     // Universal Cloud Store Settings Fetch (ensures mobile devices & customers get latest banners from Supabase)
     const applyStoreSettings = (s) => {
       if (!s || typeof s !== 'object') return;
-      if (s.hero_slides && Array.isArray(s.hero_slides) && s.hero_slides.length > 0) {
+      if (Array.isArray(s.hero_slides)) {
         setHeroSlides(s.hero_slides);
       }
       if (s.grid_cards && Array.isArray(s.grid_cards) && s.grid_cards.length > 0) {
