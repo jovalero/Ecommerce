@@ -95,7 +95,7 @@ export const HeroSlider = memo(function HeroSlider({
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
-      className="group relative overflow-hidden bg-black text-[#F2EFE9] h-[550px] sm:h-[650px] md:h-[calc(100vh-140px)] md:min-h-[650px] flex items-center border-b border-[#3C6E71]/15 select-none cursor-default"
+      className="group relative overflow-hidden bg-black text-[#F2EFE9] h-[550px] sm:h-[650px] lg:h-[calc(100vh-140px)] lg:min-h-[650px] flex items-center border-b border-[#3C6E71]/15 select-none cursor-default"
     >
       {/* Slide images with smooth GPU-accelerated crossfade transitions */}
       {slides.map((slide, idx) => {
@@ -140,21 +140,21 @@ export const HeroSlider = memo(function HeroSlider({
             }`}
             style={{ transform: 'translate3d(0, 0, 0)' }}
           >
-            {/* Mobile / Tablet Portrait Image (100% Guaranteed on all phones) */}
+            {/* Mobile & Tablet Portrait Image (Active up to 1024px: phones, iPads & tablets) */}
             <img
               src={slide.mobileImage || slide.image}
-              alt={slide.title || 'Banner Holux Mobile'}
+              alt={slide.title || 'Banner Holux Mobile & Tablet'}
               decoding="async"
               loading="eager"
-              className="absolute inset-0 w-full h-full object-cover object-center block md:hidden opacity-100"
+              className="absolute inset-0 w-full h-full object-cover object-center block lg:hidden opacity-100"
             />
-            {/* Desktop / Laptop Horizontal Image */}
+            {/* Desktop / Laptop Horizontal Image (Active on large screens 1024px+) */}
             <img
               src={slide.image || slide.mobileImage}
               alt={slide.title || 'Banner Holux Desktop'}
               decoding="async"
               loading="eager"
-              className="absolute inset-0 w-full h-full object-cover object-center hidden md:block opacity-100"
+              className="absolute inset-0 w-full h-full object-cover object-center hidden lg:block opacity-100"
             />
 
             {/* Black Overlay and gradients ONLY when overlayDarkness > 0 */}
