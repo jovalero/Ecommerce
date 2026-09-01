@@ -650,7 +650,7 @@ export default function App() {
     // Universal Cloud Store Settings Fetch (ensures mobile devices & customers get latest banners from Supabase)
     const applyStoreSettings = (s) => {
       if (!s || typeof s !== 'object') return;
-      if (Array.isArray(s.hero_slides)) {
+      if (Array.isArray(s.hero_slides) && s.hero_slides.length > 0) {
         setHeroSlides(s.hero_slides);
       }
       if (s.grid_cards && Array.isArray(s.grid_cards) && s.grid_cards.length > 0) {

@@ -276,7 +276,7 @@ export default function BannerEditor({
     }, 50);
   };
 
-  const handleSaveBannerForm = (e) => {
+  const handleSaveBannerForm = async (e) => {
     e.preventDefault();
     const updated = [...heroSlides];
     
@@ -309,14 +309,14 @@ export default function BannerEditor({
     }
 
     setHeroSlides(updated);
-    persistBannerData('holux_hero_slides', updated);
+    await persistBannerData('holux_hero_slides', updated);
     setEditingIndex(null);
     setIsFormOpen(false);
     setSavedMsg(true);
     setTimeout(() => setSavedMsg(false), 3000);
   };
 
-  const handleMove = (idx, direction) => {
+  const handleMove = async (idx, direction) => {
     const updated = [...heroSlides];
     const targetIdx = idx + direction;
     if (targetIdx < 0 || targetIdx >= updated.length) return;
@@ -324,7 +324,7 @@ export default function BannerEditor({
     updated[idx] = updated[targetIdx];
     updated[targetIdx] = temp;
     setHeroSlides(updated);
-    persistBannerData('holux_hero_slides', updated);
+    await persistBannerData('holux_hero_slides', updated);
   };
 
   const handleDelete = (idx) => {
@@ -332,10 +332,10 @@ export default function BannerEditor({
       title: '¿ELIMINAR BANNER?',
       message: `¿Estás seguro de que deseas eliminar permanentemente el banner #${idx + 1}? Esta acción no se puede deshacer.`
     });
-    setConfirmAction(() => () => {
+    setConfirmAction(() => async () => {
       const updated = heroSlides.filter((_, i) => i !== idx);
       setHeroSlides(updated);
-      persistBannerData('holux_hero_slides', updated);
+      await persistBannerData('holux_hero_slides', updated);
       if (editingIndex === idx) {
         setEditingIndex(null);
         setTitle('');
@@ -344,7 +344,7 @@ export default function BannerEditor({
     setIsConfirmOpen(true);
   };
 
-  const handleSaveAllGlobal = () => {
+  const handleSaveAllGlobal = async () => {
     if (setPromoBanner) {
       const promoObj = {
         tag: promoTag,
@@ -353,7 +353,7 @@ export default function BannerEditor({
         isVisible: promoIsVisible
       };
       setPromoBanner(promoObj);
-      persistBannerData('holux_promo_banner', promoObj);
+      await persistBannerData('holux_promo_banner', promoObj);
     }
     const updatedTitles = {
       novedadesTitle,
@@ -362,14 +362,14 @@ export default function BannerEditor({
       destacadosSubtitle
     };
     if (setHomeSectionTitles) setHomeSectionTitles(updatedTitles);
-    persistBannerData('holux_home_section_titles', updatedTitles);
+    await persistBannerData('holux_home_section_titles', updatedTitles);
 
     if (setGridPromoCards) setGridPromoCards(promoCards);
-    persistBannerData('holux_grid_promo_cards', promoCards);
+    await persistBannerData('holux_grid_promo_cards', promoCards);
 
-    persistBannerData('holux_hero_slides', heroSlides);
-    persistBannerData('holux_ticker_phrases', tickerPhrases);
-    persistBannerData('holux_header_nav_items', navigationItems);
+    await persistBannerData('holux_hero_slides', heroSlides);
+    await persistBannerData('holux_ticker_phrases', tickerPhrases);
+    await persistBannerData('holux_header_nav_items', navigationItems);
 
     setSavedMsg(true);
     setTimeout(() => setSavedMsg(false), 3500);
