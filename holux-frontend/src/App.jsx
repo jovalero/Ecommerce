@@ -1268,30 +1268,33 @@ export default function App() {
     setLoadingProducts(true);
     setLoadingCategories(true);
     try {
-      // 1. Fetch Categories (try Laravel API first, then Supabase directly)
+      // 1. Fetch Categories (Fast Direct Supabase First, Laravel API Fallback)
       let catsLoaded = false;
       try {
-        const resCat = await fetch(`${API_BASE_URL}/api/categories`);
-        if (resCat.ok) {
-          const data = await resCat.json();
-          const cats = Array.isArray(data) ? data : (data.data || []);
-          if (cats.length > 0) {
+        const supaCat = await fetch(`${SUPABASE_URL}/rest/v1/categories?select=*&order=name.asc`, {
+          headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+        });
+        if (supaCat.ok) {
+          const cats = await supaCat.json();
+          if (Array.isArray(cats) && cats.length > 0) {
             setCategories(cats);
             catsLoaded = true;
           }
         }
-      } catch (err) {}
+      } catch (supaErr) {}
 
       if (!catsLoaded) {
         try {
-          const supaCat = await fetch(`${SUPABASE_URL}/rest/v1/categories?select=*`, {
-            headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
-          });
-          if (supaCat.ok) {
-            const cats = await supaCat.json();
-            setCategories(cats);
+          const resCat = await fetch(`${API_BASE_URL}/api/categories`);
+          if (resCat.ok) {
+            const data = await resCat.json();
+            const cats = Array.isArray(data) ? data : (data.data || []);
+            if (cats.length > 0) {
+              setCategories(cats);
+              catsLoaded = true;
+            }
           }
-        } catch (supaErr) {}
+        } catch (err) {}
       }
 
       // 2. Fetch Products (try Laravel API first, then Supabase directly)

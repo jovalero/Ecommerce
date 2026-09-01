@@ -217,38 +217,36 @@ export default function CatalogView({
   const activeFavorites = propFavorites !== undefined ? propFavorites : favorites;
   const activeToggleFavorite = propOnToggleFavorite || handleToggleFavorite;
 
-  // --- FETCH CATEGORIES LIST ---
+  // --- FETCH CATEGORIES LIST (Direct Supabase Fast First) ---
   useEffect(() => {
     const fetchCats = async () => {
       let catsOk = false;
       try {
-        const res = await fetch(`${API_BASE_URL}/api/categories`);
-        if (res.ok) {
-          const data = await res.json();
-          const cats = Array.isArray(data) ? data : (data.data || []);
-          if (cats.length > 0) {
-            setAvailableCategories(cats);
+        const supaUrl = import.meta.env.VITE_SUPABASE_URL || 'https://fmbhcfsrsfkglmvgbnlm.supabase.co';
+        const supaKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_aAzQcAqCATpYDGBVRNJRQQ_1CKarnEb';
+        const supaRes = await fetch(`${supaUrl}/rest/v1/categories?select=*&order=name.asc`, {
+          headers: { 'apikey': supaKey, 'Authorization': `Bearer ${supaKey}` }
+        });
+        if (supaRes.ok) {
+          const data = await supaRes.json();
+          if (Array.isArray(data) && data.length > 0) {
+            setAvailableCategories(data);
             catsOk = true;
           }
         }
-      } catch (err) {}
+      } catch (supaErr) {}
 
-      if (!catsOk) {
+      if (!catsOk && API_BASE_URL) {
         try {
-          const supaUrl = import.meta.env.VITE_SUPABASE_URL || 'https://fmbhcfsrsfkglmvgbnlm.supabase.co';
-          const supaKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_aAzQcAqCATpYDGBVRNJRQQ_1CKarnEb';
-          const supaRes = await fetch(`${supaUrl}/rest/v1/categories?select=*`, {
-            headers: { 'apikey': supaKey, 'Authorization': `Bearer ${supaKey}` }
-          });
-          if (supaRes.ok) {
-            const data = await supaRes.json();
-            if (Array.isArray(data) && data.length > 0) {
-              setAvailableCategories(data);
+          const res = await fetch(`${API_BASE_URL}/api/categories`);
+          if (res.ok) {
+            const data = await res.json();
+            const cats = Array.isArray(data) ? data : (data.data || []);
+            if (cats.length > 0) {
+              setAvailableCategories(cats);
             }
           }
-        } catch (supaErr) {
-          console.error("Error fetching categories from Supabase:", supaErr);
-        }
+        } catch (err) {}
       }
     };
     fetchCats();
