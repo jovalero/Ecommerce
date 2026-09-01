@@ -84,6 +84,10 @@ export const HeroSlider = memo(function HeroSlider({
     }
   };
 
+  if (!slides || slides.length === 0) {
+    return null;
+  }
+
   return (
     <div
       onMouseEnter={() => { isHoveredRef.current = true; }}
