@@ -29,7 +29,11 @@ class AppServiceProvider extends ServiceProvider
         }
 
         RateLimiter::for('api', function (Request $request) {
-            return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());
+            // Never throttle admin settings, media uploads or health check
+            if ($request->is('api/settings*') || $request->is('api/upload*') || $request->is('api/admin/*') || $request->is('api/ping')) {
+                return Limit::none();
+            }
+            return Limit::perMinute(2000)->by($request->user()?->id ?: $request->ip());
         });
     }
 }
