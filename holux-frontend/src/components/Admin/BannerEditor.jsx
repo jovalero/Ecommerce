@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Image, Link, Calendar, CheckCircle2, Eye, Save, Trash2, Plus, MoveUp, MoveDown, ShieldCheck, Sparkles, CreditCard, Megaphone, LayoutTemplate, Layers, Compass, Monitor, Smartphone, Tablet, ChevronRight, Grid, User } from 'lucide-react';
 import ConfirmationModal from './ConfirmationModal';
-import { persistBannerData, uploadOrCompressBanner } from '../../utils/bannerStorage';
+import { persistBannerData, persistAllStoreSettings, uploadOrCompressBanner } from '../../utils/bannerStorage';
 
 export default function BannerEditor({
   heroSlides = [],
@@ -347,15 +347,15 @@ export default function BannerEditor({
   };
 
   const handleSaveAllGlobal = async () => {
+    let promoObj = null;
     if (setPromoBanner) {
-      const promoObj = {
+      promoObj = {
         tag: promoTag,
         title: promoTitle,
         description: promoDesc,
         isVisible: promoIsVisible
       };
       setPromoBanner(promoObj);
-      await persistBannerData('holux_promo_banner', promoObj);
     }
     const updatedTitles = {
       novedadesTitle,
@@ -364,14 +364,18 @@ export default function BannerEditor({
       destacadosSubtitle
     };
     if (setHomeSectionTitles) setHomeSectionTitles(updatedTitles);
-    await persistBannerData('holux_home_section_titles', updatedTitles);
-
     if (setGridPromoCards) setGridPromoCards(promoCards);
-    await persistBannerData('holux_grid_promo_cards', promoCards);
 
-    await persistBannerData('holux_hero_slides', heroSlides);
-    await persistBannerData('holux_ticker_phrases', tickerPhrases);
-    await persistBannerData('holux_header_nav_items', navigationItems);
+    const allSettings = {
+      holux_hero_slides: heroSlides,
+      holux_grid_promo_cards: promoCards,
+      holux_home_section_titles: updatedTitles,
+      holux_ticker_phrases: tickerPhrases,
+      holux_header_nav_items: navigationItems
+    };
+    if (promoObj) allSettings.holux_promo_banner = promoObj;
+
+    await persistAllStoreSettings(allSettings);
 
     setSavedMsg(true);
     setTimeout(() => setSavedMsg(false), 3500);

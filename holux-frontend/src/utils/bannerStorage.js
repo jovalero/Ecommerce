@@ -178,6 +178,9 @@ export async function uploadOrCompressBanner(file, API_BASE, token) {
 /**
  * Universal safe persistent save (localStorage + IndexedDB + Backend Settings Sync)
  */
+/**
+ * Single field persistence
+ */
 export async function persistBannerData(key, data) {
   try {
     localStorage.setItem(key, JSON.stringify(data));
@@ -193,7 +196,7 @@ export async function persistBannerData(key, data) {
     window.dispatchEvent(new Event('storage'));
   }
 
-  // Sync to backend /api/settings (which updates Supabase Storage config/store_settings.json)
+  // Sync to backend /api/settings (single request)
   try {
     const apiBase = typeof window !== 'undefined' && window.location.hostname === 'localhost' ? 'http://localhost:8000' : 'https://holux-api.onrender.com';
     let field = null;
@@ -220,6 +223,61 @@ export async function persistBannerData(key, data) {
       }).catch(() => {});
     }
   } catch (syncErr) {}
+}
+
+/**
+ * Universal Unified Batch Persistence
+ * Saves all marketing settings in ONE SINGLE HTTP POST request to avoid race conditions and 429 errors.
+ */
+export async function persistAllStoreSettings(settingsMap) {
+  if (!settingsMap || typeof settingsMap !== 'object') return false;
+
+  // 1. Save all keys to localStorage and IndexedDB
+  for (const [key, val] of Object.entries(settingsMap)) {
+    try {
+      localStorage.setItem(key, JSON.stringify(val));
+    } catch (e) {}
+    await setToIndexedDB(key, val);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('holux_banners_updated', { detail: { key, data: val } }));
+    }
+  }
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('storage'));
+  }
+
+  // 2. Prepare unified payload for backend /api/settings
+  const payload = {};
+  if ('holux_hero_slides' in settingsMap) payload.hero_slides = settingsMap['holux_hero_slides'];
+  if ('holux_grid_promo_cards' in settingsMap) payload.grid_cards = settingsMap['holux_grid_promo_cards'];
+  if ('holux_promo_banner' in settingsMap) payload.promo_banner = settingsMap['holux_promo_banner'];
+  if ('holux_home_section_titles' in settingsMap) payload.section_titles = settingsMap['holux_home_section_titles'];
+  if ('holux_ticker_phrases' in settingsMap) payload.ticker_phrases = settingsMap['holux_ticker_phrases'];
+  if ('holux_header_nav_items' in settingsMap) payload.header_nav = settingsMap['holux_header_nav_items'];
+  if ('holux_payment_methods_config' in settingsMap) payload.payment_methods_config = settingsMap['holux_payment_methods_config'];
+
+  if (Object.keys(payload).length === 0) return true;
+
+  // 3. Send ONE SINGLE unified POST request to /api/settings
+  try {
+    const apiBase = typeof window !== 'undefined' && window.location.hostname === 'localhost' ? 'http://localhost:8000' : 'https://holux-api.onrender.com';
+    const token = localStorage.getItem('user_token') || localStorage.getItem('holux_auth_token') || '';
+    const headers = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const res = await fetch(`${apiBase}/api/settings`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(payload)
+    });
+    return res.ok;
+  } catch (err) {
+    console.warn('[BannerStorage] Batch sync failed:', err);
+    return false;
+  }
 }
 
 /**
