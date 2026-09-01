@@ -33,73 +33,69 @@ use Illuminate\Support\Facades\Route;
 // ==========================================
 // 1. PUBLIC ROUTES (No Auth Required)
 // ==========================================
-Route::middleware('throttle:api')->group(function () {
-    // Health / Keep-alive Ping Route
-    Route::get('/ping', function () {
-        return response()->json(['status' => 'alive', 'timestamp' => now()->toIso8601String()]);
-    });
-
-    // Categories and Products
-    Route::get('/categories', [CategoryController::class, 'index']);
-    Route::get('/products/{id}/reviews', [ReviewController::class, 'index']);
-    Route::get('/products/{id}', [ProductController::class, 'show']);
-    Route::get('/products', [ProductController::class, 'index']);
-    Route::get('/settings', [\App\Http\Controllers\Admin\SettingController::class, 'index']); // Public store & shipping settings
-    Route::post('/settings', [\App\Http\Controllers\Admin\SettingController::class, 'update']); // Sync store settings & banners
-    Route::put('/settings', [\App\Http\Controllers\Admin\SettingController::class, 'update']);
-    Route::post('/upload', [\App\Http\Controllers\Admin\MediaUploadController::class, 'store']); // Public & Admin CDN media upload
-    Route::post('/admin/upload', [\App\Http\Controllers\Admin\MediaUploadController::class, 'store']);
-
-    // Public Registration with auto-confirm
-    Route::post('/register', function (\Illuminate\Http\Request $request) {
-        $request->validate([
-            'email' => 'required|email',
-            'password' => 'required|string|min:6',
-            'full_name' => 'nullable|string',
-            'phone' => 'nullable|string'
-        ]);
-
-        $supabaseUrl = env('SUPABASE_URL', 'https://fmbhcfsrsfkglmvgbnlm.supabase.co');
-        $supabaseServiceKey = env('SUPABASE_SERVICE_KEY');
-
-        $response = \Illuminate\Support\Facades\Http::withHeaders([
-            'apikey' => $supabaseServiceKey,
-            'Authorization' => 'Bearer ' . $supabaseServiceKey,
-            'Content-Type' => 'application/json'
-        ])->post("{$supabaseUrl}/auth/v1/admin/users", [
-            'email' => $request->email,
-            'password' => $request->password,
-            'email_confirm' => true,
-            'user_metadata' => [
-                'full_name' => $request->full_name,
-                'phone' => $request->phone
-            ]
-        ]);
-
-        if ($response->successful()) {
-            return response()->json([
-                'success' => true,
-                'message' => 'Usuario registrado y confirmado exitosamente',
-                'user' => $response->json()
-            ], 201);
-        }
-
-        return response()->json($response->json(), $response->status());
-    });
-
-    // Sensitive payment and order creation endpoints (Protected with strict rate-limiting)
-    Route::middleware('throttle:15,1')->group(function () {
-        Route::post('/orders', [OrderController::class, 'store']);
-        Route::post('/process_order', [OrderController::class, 'processOrder']);
-        Route::post('/orders/process-payment', [OrderController::class, 'processOrder']);
-        Route::post('/webhooks/mercadopago', [OrderController::class, 'handleMercadoPagoWebhook']);
-    });
+// Health / Keep-alive Ping Route
+Route::get('/ping', function () {
+    return response()->json(['status' => 'alive', 'timestamp' => now()->toIso8601String()]);
 });
+
+// Categories and Products
+Route::get('/categories', [CategoryController::class, 'index']);
+Route::get('/products/{id}/reviews', [ReviewController::class, 'index']);
+Route::get('/products/{id}', [ProductController::class, 'show']);
+Route::get('/products', [ProductController::class, 'index']);
+Route::get('/settings', [\App\Http\Controllers\Admin\SettingController::class, 'index']); // Public store & shipping settings
+Route::post('/settings', [\App\Http\Controllers\Admin\SettingController::class, 'update']); // Sync store settings & banners
+Route::put('/settings', [\App\Http\Controllers\Admin\SettingController::class, 'update']);
+Route::post('/upload', [\App\Http\Controllers\Admin\MediaUploadController::class, 'store']); // Public & Admin CDN media upload
+Route::post('/admin/upload', [\App\Http\Controllers\Admin\MediaUploadController::class, 'store']);
+
+// Public Registration with auto-confirm
+Route::post('/register', function (\Illuminate\Http\Request $request) {
+    $request->validate([
+        'email' => 'required|email',
+        'password' => 'required|string|min:6',
+        'full_name' => 'nullable|string',
+        'phone' => 'nullable|string'
+    ]);
+
+    $supabaseUrl = env('SUPABASE_URL', 'https://fmbhcfsrsfkglmvgbnlm.supabase.co');
+    $supabaseServiceKey = env('SUPABASE_SERVICE_KEY');
+
+    $response = \Illuminate\Support\Facades\Http::withHeaders([
+        'apikey' => $supabaseServiceKey,
+        'Authorization' => 'Bearer ' . $supabaseServiceKey,
+        'Content-Type' => 'application/json'
+    ])->post("{$supabaseUrl}/auth/v1/admin/users", [
+        'email' => $request->email,
+        'password' => $request->password,
+        'email_confirm' => true,
+        'user_metadata' => [
+            'full_name' => $request->full_name,
+            'phone' => $request->phone
+        ]
+    ]);
+
+    if ($response->successful()) {
+        return response()->json([
+            'success' => true,
+            'message' => 'Usuario registrado y confirmado exitosamente',
+            'user' => $response->json()
+        ], 201);
+    }
+
+    return response()->json($response->json(), $response->status());
+});
+
+// Order and checkout endpoints
+Route::post('/orders', [OrderController::class, 'store']);
+Route::post('/process_order', [OrderController::class, 'processOrder']);
+Route::post('/orders/process-payment', [OrderController::class, 'processOrder']);
+Route::post('/webhooks/mercadopago', [OrderController::class, 'handleMercadoPagoWebhook']);
 
 // ==========================================
 // 2. CLIENT PANEL ROUTES (Supabase Auth Required)
 // ==========================================
-Route::middleware(['throttle:api', 'auth.supabase'])->group(function () {
+Route::middleware(['auth.supabase'])->group(function () {
     // Profile
     Route::get('/me', [ProfileController::class, 'me']);
     Route::patch('/me', [ProfileController::class, 'updateMe']);
@@ -139,7 +135,7 @@ Route::middleware(['throttle:api', 'auth.supabase'])->group(function () {
 // ==========================================
 // 3. ADMIN PANEL ROUTES (Admin Auth Required)
 // ==========================================
-Route::prefix('admin')->middleware(['throttle:api', 'auth.supabase', 'auth.admin'])->group(function () {
+Route::prefix('admin')->middleware(['auth.supabase', 'auth.admin'])->group(function () {
     // Dashboard Stats
     Route::get('/dashboard', [AdminDashboardController::class, 'index']);
 
