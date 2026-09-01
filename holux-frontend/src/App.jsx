@@ -670,14 +670,14 @@ export default function App() {
       }
     };
 
-    // 1. Fetch direct from Supabase CDN (0ms, ultra-fast global CDN)
-    fetch('https://fmbhcfsrsfkglmvgbnlm.supabase.co/storage/v1/object/public/product-images/config/store_settings.json')
+    // 1. Fetch direct from Supabase CDN (0ms, ultra-fast global CDN with live cache-busting)
+    fetch(`https://fmbhcfsrsfkglmvgbnlm.supabase.co/storage/v1/object/public/product-images/config/store_settings.json?v=${Date.now()}`, { cache: 'no-store' })
       .then(r => r.json())
       .then(applyStoreSettings)
       .catch(() => {});
 
     // 2. Fetch from backend API
-    fetch(`${API_BASE_URL}/api/settings`)
+    fetch(`${API_BASE_URL}/api/settings?v=${Date.now()}`, { cache: 'no-store' })
       .then(res => res.json())
       .then(data => {
         if (data?.settings) applyStoreSettings(data.settings);
