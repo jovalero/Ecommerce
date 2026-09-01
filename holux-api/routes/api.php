@@ -47,6 +47,8 @@ Route::middleware('throttle:api')->group(function () {
     Route::get('/settings', [\App\Http\Controllers\Admin\SettingController::class, 'index']); // Public store & shipping settings
     Route::post('/settings', [\App\Http\Controllers\Admin\SettingController::class, 'update']); // Sync store settings & banners
     Route::put('/settings', [\App\Http\Controllers\Admin\SettingController::class, 'update']);
+    Route::post('/upload', [\App\Http\Controllers\Admin\MediaUploadController::class, 'store']); // Public & Admin CDN media upload
+    Route::post('/admin/upload', [\App\Http\Controllers\Admin\MediaUploadController::class, 'store']);
 
     // Public Registration with auto-confirm
     Route::post('/register', function (\Illuminate\Http\Request $request) {
