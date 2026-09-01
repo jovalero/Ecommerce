@@ -231,6 +231,8 @@ export default function BannerEditor({
   const [cta, setCta] = useState('');
   const [desktopImage, setDesktopImage] = useState('');
   const [mobileImage, setMobileImage] = useState('');
+  const [isUploadingDesktop, setIsUploadingDesktop] = useState(false);
+  const [isUploadingMobile, setIsUploadingMobile] = useState(false);
   const [overlayOpacity, setOverlayOpacity] = useState(0);
   const [linkType, setLinkType] = useState('category'); // 'category' | 'product' | 'external'
   const [selectedLinkVal, setSelectedLinkVal] = useState('');
@@ -1318,18 +1320,27 @@ export default function BannerEditor({
                     onChange={async (e) => {
                       const file = e.target.files?.[0];
                       if (file) {
-                        const url = await uploadOrCompressBanner(file, API_BASE_URL, token);
-                        if (url) setDesktopImage(url);
+                        setIsUploadingDesktop(true);
+                        try {
+                          const url = await uploadOrCompressBanner(file, API_BASE_URL, token);
+                          if (url) setDesktopImage(url);
+                        } finally {
+                          setIsUploadingDesktop(false);
+                        }
                       }
                     }}
                     className="hidden"
                   />
                   <label
                     htmlFor="desktop-banner-file"
-                    className="px-3 py-1.5 bg-[#1C2321] hover:bg-black text-white rounded-xl text-xs font-bold font-display cursor-pointer flex items-center gap-1 shrink-0 transition-colors"
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold font-display cursor-pointer flex items-center gap-1.5 shrink-0 transition-all ${
+                      isUploadingDesktop 
+                        ? 'bg-[#3C6E71] text-white animate-pulse' 
+                        : 'bg-[#1C2321] hover:bg-black text-white'
+                    }`}
                   >
                     <Image className="w-3.5 h-3.5" />
-                    <span>SUBIR</span>
+                    <span>{isUploadingDesktop ? 'SUBIENDO...' : 'SUBIR'}</span>
                   </label>
                 </div>
               </div>
@@ -1370,18 +1381,27 @@ export default function BannerEditor({
                     onChange={async (e) => {
                       const file = e.target.files?.[0];
                       if (file) {
-                        const url = await uploadOrCompressBanner(file, API_BASE_URL, token);
-                        if (url) setMobileImage(url);
+                        setIsUploadingMobile(true);
+                        try {
+                          const url = await uploadOrCompressBanner(file, API_BASE_URL, token);
+                          if (url) setMobileImage(url);
+                        } finally {
+                          setIsUploadingMobile(false);
+                        }
                       }
                     }}
                     className="hidden"
                   />
                   <label
                     htmlFor="mobile-banner-file"
-                    className="px-3 py-1.5 bg-[#1C2321] hover:bg-black text-white rounded-xl text-xs font-bold font-display cursor-pointer flex items-center gap-1 shrink-0 transition-colors"
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold font-display cursor-pointer flex items-center gap-1.5 shrink-0 transition-all ${
+                      isUploadingMobile 
+                        ? 'bg-[#3C6E71] text-white animate-pulse' 
+                        : 'bg-[#1C2321] hover:bg-black text-white'
+                    }`}
                   >
                     <Image className="w-3.5 h-3.5" />
-                    <span>SUBIR</span>
+                    <span>{isUploadingMobile ? 'SUBIENDO...' : 'SUBIR'}</span>
                   </label>
                 </div>
               </div>
