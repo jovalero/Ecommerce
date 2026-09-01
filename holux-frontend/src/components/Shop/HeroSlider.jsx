@@ -169,13 +169,9 @@ export const HeroSlider = memo(function HeroSlider({
               </>
             )}
 
-            {/* Text Content Area */}
+            {/* Text & CTA Content Area */}
             {hasText && (
-              <div className={`absolute inset-0 flex p-6 text-center z-10 pointer-events-none ${
-                hasOnlyCta 
-                  ? 'items-end justify-center pb-16 md:pb-20' 
-                  : 'items-center justify-center'
-              }`}>
+              <div className="absolute inset-0 flex items-center justify-center p-6 text-center z-10 pointer-events-none">
                 <div
                   className={`max-w-3xl space-y-3 sm:space-y-4 transition-all duration-700 delay-100 transform ${
                     isActive ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'
@@ -209,7 +205,7 @@ export const HeroSlider = memo(function HeroSlider({
                           e.stopPropagation();
                           handleSlideClick();
                         }}
-                        className="px-6 py-3 sm:px-8 sm:py-3.5 bg-[#3C6E71] hover:bg-[#2b5153] text-white font-display text-xs sm:text-sm font-bold tracking-widest rounded-xl shadow-xl hover:shadow-2xl transition-all cursor-pointer inline-flex items-center gap-2 border border-white/20 active:scale-95 uppercase"
+                        className="px-6 py-3 sm:px-8 sm:py-3.5 bg-black hover:bg-neutral-800 text-white font-display text-xs sm:text-sm font-bold tracking-widest rounded-lg shadow-lg hover:shadow-xl transition-all cursor-pointer inline-flex items-center gap-2 border border-white/10 active:scale-95 uppercase"
                       >
                         {slide.cta}
                         <ChevronRight className="w-4 h-4" />
