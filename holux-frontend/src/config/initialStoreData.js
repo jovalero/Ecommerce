@@ -6,7 +6,7 @@ export const initialStoreData = {
       "span": "",
       "desc": "",
       "highlight": "",
-      "cta": "",
+      "cta": "VER CATÁLOGO",
       "image": "https://fmbhcfsrsfkglmvgbnlm.supabase.co/storage/v1/object/public/banners/hero_slide_1_desktop.jpg",
       "mobileImage": "https://fmbhcfsrsfkglmvgbnlm.supabase.co/storage/v1/object/public/banners/hero_slide_1_mobile.png",
       "overlayOpacity": 0,
