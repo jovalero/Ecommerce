@@ -34,6 +34,7 @@ export default function BannerEditor({
     { id: 'cat_dropdown', type: 'dropdown', label: 'CATEGORÍAS', isVisible: true, isDropdown: true, link: '#/catalogo', device: 'all' },
     { id: 'cat_perfumes-hombre', type: 'category', label: 'PERFUMES HOMBRE', slug: 'perfumes-hombre', link: '#/catalogo?categoria=perfumes-hombre', isVisible: true, device: 'all' },
     { id: 'cat_perfumes-mujer', type: 'category', label: 'PERFUMES MUJER', slug: 'perfumes-mujer', link: '#/catalogo?categoria=perfumes-mujer', isVisible: true, device: 'all' },
+    { id: 'cat_perfumes-unisex', type: 'category', label: 'PERFUMES UNISEX', slug: 'perfumes-unisex', link: '#/catalogo?categoria=perfumes-unisex', isVisible: true, device: 'all' },
     { id: 'outlet', type: 'special', label: 'OUTLET', link: '#/catalogo?genero=outlet', isVisible: true, isButton: true, device: 'all' }
   ];
 

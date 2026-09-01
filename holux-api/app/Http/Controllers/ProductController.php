@@ -116,7 +116,7 @@ class ProductController extends Controller
 
             // A) Category filter
             if (!empty($categorySlugs)) {
-                $isUnisex = str_contains($pNameLower, 'unissex') || str_contains($pNameLower, 'unisex');
+                $isUnisex = str_contains($pNameLower, 'unissex') || str_contains($pNameLower, 'unisex') || $pCatSlug === 'perfumes-unisex' || ($p['category_id'] ?? '') === 'a25fc37e-21d7-4554-9ff1-bc29c626da0d';
                 $matchedCat = in_array($pCatSlug, $categorySlugs, true) || in_array(strtolower((string)($p['category_id'] ?? '')), $categorySlugs, true);
                 
                 if (!$matchedCat && !empty($p['category_ids']) && is_array($p['category_ids'])) {
@@ -131,18 +131,26 @@ class ProductController extends Controller
                 if (!$matchedCat && $isUnisex && (in_array('perfumes-hombre', $categorySlugs, true) || in_array('perfumes-mujer', $categorySlugs, true))) {
                     $matchedCat = true;
                 }
+                if (!$matchedCat && in_array('perfumes-unisex', $categorySlugs, true) && $isUnisex) {
+                    $matchedCat = true;
+                }
                 if (!$matchedCat) {
                     return false;
                 }
             }
 
-            // B) Collections filter (mujer, hombre, outlet)
+            // B) Collections filter (mujer, hombre, outlet, unisex)
             if (!empty($collections)) {
-                $isUnisex = str_contains($pNameLower, 'unissex') || str_contains($pNameLower, 'unisex');
+                $isUnisex = str_contains($pNameLower, 'unissex') || str_contains($pNameLower, 'unisex') || $pCatSlug === 'perfumes-unisex' || ($p['category_id'] ?? '') === 'a25fc37e-21d7-4554-9ff1-bc29c626da0d';
                 $collectionMatch = false;
                 foreach ($collections as $col) {
                     if ($col === 'outlet') {
                         if ((!empty($p['offer_price']) && $p['offer_price'] < $pPrice) || in_array('outlet', $pTags, true)) {
+                            $collectionMatch = true;
+                            break;
+                        }
+                    } elseif ($col === 'unisex') {
+                        if ($isUnisex) {
                             $collectionMatch = true;
                             break;
                         }

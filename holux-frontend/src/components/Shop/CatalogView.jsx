@@ -396,9 +396,21 @@ export default function CatalogView({
               filtered = filtered.filter(p => {
                 const catSlug = (p.categories?.slug || '').toLowerCase();
                 const catName = (p.categories?.name || '').toLowerCase();
-                const pCatId = p.category_id || p.categories?.id || '';
+                const pCatId = (p.category_id || p.categories?.id || '').toLowerCase();
+                const pNameLow = (p.name || '').toLowerCase();
+                const isUnisex = catSlug === 'perfumes-unisex' || pCatId === 'a25fc37e-21d7-4554-9ff1-bc29c626da0d' || pNameLow.includes('unisex') || pNameLow.includes('unissex') || catName.includes('unisex');
+
                 return selectedCategories.some(sel => {
                   const selLow = String(sel).toLowerCase();
+                  if (selLow === 'perfumes-unisex' || selLow === 'unisex') {
+                    return isUnisex;
+                  }
+                  if (selLow === 'perfumes-hombre' || selLow === 'hombre') {
+                    return catSlug === 'perfumes-hombre' || pCatId === 'd166dfbc-923a-4e85-99cf-e10f2d34d4cf' || catName.includes('hombre') || isUnisex;
+                  }
+                  if (selLow === 'perfumes-mujer' || selLow === 'mujer') {
+                    return catSlug === 'perfumes-mujer' || pCatId === '731e12dd-0800-490d-b18a-922dcc3de08c' || catName.includes('mujer') || isUnisex;
+                  }
                   return selLow === catSlug || selLow === pCatId || catName.includes(selLow);
                 });
               });
@@ -408,12 +420,18 @@ export default function CatalogView({
             if (selectedCollections.length > 0) {
               filtered = filtered.filter(p => {
                 const pGender = (p.gender || p.collection || '').toLowerCase();
-                const pName = (p.name || '').toLowerCase();
+                const pNameLow = (p.name || '').toLowerCase();
+                const catSlug = (p.categories?.slug || '').toLowerCase();
                 const catName = (p.categories?.name || '').toLowerCase();
+                const isUnisex = catSlug === 'perfumes-unisex' || pNameLow.includes('unisex') || pNameLow.includes('unissex') || catName.includes('unisex');
+
                 return selectedCollections.some(col => {
                   const c = String(col).toLowerCase();
                   if (c === 'outlet') return Number(p.offer_price) > 0 || Number(p.discount_percent) > 0;
-                  return pGender.includes(c) || pName.includes(c) || catName.includes(c);
+                  if (c === 'unisex') return isUnisex;
+                  if (c === 'hombre' || c === 'masculino') return pGender.includes('hombre') || pGender.includes('masculino') || pNameLow.includes('masculino') || isUnisex;
+                  if (c === 'mujer' || c === 'femenino') return pGender.includes('mujer') || pGender.includes('femenino') || pNameLow.includes('feminino') || pNameLow.includes('femenino') || isUnisex;
+                  return pGender.includes(c) || pNameLow.includes(c) || catName.includes(c);
                 });
               });
             }

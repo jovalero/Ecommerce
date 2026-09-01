@@ -506,6 +506,7 @@ export default function App() {
     { id: 'cat_dropdown', type: 'dropdown', label: 'CATEGORÍAS', isVisible: true, isDropdown: true, link: '#/catalogo' },
     { id: 'cat_perfumes-hombre', type: 'category', label: 'PERFUMES HOMBRE', slug: 'perfumes-hombre', link: '#/catalogo?categoria=perfumes-hombre', isVisible: true },
     { id: 'cat_perfumes-mujer', type: 'category', label: 'PERFUMES MUJER', slug: 'perfumes-mujer', link: '#/catalogo?categoria=perfumes-mujer', isVisible: true },
+    { id: 'cat_perfumes-unisex', type: 'category', label: 'PERFUMES UNISEX', slug: 'perfumes-unisex', link: '#/catalogo?categoria=perfumes-unisex', isVisible: true },
     { id: 'outlet', type: 'special', label: 'OUTLET', link: '#/catalogo?genero=outlet', isVisible: true, isButton: true }
   ];
   const [headerNavItems, setHeaderNavItems] = useState(defaultHeaderNavItems);
