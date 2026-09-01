@@ -108,6 +108,13 @@ export const HeroSlider = memo(function HeroSlider({
           (slide.cta && slide.cta.trim())
         );
 
+        const hasOnlyCta = Boolean(
+          slide.cta && slide.cta.trim() &&
+          (!slide.title || !slide.title.trim()) &&
+          (!slide.span || !slide.span.trim()) &&
+          (!slide.desc || !slide.desc.trim())
+        );
+
         const handleSlideClick = () => {
           if (slide.link) {
             if (slide.link.startsWith('#') || slide.link.startsWith('/')) {
@@ -127,10 +134,10 @@ export const HeroSlider = memo(function HeroSlider({
         return (
           <div
             key={idx}
-            onClick={!hasText ? handleSlideClick : undefined}
-            className={`absolute inset-0 transition-opacity duration-700 ease-in-out will-change-[opacity] ${
+            onClick={handleSlideClick}
+            className={`absolute inset-0 transition-opacity duration-700 ease-in-out will-change-[opacity] cursor-pointer ${
               isActive ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'
-            } ${!hasText ? 'cursor-pointer' : ''}`}
+            }`}
             style={{ transform: 'translate3d(0, 0, 0)' }}
           >
             {/* Mobile / Tablet Portrait Image (100% Guaranteed on all phones) */}
@@ -162,9 +169,13 @@ export const HeroSlider = memo(function HeroSlider({
               </>
             )}
 
-            {/* Text Content Area ONLY when there is text */}
+            {/* Text Content Area */}
             {hasText && (
-              <div className="absolute inset-0 flex items-center justify-center p-6 text-center z-10">
+              <div className={`absolute inset-0 flex p-6 text-center z-10 pointer-events-none ${
+                hasOnlyCta 
+                  ? 'items-end justify-center pb-16 md:pb-20' 
+                  : 'items-center justify-center'
+              }`}>
                 <div
                   className={`max-w-3xl space-y-3 sm:space-y-4 transition-all duration-700 delay-100 transform ${
                     isActive ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'
@@ -191,14 +202,14 @@ export const HeroSlider = memo(function HeroSlider({
                     </p>
                   )}
                   {slide.cta && slide.cta.trim() && (
-                    <div className="pt-2">
+                    <div className="pt-2 pointer-events-auto">
                       <button
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
                           handleSlideClick();
                         }}
-                        className="px-6 py-3 sm:px-8 sm:py-3.5 bg-black hover:bg-neutral-800 text-white font-display text-xs sm:text-sm font-bold tracking-widest rounded-lg shadow-lg hover:shadow-xl transition-all cursor-pointer inline-flex items-center gap-2 border border-white/10"
+                        className="px-6 py-3 sm:px-8 sm:py-3.5 bg-[#3C6E71] hover:bg-[#2b5153] text-white font-display text-xs sm:text-sm font-bold tracking-widest rounded-xl shadow-xl hover:shadow-2xl transition-all cursor-pointer inline-flex items-center gap-2 border border-white/20 active:scale-95 uppercase"
                       >
                         {slide.cta}
                         <ChevronRight className="w-4 h-4" />
