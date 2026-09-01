@@ -113,14 +113,17 @@ export function compressImageFile(file, maxWidth = 1920, maxHeight = 1080, quali
 
 /**
  * Uploads banner image to Supabase Storage CDN via backend API
- * with instant client-side canvas compression fallback.
+ * with instant client-side high-definition canvas compression fallback.
  */
 export async function uploadOrCompressBanner(file, API_BASE, token) {
   if (!file) return '';
 
-  const apiBase = API_BASE || API_BASE_URL || 'https://holux-api.onrender.com';
+  // 1. Instantly compress locally (1920x1080 @ 92% quality) so the admin ALWAYS has the banner immediately
+  const localCompressed = await compressImageFile(file, 1920, 1080, 0.92);
 
-  // 1. Upload via backend API (uses Supabase Service Key to write directly to Supabase Storage Bucket 'banners')
+  const apiBase = API_BASE || (typeof window !== 'undefined' && window.location.hostname === 'localhost' ? 'http://localhost:8000' : 'https://holux-api.onrender.com');
+
+  // 2. Try background upload to backend API /api/upload
   try {
     const formData = new FormData();
     formData.append('file', file);
@@ -142,11 +145,9 @@ export async function uploadOrCompressBanner(file, API_BASE, token) {
         return data.url;
       }
     }
-  } catch (err) {
-    console.warn('[BannerStorage] Upload via /api/upload failed:', err);
-  }
+  } catch (err) {}
 
-  // 2. Secondary try via /api/admin/upload
+  // 3. Secondary try via /api/admin/upload
   try {
     const formData = new FormData();
     formData.append('file', file);
@@ -168,17 +169,14 @@ export async function uploadOrCompressBanner(file, API_BASE, token) {
         return data.url;
       }
     }
-  } catch (err) {
-    console.warn('[BannerStorage] Upload via /api/admin/upload failed:', err);
-  }
+  } catch (err) {}
 
-  // 3. High-quality client-side compression fallback (1920x1080)
-  const compressed = await compressImageFile(file, 1920, 1080, 0.92);
-  return compressed || '';
+  // 4. Return instant high-definition local compressed image
+  return localCompressed || '';
 }
 
 /**
- * Universal safe persistent save (localStorage + IndexedDB + Backend Settings Sync to Supabase CDN)
+ * Universal safe persistent save (localStorage + IndexedDB + Backend Settings Sync)
  */
 export async function persistBannerData(key, data) {
   try {
@@ -197,7 +195,7 @@ export async function persistBannerData(key, data) {
 
   // Sync to backend /api/settings (which updates Supabase Storage config/store_settings.json)
   try {
-    const apiBase = API_BASE_URL || 'https://holux-api.onrender.com';
+    const apiBase = typeof window !== 'undefined' && window.location.hostname === 'localhost' ? 'http://localhost:8000' : 'https://holux-api.onrender.com';
     let field = null;
     if (key === 'holux_hero_slides') field = 'hero_slides';
     if (key === 'holux_grid_promo_cards') field = 'grid_cards';
@@ -215,15 +213,13 @@ export async function persistBannerData(key, data) {
       };
       if (token) headers['Authorization'] = `Bearer ${token}`;
 
-      await fetch(`${apiBase}/api/settings`, {
+      fetch(`${apiBase}/api/settings`, {
         method: 'POST',
         headers,
         body: JSON.stringify({ [field]: data })
-      });
+      }).catch(() => {});
     }
-  } catch (syncErr) {
-    console.warn('[BannerStorage] Cloud settings sync failed:', syncErr);
-  }
+  } catch (syncErr) {}
 }
 
 /**
