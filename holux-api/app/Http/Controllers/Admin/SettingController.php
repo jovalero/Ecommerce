@@ -159,13 +159,13 @@ class SettingController extends Controller
         if (isset($data['tax_rate'])) {
             StoreSettingService::updateTax($data, $admin);
         }
-        if (isset($data['payment_gateway_mode'])) {
+        if (isset($data['payment_gateway_mode']) || isset($data['bank_cbu']) || isset($data['bank_alias']) || isset($data['bank_holder']) || isset($data['bank_cuit']) || isset($data['transfer_discount_percent']) || isset($data['max_installments']) || isset($data['payment_methods_config']) || isset($data['sandbox_public_key']) || isset($data['production_public_key'])) {
             StoreSettingService::updatePayment($data, $admin);
         }
-        if (isset($data['caba_cost']) || isset($data['free_shipping_threshold'])) {
+        if (isset($data['caba_cost']) || isset($data['free_shipping_threshold']) || isset($data['gba_cost']) || isset($data['interior_cost']) || isset($data['patagonia_cost'])) {
             StoreSettingService::updateShipping($data, $admin);
         }
-        if (isset($data['hero_slides']) || isset($data['grid_cards']) || isset($data['promo_banner']) || isset($data['section_titles']) || isset($data['ticker_phrases']) || isset($data['header_nav']) || isset($data['payment_methods_config'])) {
+        if (isset($data['hero_slides']) || isset($data['grid_cards']) || isset($data['promo_banner']) || isset($data['section_titles']) || isset($data['ticker_phrases']) || isset($data['header_nav'])) {
             StoreSettingService::updateMarketing($data, $admin);
         }
 

@@ -108,6 +108,8 @@ export default function StoreSettings({ API_BASE_URL, token }) {
 
   // General Form States
   const [saving, setSaving] = useState(false);
+  const [bankSaving, setBankSaving] = useState(false);
+  const [bankSavedMsg, setBankSavedMsg] = useState(false);
   const [successMsg, setSuccessMsg] = useState(null);
   const [errorMsg, setErrorMsg] = useState(null);
   const [isProdConfirmModalOpen, setIsProdConfirmModalOpen] = useState(false);
@@ -231,6 +233,50 @@ export default function StoreSettings({ API_BASE_URL, token }) {
     navigator.clipboard.writeText(webhookUrl);
     setCopiedWebhook(true);
     setTimeout(() => setCopiedWebhook(false), 2500);
+  };
+
+  // Direct Bank Transfer Details Save Handler
+  const handleSaveBankDetails = async () => {
+    setBankSaving(true);
+    try {
+      const bankPayload = {
+        bank_cbu: (bankCbu || '').trim(),
+        bank_alias: (bankAlias || '').trim(),
+        bank_holder: (bankHolder || '').trim(),
+        bank_cuit: (bankCuit || '').trim(),
+        transfer_discount_percent: parseFloat(transferDiscount) || 0,
+        max_installments: parseInt(maxInstallments) || 6
+      };
+
+      // 1. Sync localStorage immediately
+      const bankObj = {
+        cbu: (bankCbu || '').trim(),
+        alias: (bankAlias || '').trim(),
+        holder: (bankHolder || '').trim(),
+        cuit: (bankCuit || '').trim()
+      };
+      localStorage.setItem('holux_bank_settings', JSON.stringify(bankObj));
+
+      // 2. Sync backend API and Supabase Storage CDN
+      const res = await fetch(`${API_BASE_URL}/api/settings`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token || localStorage.getItem('holux_auth_token') || ''}`,
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(bankPayload)
+      });
+
+      if (res.ok) {
+        setBankSavedMsg(true);
+        setTimeout(() => setBankSavedMsg(false), 3500);
+      }
+    } catch (err) {
+      console.warn('Error saving bank details:', err);
+    } finally {
+      setBankSaving(false);
+    }
   };
 
   // Unified Save Handler (Single Button at bottom)
@@ -905,7 +951,7 @@ export default function StoreSettings({ API_BASE_URL, token }) {
                   type="text"
                   value={bankHolder}
                   onChange={(e) => setBankHolder(e.target.value)}
-                  className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg text-xs"
+                  className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg text-xs font-bold"
                 />
               </div>
 
@@ -915,9 +961,37 @@ export default function StoreSettings({ API_BASE_URL, token }) {
                   type="text"
                   value={bankCuit}
                   onChange={(e) => setBankCuit(e.target.value)}
-                  className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg font-mono-custom text-xs"
+                  className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg font-mono-custom text-xs font-bold"
                 />
               </div>
+            </div>
+
+            {/* Quick Save Bank Details Button */}
+            <div className="flex items-center justify-end gap-3 pt-2">
+              {bankSavedMsg && (
+                <span className="text-xs font-bold text-emerald-600 flex items-center gap-1 animate-in fade-in">
+                  <CheckCircle2 className="w-4 h-4" />
+                  ¡Datos bancarios guardados con éxito!
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={handleSaveBankDetails}
+                disabled={bankSaving}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm active:scale-95 disabled:opacity-50"
+              >
+                {bankSaving ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>GUARDANDO...</span>
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-3.5 h-3.5" />
+                    <span>GUARDAR DATOS BANCARIOS</span>
+                  </>
+                )}
+              </button>
             </div>
 
             {/* Financing & Installments Explanation Box */}

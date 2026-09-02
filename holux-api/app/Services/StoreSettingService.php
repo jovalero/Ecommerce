@@ -240,8 +240,8 @@ class StoreSettingService
         $raw = self::getRaw();
         $oldMode = $raw['payment_gateway_mode'] ?? 'sandbox';
 
-        $raw['payment_gateway'] = $data['payment_gateway'] ?? 'mercadopago';
-        $raw['payment_gateway_mode'] = $data['payment_gateway_mode'] ?? 'sandbox';
+        if (isset($data['payment_gateway'])) $raw['payment_gateway'] = $data['payment_gateway'];
+        if (isset($data['payment_gateway_mode'])) $raw['payment_gateway_mode'] = $data['payment_gateway_mode'];
         
         if (isset($data['sandbox_public_key'])) {
             $raw['sandbox_public_key'] = trim($data['sandbox_public_key']);
