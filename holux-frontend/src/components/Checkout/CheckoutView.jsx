@@ -16,6 +16,7 @@ import {
 import { SmoothInput } from '../Common/SmoothInput';
 import { API_BASE_URL } from '../../config/api';
 import { resolveProductImage } from '../../utils/bannerStorage';
+import { initialStoreData } from '../../config/initialStoreData';
 
 const getProductImage = (name) => {
   if (!name) return 'https://images.unsplash.com/photo-1541643600914-78b084683601?w=600&auto=format&fit=crop&q=80';
@@ -246,10 +247,10 @@ const CheckoutView = memo(({
       const saved = localStorage.getItem('holux_payment_methods_config');
       if (saved) return JSON.parse(saved);
     } catch {}
-    return [
+    return initialStoreData?.payment_methods_config || [
       { id: 'transfer', name: 'TRANSFERENCIA BANCARIA', description: 'Pago directo mediante CBU / CVU o Alias bancario', badge: 'BANCO / CBU', icon: 'building', isEnabled: true },
-      { id: 'mercadopago_checkout_pro', name: 'PAGAR CON TU CUENTA DE MERCADO PAGO (CHECKOUT PRO)', description: 'Paga con Dinero en Cuenta MP, Mercado Crédito, QR, Rapipago o Pago Fácil. Redirección oficial 100% segura.', badge: 'OFICIAL MP', icon: 'mp', isEnabled: true },
-      { id: 'mercadopago', name: 'TARJETA DE CRÉDITO / DÉBITO (MERCADO PAGO BRICKS)', description: 'Formulario directo en la web con tokenización oficial PCI-DSS', badge: 'TARJETAS', icon: 'card', isEnabled: true }
+      { id: 'mercadopago_checkout_pro', name: 'PAGAR CON TU CUENTA DE MERCADO PAGO (CHECKOUT PRO)', description: 'Paga con Dinero en Cuenta MP, Mercado Crédito, QR, Rapipago o Pago Fácil. Redirección oficial 100% segura.', badge: 'OFICIAL MP', icon: 'mp', isEnabled: false },
+      { id: 'mercadopago', name: 'TARJETA DE CRÉDITO / DÉBITO (MERCADO PAGO BRICKS)', description: 'Formulario directo en la web con tokenización oficial PCI-DSS', badge: 'TARJETAS', icon: 'card', isEnabled: false }
     ];
   });
 
@@ -419,45 +420,48 @@ const CheckoutView = memo(({
     const fetchLatestRates = async () => {
       try {
         const savedRates = localStorage.getItem('holux_shipping_rates');
-        if (savedRates) {
-          setShippingRates(JSON.parse(savedRates));
-        }
+        if (savedRates) setShippingRates(JSON.parse(savedRates));
         const savedMethods = localStorage.getItem('holux_payment_methods_config');
-        if (savedMethods) {
-          setPaymentMethodsConfig(JSON.parse(savedMethods));
-        }
+        if (savedMethods) setPaymentMethodsConfig(JSON.parse(savedMethods));
         const savedBank = localStorage.getItem('holux_bank_settings');
-        if (savedBank) {
-          setBankSettings(JSON.parse(savedBank));
-        }
+        if (savedBank) setBankSettings(JSON.parse(savedBank));
 
-        const res = await fetch(`${API_BASE_URL}/api/settings`);
-        if (res.ok) {
-          const data = await res.json();
-          if (data.settings) {
-            if (data.settings.payment_methods_config && Array.isArray(data.settings.payment_methods_config) && data.settings.payment_methods_config.length > 0) {
-              setPaymentMethodsConfig(data.settings.payment_methods_config);
-              localStorage.setItem('holux_payment_methods_config', JSON.stringify(data.settings.payment_methods_config));
-            }
-            if (data.settings.bank_cbu || data.settings.bank_alias) {
-              const b = {
-                cbu: data.settings.bank_cbu || '0170098520000001234567',
-                alias: data.settings.bank_alias || 'HOLUX.OFICIAL.MP',
-                holder: data.settings.bank_holder || 'HOLUX OFICIAL',
-                cuit: data.settings.bank_cuit || '30-71829304-9'
-              };
-              setBankSettings(b);
-              localStorage.setItem('holux_bank_settings', JSON.stringify(b));
-            }
+        const applySettings = (s) => {
+          if (!s || typeof s !== 'object') return;
+          if (s.payment_methods_config && Array.isArray(s.payment_methods_config) && s.payment_methods_config.length > 0) {
+            setPaymentMethodsConfig(s.payment_methods_config);
+            localStorage.setItem('holux_payment_methods_config', JSON.stringify(s.payment_methods_config));
+          }
+          if (s.bank_cbu || s.bank_alias) {
+            const b = {
+              cbu: s.bank_cbu || '0720000000000000000000',
+              alias: s.bank_alias || 'HOLUX.OUTDOOR.OFICIAL',
+              holder: s.bank_holder || 'HOLUX OUTDOOR S.R.L.',
+              cuit: s.bank_cuit || '30-71829304-9'
+            };
+            setBankSettings(b);
+            localStorage.setItem('holux_bank_settings', JSON.stringify(b));
+          }
+          if (s.caba_cost !== undefined) {
             setShippingRates(prev => {
-              const updated = {
-                ...prev,
-                ...data.settings
-              };
+              const updated = { ...prev, ...s };
               localStorage.setItem('holux_shipping_rates', JSON.stringify(updated));
               return updated;
             });
           }
+        };
+
+        // 1. Direct Supabase CDN fetch (instantaneous)
+        fetch(`https://fmbhcfsrsfkglmvgbnlm.supabase.co/storage/v1/object/public/product-images/config/store_settings.json?v=${Date.now()}`, { cache: 'no-store' })
+          .then(r => r.json())
+          .then(applySettings)
+          .catch(() => {});
+
+        // 2. Backend API fetch
+        const res = await fetch(`${API_BASE_URL}/api/settings?v=${Date.now()}`, { cache: 'no-store' });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.settings) applySettings(data.settings);
         }
       } catch (e) {}
     };

@@ -22,6 +22,7 @@ import {
   CheckCircle2,
   Sliders
 } from 'lucide-react';
+import { persistBannerData } from '../../utils/bannerStorage';
 
 const DEFAULT_PAYMENT_METHODS = [
   {
@@ -197,7 +198,7 @@ export default function StoreSettings({ API_BASE_URL, token }) {
   }, [token]);
 
   // Payment Methods Toggle & Reorder Handlers
-  const handleTogglePaymentMethod = (id) => {
+  const handleTogglePaymentMethod = async (id) => {
     const updated = paymentMethodsConfig.map(m => {
       if (m.id === id) {
         const activeCount = paymentMethodsConfig.filter(x => x.isEnabled).length;
@@ -211,21 +212,17 @@ export default function StoreSettings({ API_BASE_URL, token }) {
       return m;
     });
     setPaymentMethodsConfig(updated);
-    localStorage.setItem('holux_payment_methods_config', JSON.stringify(updated));
-    window.dispatchEvent(new CustomEvent('holux_payment_methods_updated', { detail: updated }));
-    window.dispatchEvent(new Event('storage'));
+    await persistBannerData('holux_payment_methods_config', updated);
   };
 
-  const handleMovePaymentMethod = (index, direction) => {
+  const handleMovePaymentMethod = async (index, direction) => {
     const newIndex = index + direction;
     if (newIndex < 0 || newIndex >= paymentMethodsConfig.length) return;
     const updated = [...paymentMethodsConfig];
     const [moved] = updated.splice(index, 1);
     updated.splice(newIndex, 0, moved);
     setPaymentMethodsConfig(updated);
-    localStorage.setItem('holux_payment_methods_config', JSON.stringify(updated));
-    window.dispatchEvent(new CustomEvent('holux_payment_methods_updated', { detail: updated }));
-    window.dispatchEvent(new Event('storage'));
+    await persistBannerData('holux_payment_methods_config', updated);
   };
 
   // Handle Copy Webhook URL

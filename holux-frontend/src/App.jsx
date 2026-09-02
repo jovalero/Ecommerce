@@ -668,6 +668,23 @@ export default function App() {
       if (s.header_nav && Array.isArray(s.header_nav) && s.header_nav.length > 0) {
         setHeaderNavItems(s.header_nav);
       }
+      if (s.payment_methods_config && Array.isArray(s.payment_methods_config) && s.payment_methods_config.length > 0) {
+        localStorage.setItem('holux_payment_methods_config', JSON.stringify(s.payment_methods_config));
+        window.dispatchEvent(new CustomEvent('holux_payment_methods_updated', { detail: s.payment_methods_config }));
+      }
+      if (s.bank_cbu || s.bank_alias) {
+        const b = {
+          cbu: s.bank_cbu || '0720000000000000000000',
+          alias: s.bank_alias || 'HOLUX.OUTDOOR.OFICIAL',
+          holder: s.bank_holder || 'HOLUX OUTDOOR S.R.L.',
+          cuit: s.bank_cuit || '30-71829304-9'
+        };
+        localStorage.setItem('holux_bank_settings', JSON.stringify(b));
+      }
+      if (s.caba_cost !== undefined) {
+        localStorage.setItem('holux_shipping_rates', JSON.stringify(s));
+        window.dispatchEvent(new CustomEvent('holux_shipping_rates_updated', { detail: s }));
+      }
     };
 
     // 1. Fetch direct from Supabase CDN (0ms, ultra-fast global CDN with live cache-busting)

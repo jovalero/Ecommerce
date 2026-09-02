@@ -97,5 +97,10 @@ export const initialStoreData = {
       "isVisible": true,
       "isButton": true
     }
+  ],
+  "payment_methods_config": [
+    { "id": "transfer", "name": "TRANSFERENCIA BANCARIA", "description": "Pago directo mediante CBU / CVU o Alias bancario", "badge": "BANCO / CBU", "icon": "building", "isEnabled": true },
+    { "id": "mercadopago_checkout_pro", "name": "PAGAR CON TU CUENTA DE MERCADO PAGO (CHECKOUT PRO)", "description": "Paga con Dinero en Cuenta MP, Mercado Crédito, QR, Rapipago o Pago Fácil. Redirección oficial 100% segura.", "badge": "OFICIAL MP", "icon": "mp", "isEnabled": false },
+    { "id": "mercadopago", "name": "TARJETA DE CRÉDITO / DÉBITO (MERCADO PAGO BRICKS)", "description": "Formulario directo en la web con tokenización oficial PCI-DSS", "badge": "TARJETAS", "icon": "card", "isEnabled": false }
   ]
 };
