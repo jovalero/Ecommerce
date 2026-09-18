@@ -30,8 +30,9 @@ class CouponService
                 'origin' => 'Bienvenida 🚀',
                 'description' => 'Válido en compras mayores a $30.000. Para todos los clientes.',
                 'max_uses' => 100,
-                'used_count' => 14,
+                'used_count' => 0,
                 'active' => true,
+                'created_at' => $now,
                 'expiry_timestamp' => $now + (30 * 86400),
             ],
             [
@@ -44,9 +45,10 @@ class CouponService
                 'origin' => 'Exclusivo VIP ⭐',
                 'description' => '15% de descuento exclusivo para miembros VIP y Super VIP.',
                 'max_uses' => 50,
-                'used_count' => 6,
+                'used_count' => 0,
                 'active' => true,
-                'expiry_timestamp' => $now + (20 * 86400),
+                'created_at' => $now,
+                'expiry_timestamp' => $now + (30 * 86400),
             ],
             [
                 'id' => 'coup-103',
@@ -58,9 +60,10 @@ class CouponService
                 'origin' => 'Exclusivo Super VIP 👑',
                 'description' => 'Descuento directo de $25.000 para miembros de categoría Super VIP.',
                 'max_uses' => 20,
-                'used_count' => 2,
+                'used_count' => 0,
                 'active' => true,
-                'expiry_timestamp' => $now + (15 * 86400),
+                'created_at' => $now,
+                'expiry_timestamp' => $now + (30 * 86400),
             ]
         ];
     }
@@ -69,30 +72,48 @@ class CouponService
     {
         $defaults = self::getDefaultCoupons();
         $file = self::getFilePath();
+        $coupons = null;
 
         // 1. Try fetching from Supabase Storage CDN first (Universal Source of Truth)
         try {
             $supabaseUrl = config('services.supabase.url', 'https://fmbhcfsrsfkglmvgbnlm.supabase.co');
             $client = new \GuzzleHttp\Client(['timeout' => 3.0]);
-            $res = $client->get(rtrim($supabaseUrl, '/') . '/storage/v1/object/public/product-images/config/coupons.json');
+            $res = $client->get(rtrim($supabaseUrl, '/') . '/storage/v1/object/public/product-images/config/coupons.json?v=' . time());
             if ($res->getStatusCode() === 200) {
                 $supabaseCoupons = json_decode($res->getBody()->getContents(), true);
                 if (is_array($supabaseCoupons) && !empty($supabaseCoupons)) {
+                    $coupons = $supabaseCoupons;
                     File::put($file, json_encode($supabaseCoupons, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
-                    return $supabaseCoupons;
                 }
             }
         } catch (\Throwable $e) {
             // Fallback to local cache if offline
         }
 
-        if (File::exists($file)) {
+        if (!$coupons && File::exists($file)) {
             $content = File::get($file);
             $saved = json_decode($content, true) ?: [];
-            return is_array($saved) && !empty($saved) ? $saved : $defaults;
+            if (is_array($saved) && !empty($saved)) {
+                $coupons = $saved;
+            }
         }
 
-        return $defaults;
+        if (!$coupons) {
+            $coupons = $defaults;
+        }
+
+        // Check expiration status for each coupon
+        $now = time();
+        foreach ($coupons as &$c) {
+            $expiry = isset($c['expiry_timestamp']) ? (int) $c['expiry_timestamp'] : null;
+            $isExpired = ($expiry !== null && $now > $expiry);
+            $c['is_expired'] = $isExpired;
+            if ($isExpired) {
+                $c['active'] = false;
+            }
+        }
+
+        return $coupons;
     }
 
     public static function saveAll(array $coupons): bool
@@ -115,6 +136,32 @@ class CouponService
             Log::error("Failed to save coupons.json: " . $e->getMessage());
             return false;
         }
+    }
+
+    public static function recordUsage(string $code): bool
+    {
+        $clean = strtoupper(trim($code));
+        $all = self::all();
+        $updated = false;
+
+        foreach ($all as &$c) {
+            if (strtoupper($c['code']) === $clean) {
+                $c['used_count'] = ($c['used_count'] ?? 0) + 1;
+                $maxUses = (int) ($c['max_uses'] ?? 100);
+                if ($c['used_count'] >= $maxUses) {
+                    $c['active'] = false;
+                }
+                $updated = true;
+                break;
+            }
+        }
+
+        if ($updated) {
+            self::saveAll($all);
+            return true;
+        }
+
+        return false;
     }
 
     public static function findByCode(string $code): ?array
@@ -146,6 +193,17 @@ class CouponService
             $allowedTier = 'all';
         }
 
+        $expiry = null;
+        if (!empty($data['expiry_date'])) {
+            $expiry = strtotime($data['expiry_date'] . ' 23:59:59');
+        } elseif (!empty($data['expiry_timestamp'])) {
+            $expiry = (int) $data['expiry_timestamp'];
+        } elseif (!empty($data['daysValid'])) {
+            $expiry = time() + (((int)$data['daysValid']) * 86400);
+        } else {
+            $expiry = time() + (30 * 86400);
+        }
+
         $newCoupon = [
             'id' => 'coup-' . time() . '-' . rand(100, 999),
             'code' => $code,
@@ -158,7 +216,8 @@ class CouponService
             'max_uses' => (int) ($data['max_uses'] ?? ($data['maxUses'] ?? 100)),
             'used_count' => 0,
             'active' => true,
-            'expiry_timestamp' => isset($data['expiry_timestamp']) ? (int) $data['expiry_timestamp'] : (time() + (30 * 86400)),
+            'created_at' => time(),
+            'expiry_timestamp' => $expiry,
         ];
 
         array_unshift($all, $newCoupon);

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Tag, Plus, Trash2, CheckCircle2, DollarSign, Percent, Truck, Gift, Star, Crown, AlertCircle } from 'lucide-react';
+import { Tag, Plus, Trash2, CheckCircle2, DollarSign, Percent, Truck, Gift, Star, Crown, AlertCircle, Calendar, Clock } from 'lucide-react';
 import { API_BASE_URL } from '../../config/api';
 
 export default function CouponManager({ token }) {
@@ -18,7 +18,14 @@ export default function CouponManager({ token }) {
   const [maxUses, setMaxUses] = useState(100);
   const [origin, setOrigin] = useState('Promoción Admin 🏷️');
   const [description, setDescription] = useState('Descuento especial creado por administración.');
-  const [daysValid, setDaysValid] = useState(14);
+  
+  // Calculate default expiration date (30 days from today)
+  const defaultFutureDate = () => {
+    const d = new Date();
+    d.setDate(d.getDate() + 30);
+    return d.toISOString().split('T')[0];
+  };
+  const [expiryDate, setExpiryDate] = useState(defaultFutureDate());
 
   const fetchCoupons = async () => {
     setLoading(true);
@@ -66,7 +73,7 @@ export default function CouponManager({ token }) {
           origin: origin || 'Promoción Admin 🏷️',
           description: description || 'Descuento especial de tienda.',
           max_uses: parseInt(maxUses),
-          daysValid: parseInt(daysValid)
+          expiry_date: expiryDate
         })
       });
 
@@ -271,14 +278,14 @@ export default function CouponManager({ token }) {
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">DÍAS DE VALIDEZ</label>
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">FECHA DE VENCIMIENTO</label>
                 <input
-                  type="number"
-                  min="1"
+                  type="date"
                   required
-                  value={daysValid}
-                  onChange={(e) => setDaysValid(e.target.value)}
-                  className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-xs font-bold text-gray-900 focus:border-[#3C6E71] outline-none"
+                  value={expiryDate}
+                  min={new Date().toISOString().split('T')[0]}
+                  onChange={(e) => setExpiryDate(e.target.value)}
+                  className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-xs font-bold text-gray-900 focus:border-[#3C6E71] outline-none cursor-pointer"
                 />
               </div>
             </div>
@@ -325,11 +332,20 @@ export default function CouponManager({ token }) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {coupons.map((coupon) => {
             const tier = coupon.allowed_tier || 'all';
+            const expMs = coupon.expiry_timestamp ? Number(coupon.expiry_timestamp) * 1000 : null;
+            const nowMs = Date.now();
+            const isExpired = coupon.is_expired || (expMs && nowMs > expMs);
+            const diffDays = expMs ? Math.ceil((expMs - nowMs) / (1000 * 60 * 60 * 24)) : null;
+            const expDateStr = expMs ? new Date(expMs).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : null;
+            const isExhausted = (coupon.used_count || 0) >= (coupon.max_uses || 100);
+
             return (
               <div
                 key={coupon.id}
                 className={`p-4 border rounded-2xl space-y-3 transition-all ${
-                  coupon.active
+                  isExpired
+                    ? 'bg-red-50/40 border-red-200 opacity-75'
+                    : coupon.active
                     ? tier === 'super_vip'
                       ? 'bg-purple-50/40 border-purple-200 shadow-sm'
                       : tier === 'vip'
@@ -365,15 +381,25 @@ export default function CouponManager({ token }) {
                     )}
                   </div>
                   
-                  <button
-                    onClick={() => toggleCouponStatus(coupon.id)}
-                    className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold font-mono-custom cursor-pointer border ${coupon.active ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-gray-200 text-gray-700 border-gray-300'}`}
-                  >
-                    {coupon.active ? 'ACTIVO' : 'INACTIVO'}
-                  </button>
+                  {isExpired ? (
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black font-mono-custom bg-red-100 text-red-700 border border-red-300">
+                      VENCIDO
+                    </span>
+                  ) : (
+                    <button
+                      onClick={() => toggleCouponStatus(coupon.id)}
+                      className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold font-mono-custom cursor-pointer border transition-colors ${
+                        coupon.active
+                          ? 'bg-emerald-100 text-emerald-800 border-emerald-300 hover:bg-emerald-200'
+                          : 'bg-gray-200 text-gray-700 border-gray-300 hover:bg-gray-300'
+                      }`}
+                    >
+                      {coupon.active ? 'ACTIVO' : 'INACTIVO'}
+                    </button>
+                  )}
                 </div>
 
-                <div className="text-xs space-y-1 text-gray-600">
+                <div className="text-xs space-y-1.5 text-gray-600">
                   <p>
                     <strong>Beneficio:</strong> {coupon.type === 'percentage' || coupon.type === 'percent' ? `${coupon.value}% de Descuento` : `$${coupon.value.toLocaleString('es-AR')} OFF`}
                   </p>
@@ -381,10 +407,38 @@ export default function CouponManager({ token }) {
                     <strong>Compra Mínima:</strong> ARS ${(coupon.min_spend || coupon.minPurchase || 0).toLocaleString('es-AR')}
                   </p>
                   <p className="text-[11px] text-gray-500">{coupon.description}</p>
+                  
+                  {/* Expiration Date Display */}
+                  <div className="pt-1 flex flex-wrap items-center gap-1.5 font-mono-custom text-[11px]">
+                    {expDateStr ? (
+                      isExpired ? (
+                        <span className="inline-flex items-center gap-1 font-bold text-red-700 bg-red-100/80 border border-red-300 px-2 py-0.5 rounded text-[10px]">
+                          <AlertCircle className="w-3.5 h-3.5 text-red-600" />
+                          Venció el {expDateStr}
+                        </span>
+                      ) : (
+                        <span className={`inline-flex items-center gap-1 font-bold px-2 py-0.5 rounded text-[10px] border ${
+                          diffDays <= 3
+                            ? 'bg-amber-100 text-amber-900 border-amber-300'
+                            : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                        }`}>
+                          <Clock className="w-3.5 h-3.5 text-emerald-600" />
+                          Vence: {expDateStr} ({diffDays === 0 ? '¡Vence hoy!' : `quedan ${diffDays} días`})
+                        </span>
+                      )
+                    ) : (
+                      <span className="text-[10px] text-gray-400">Sin fecha de vencimiento</span>
+                    )}
+                  </div>
                 </div>
 
-                <div className="flex justify-between items-center border-t border-gray-100 pt-2 text-[10px] text-gray-400 font-mono-custom">
-                  <span>Usos: {coupon.used_count || 0} / {coupon.max_uses || 100}</span>
+                <div className="flex justify-between items-center border-t border-gray-100 pt-2 text-[10px] font-mono-custom">
+                  <span className="text-gray-500 font-bold">
+                    Usos: <span className="text-gray-900 font-black">{coupon.used_count || 0}</span> / {coupon.max_uses || 100}
+                    {isExhausted && (
+                      <span className="ml-1 text-red-600 font-bold">(Límite alcanzado)</span>
+                    )}
+                  </span>
                   <button
                     onClick={() => handleDeleteCoupon(coupon.id)}
                     className="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors cursor-pointer flex items-center gap-1 text-[10px] font-bold"

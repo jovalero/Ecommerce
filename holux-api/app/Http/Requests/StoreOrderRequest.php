@@ -30,6 +30,8 @@ class StoreOrderRequest extends FormRequest
             'shipping_method' => ['nullable', 'string', 'max:100'],
             'payment_method' => ['nullable', 'string', 'max:50'],
             'receipt_url' => ['nullable', 'string'],
+            'coupon_code' => ['nullable', 'string', 'max:50'],
+            'discount_applied' => ['nullable', 'numeric'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.product_id' => ['required', 'string'],
             'items.*.quantity' => ['required', 'integer', 'min:1'],

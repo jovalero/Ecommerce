@@ -177,6 +177,7 @@ class OrderController extends Controller
                 'shipping_method' => $shippingMethod,
                 'receipt_url' => $receiptUrl,
                 'rejection_reason' => $rejectionReason,
+                'coupon_code' => $request->input('coupon_code'),
             ]);
 
             // 6. Map order_id and insert order items in bulk
@@ -197,8 +198,18 @@ class OrderController extends Controller
                 ], true);
             }
 
+            // 7b. Increment coupon usage if a coupon was used
+            if ($request->filled('coupon_code')) {
+                try {
+                    \App\Services\CouponService::recordUsage($request->input('coupon_code'));
+                } catch (\Throwable $ce) {
+                    Log::warning("Failed to record coupon usage: " . $ce->getMessage());
+                }
+            }
+
             // 8. Return response
             $order['items'] = $insertedItems;
+            $order['coupon_code'] = $request->input('coupon_code');
 
             return response()->json($order, 201);
 
