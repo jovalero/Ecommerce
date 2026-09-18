@@ -18,6 +18,24 @@ class AdminAuditLogService
     public static function all(): array
     {
         $file = self::getStoragePath();
+
+        // 1. Fetch from Supabase Storage CDN (Universal Persistent Source of Truth)
+        try {
+            $supabaseUrl = config('services.supabase.url', 'https://fmbhcfsrsfkglmvgbnlm.supabase.co');
+            $client = new \GuzzleHttp\Client(['timeout' => 3.0]);
+            $res = $client->get(rtrim($supabaseUrl, '/') . '/storage/v1/object/public/product-images/config/admin_audit_logs.json?v=' . time());
+            if ($res->getStatusCode() === 200) {
+                $remote = json_decode($res->getBody()->getContents(), true);
+                if (is_array($remote)) {
+                    File::put($file, json_encode($remote, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+                    return $remote;
+                }
+            }
+        } catch (\Throwable $e) {
+            // Fallback to local cache if offline
+        }
+
+        // 2. Fallback to local cache
         if (!File::exists($file)) {
             return [];
         }
@@ -46,7 +64,20 @@ class AdminAuditLogService
         array_unshift($logs, $entry);
         $logs = array_slice($logs, 0, 200);
 
-        File::put(self::getStoragePath(), json_encode($logs, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+        try {
+            $json = json_encode($logs, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+            File::put(self::getStoragePath(), $json);
+
+            // Upload to Supabase Storage CDN
+            try {
+                $supabase = app(\App\Services\SupabaseService::class);
+                $supabase->uploadStorageFile('product-images', 'config/admin_audit_logs.json', $json, 'application/json');
+            } catch (\Throwable $se) {
+                \Illuminate\Support\Facades\Log::warning("Failed to sync admin_audit_logs to Supabase Storage: " . $se->getMessage());
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error("Failed to save admin_audit_logs.json: " . $e->getMessage());
+        }
     }
 
     public static function getRecent(int $limit = 30): array

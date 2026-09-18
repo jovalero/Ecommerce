@@ -13,6 +13,23 @@ class ProductMetadataService
      */
     protected static function load(): array
     {
+        // 1. Fetch from Supabase Storage CDN (Universal Persistent Source of Truth)
+        try {
+            $supabaseUrl = config('services.supabase.url', 'https://fmbhcfsrsfkglmvgbnlm.supabase.co');
+            $client = new \GuzzleHttp\Client(['timeout' => 3.0]);
+            $res = $client->get(rtrim($supabaseUrl, '/') . '/storage/v1/object/public/product-images/config/' . self::$fileName . '?v=' . time());
+            if ($res->getStatusCode() === 200) {
+                $remote = json_decode($res->getBody()->getContents(), true);
+                if (is_array($remote)) {
+                    Storage::put(self::$fileName, json_encode($remote, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+                    return $remote;
+                }
+            }
+        } catch (\Throwable $e) {
+            // Fallback to local cache if offline
+        }
+
+        // 2. Fallback to local cache
         if (!Storage::exists(self::$fileName)) {
             return [];
         }
@@ -30,7 +47,20 @@ class ProductMetadataService
      */
     protected static function save(array $data): void
     {
-        Storage::put(self::$fileName, json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+        try {
+            $json = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+            Storage::put(self::$fileName, $json);
+
+            // Upload to Supabase Storage CDN
+            try {
+                $supabase = app(\App\Services\SupabaseService::class);
+                $supabase->uploadStorageFile('product-images', 'config/' . self::$fileName, $json, 'application/json');
+            } catch (\Throwable $se) {
+                \Illuminate\Support\Facades\Log::warning("Failed to sync products_metadata to Supabase Storage: " . $se->getMessage());
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error("Failed to save products_metadata.json: " . $e->getMessage());
+        }
     }
 
     /**

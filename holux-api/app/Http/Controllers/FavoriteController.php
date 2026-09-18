@@ -23,24 +23,51 @@ class FavoriteController extends Controller
     private static function loadAll(): array
     {
         $file = self::getFilePath();
-        if (!File::exists($file)) {
-            return [];
+
+        // 1. Fetch from Supabase Storage CDN (Universal Persistent Source of Truth)
+        try {
+            $supabaseUrl = config('services.supabase.url', 'https://fmbhcfsrsfkglmvgbnlm.supabase.co');
+            $client = new \GuzzleHttp\Client(['timeout' => 3.0]);
+            $res = $client->get(rtrim($supabaseUrl, '/') . '/storage/v1/object/public/product-images/config/user_favorites.json?v=' . time());
+            if ($res->getStatusCode() === 200) {
+                $remote = json_decode($res->getBody()->getContents(), true);
+                if (is_array($remote)) {
+                    File::put($file, json_encode($remote, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+                    return $remote;
+                }
+            }
+        } catch (\Throwable $e) {
+            // Fallback to local cache if offline
         }
 
-        try {
-            $json = json_decode(File::get($file), true);
-            return is_array($json) ? $json : [];
-        } catch (\Throwable $e) {
-            Log::error("Failed to read user_favorites.json: " . $e->getMessage());
-            return [];
+        // 2. Fallback to local cache
+        if (File::exists($file)) {
+            try {
+                $json = json_decode(File::get($file), true);
+                return is_array($json) ? $json : [];
+            } catch (\Throwable $e) {
+                Log::error("Failed to read user_favorites.json: " . $e->getMessage());
+                return [];
+            }
         }
+
+        return [];
     }
 
     private static function saveAll(array $data): void
     {
         $file = self::getFilePath();
         try {
-            File::put($file, json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+            $json = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+            File::put($file, $json);
+
+            // Upload to Supabase Storage CDN
+            try {
+                $supabase = app(\App\Services\SupabaseService::class);
+                $supabase->uploadStorageFile('product-images', 'config/user_favorites.json', $json, 'application/json');
+            } catch (\Throwable $se) {
+                Log::warning("Failed to sync user_favorites to Supabase Storage: " . $se->getMessage());
+            }
         } catch (\Throwable $e) {
             Log::error("Failed to save user_favorites.json: " . $e->getMessage());
         }

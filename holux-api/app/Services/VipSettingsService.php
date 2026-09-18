@@ -55,22 +55,37 @@ class VipSettingsService
     public static function get(): array
     {
         $file = self::getFilePath();
-        if (!File::exists($file)) {
-            $defaults = self::getDefaultSettings();
-            self::save($defaults);
-            return $defaults;
+        $defaults = self::getDefaultSettings();
+
+        // 1. Fetch from Supabase Storage CDN (Universal Persistent Source of Truth)
+        try {
+            $supabaseUrl = config('services.supabase.url', 'https://fmbhcfsrsfkglmvgbnlm.supabase.co');
+            $client = new \GuzzleHttp\Client(['timeout' => 3.0]);
+            $res = $client->get(rtrim($supabaseUrl, '/') . '/storage/v1/object/public/product-images/config/vip_settings.json?v=' . time());
+            if ($res->getStatusCode() === 200) {
+                $remote = json_decode($res->getBody()->getContents(), true);
+                if (is_array($remote) && !empty($remote)) {
+                    File::put($file, json_encode($remote, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+                    return array_merge($defaults, $remote);
+                }
+            }
+        } catch (\Throwable $e) {
+            // Fallback to local cache if offline
         }
 
-        try {
-            $json = json_decode(File::get($file), true);
-            if (!is_array($json) || empty($json)) {
-                return self::getDefaultSettings();
+        // 2. Fallback to local cache
+        if (File::exists($file)) {
+            try {
+                $json = json_decode(File::get($file), true);
+                if (is_array($json) && !empty($json)) {
+                    return array_merge($defaults, $json);
+                }
+            } catch (\Throwable $e) {
+                Log::error("Failed to read vip_settings.json: " . $e->getMessage());
             }
-            return array_merge(self::getDefaultSettings(), $json);
-        } catch (\Throwable $e) {
-            Log::error("Failed to read vip_settings.json: " . $e->getMessage());
-            return self::getDefaultSettings();
         }
+
+        return $defaults;
     }
 
     /**
@@ -80,7 +95,17 @@ class VipSettingsService
     {
         try {
             $file = self::getFilePath();
-            File::put($file, json_encode($settings, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+            $json = json_encode($settings, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+            File::put($file, $json);
+
+            // Upload to Supabase Storage CDN
+            try {
+                $supabase = app(\App\Services\SupabaseService::class);
+                $supabase->uploadStorageFile('product-images', 'config/vip_settings.json', $json, 'application/json');
+            } catch (\Throwable $se) {
+                Log::warning("Failed to sync vip_settings to Supabase Storage: " . $se->getMessage());
+            }
+
             return true;
         } catch (\Throwable $e) {
             Log::error("Failed to save vip_settings.json: " . $e->getMessage());
