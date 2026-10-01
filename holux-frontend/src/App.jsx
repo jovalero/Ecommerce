@@ -433,13 +433,8 @@ export default function App() {
   // Live Chatbot & Support Widget State
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [liveChatInput, setLiveChatInput] = useState('');
-  const [liveChatId] = useState(() => {
-    let id = localStorage.getItem('holux_live_chat_id');
-    if (!id) {
-      id = `HLX-CHAT-${Math.floor(1000 + Math.random() * 9000)}`;
-      localStorage.setItem('holux_live_chat_id', id);
-    }
-    return id;
+  const [liveChatId, setLiveChatId] = useState(() => {
+    return localStorage.getItem('holux_live_chat_id') || null;
   });
   const [liveChatMessages, setLiveChatMessages] = useState(() => {
     try {
@@ -1623,26 +1618,39 @@ export default function App() {
     });
 
     // Sincronizar consulta con la nube (Admin Support Manager)
-    try {
-      fetch(`${API_BASE_URL}/api/support/tickets`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': import.meta.env?.VITE_SUPABASE_ANON_KEY || ''
-        },
-        body: JSON.stringify({
-          id: liveChatId,
-          customer_name: userProfile?.full_name || 'Visitante Web',
-          customer_email: userProfile?.email || 'visitante@holux.com',
-          customer_phone: userProfile?.phone || null,
-          category: 'Chat en Vivo',
-          subject: `Chat en Vivo - ${userProfile?.full_name || liveChatId}`,
-          message: cleanText,
-          sender: 'customer',
-          source: 'widget'
-        })
-      }).catch(err => console.warn('Chat sync warning:', err));
-    } catch (e) {}
+    (async () => {
+      try {
+        const currentChatId = localStorage.getItem('holux_live_chat_id') || liveChatId;
+        const res = await fetch(`${API_BASE_URL}/api/support/tickets`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': import.meta.env?.VITE_SUPABASE_ANON_KEY || ''
+          },
+          body: JSON.stringify({
+            id: currentChatId || undefined,
+            customer_name: userProfile?.full_name || 'Visitante Web',
+            customer_email: userProfile?.email || 'visitante@holux.com',
+            customer_phone: userProfile?.phone || null,
+            category: 'Chat en Vivo',
+            subject: `Chat en Vivo - ${userProfile?.full_name || 'Cliente'}`,
+            message: cleanText,
+            sender: 'customer',
+            source: 'widget'
+          })
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.ticket?.id) {
+            setLiveChatId(data.ticket.id);
+            localStorage.setItem('holux_live_chat_id', data.ticket.id);
+          }
+        }
+      } catch (err) {
+        console.warn('Chat sync warning:', err);
+      }
+    })();
 
     // Respuestas automáticas e inteligentes del Chatbot
     const lower = cleanText.toLowerCase();
@@ -1675,28 +1683,40 @@ export default function App() {
       });
 
       // Sincronizar mensaje del bot con el ticket
-      try {
-        fetch(`${API_BASE_URL}/api/support/tickets`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'apikey': import.meta.env?.VITE_SUPABASE_ANON_KEY || ''
-          },
-          body: JSON.stringify({
-            id: liveChatId,
-            customer_name: userProfile?.full_name || 'Visitante Web',
-            customer_email: userProfile?.email || 'visitante@holux.com',
-            category: 'Chat en Vivo',
-            message: botReply,
-            sender: 'bot',
-            source: 'widget'
-          })
-        }).catch(err => console.warn('Bot sync warning:', err));
-      } catch (e) {}
+      (async () => {
+        try {
+          const currentChatId = localStorage.getItem('holux_live_chat_id') || liveChatId;
+          const res = await fetch(`${API_BASE_URL}/api/support/tickets`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'apikey': import.meta.env?.VITE_SUPABASE_ANON_KEY || ''
+            },
+            body: JSON.stringify({
+              id: currentChatId || undefined,
+              customer_name: userProfile?.full_name || 'Visitante Web',
+              customer_email: userProfile?.email || 'visitante@holux.com',
+              category: 'Chat en Vivo',
+              message: botReply,
+              sender: 'bot',
+              source: 'widget'
+            })
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (data?.ticket?.id) {
+              setLiveChatId(data.ticket.id);
+              localStorage.setItem('holux_live_chat_id', data.ticket.id);
+            }
+          }
+        } catch (err) {
+          console.warn('Bot sync warning:', err);
+        }
+      })();
     }, 600);
   };
 
-  // Sincronizar respuestas del Admin en vivo cada 6 segundos cuando el chat está abierto
+  // Sincronizar respuestas del Admin en vivo cada 2.5 segundos cuando el chat está abierto
   useEffect(() => {
     if (!isChatOpen) return;
 
@@ -1708,36 +1728,51 @@ export default function App() {
         const allTickets = await res.json();
         if (!Array.isArray(allTickets)) return;
 
-        const myTicket = allTickets.find(t => t.id === liveChatId);
-        if (myTicket && Array.isArray(myTicket.messages)) {
-          const adminMsgs = myTicket.messages.filter(m => m.sender === 'admin');
-          if (adminMsgs.length > 0) {
-            setLiveChatMessages(prev => {
-              const existingTexts = new Set(prev.map(p => p.text));
-              const newFromAdmin = adminMsgs.filter(am => !existingTexts.has(am.text));
-              if (newFromAdmin.length === 0) return prev;
+        const storedId = localStorage.getItem('holux_live_chat_id') || liveChatId;
+        const userEmail = userProfile?.email?.trim().toLowerCase();
 
-              const merged = [
-                ...prev,
-                ...newFromAdmin.map(am => ({
-                  id: am.id || `adm-${Date.now()}-${Math.random()}`,
-                  sender: 'admin',
-                  text: am.text,
-                  time: am.time || new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
-                }))
-              ];
-              try { localStorage.setItem('holux_live_chat_history', JSON.stringify(merged)); } catch (e) {}
-              return merged;
-            });
+        // Buscar el ticket por ID o por el email del usuario logueado
+        const myTicket = allTickets.find(t => 
+          (storedId && t.id === storedId) ||
+          (userEmail && t.customer_email && t.customer_email.trim().toLowerCase() === userEmail)
+        );
+
+        if (myTicket) {
+          if (myTicket.id && myTicket.id !== liveChatId) {
+            setLiveChatId(myTicket.id);
+            localStorage.setItem('holux_live_chat_id', myTicket.id);
+          }
+
+          if (Array.isArray(myTicket.messages)) {
+            const adminMsgs = myTicket.messages.filter(m => m.sender === 'admin');
+            if (adminMsgs.length > 0) {
+              setLiveChatMessages(prev => {
+                const existingTexts = new Set(prev.map(p => p.text));
+                const newFromAdmin = adminMsgs.filter(am => !existingTexts.has(am.text));
+                if (newFromAdmin.length === 0) return prev;
+
+                const merged = [
+                  ...prev,
+                  ...newFromAdmin.map(am => ({
+                    id: am.id || `adm-${Date.now()}-${Math.random()}`,
+                    sender: 'admin',
+                    text: am.text,
+                    time: am.time || new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
+                  }))
+                ];
+                try { localStorage.setItem('holux_live_chat_history', JSON.stringify(merged)); } catch (e) {}
+                return merged;
+              });
+            }
           }
         }
       } catch (e) {}
     };
 
     syncAdminReplies();
-    const interval = setInterval(syncAdminReplies, 5000);
+    const interval = setInterval(syncAdminReplies, 2500);
     return () => clearInterval(interval);
-  }, [isChatOpen, liveChatId]);
+  }, [isChatOpen, liveChatId, userProfile?.email]);
 
   // Coupon Helpers & Actions
   const handleCopyCouponCode = (couponId, code) => {
@@ -9495,6 +9530,7 @@ export default function App() {
                     if (window.confirm('¿Deseás reiniciar la conversación?')) {
                       localStorage.removeItem('holux_live_chat_history');
                       localStorage.removeItem('holux_live_chat_id');
+                      setLiveChatId(null);
                       setLiveChatMessages([
                         {
                           id: `welcome-${Date.now()}`,
