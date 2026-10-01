@@ -9636,7 +9636,6 @@ export default function App() {
         <button
           onClick={() => {
             setIsChatOpen(!isChatOpen);
-            setChatSuccess(false);
           }}
           className="w-14 h-14 bg-[#1C2321] hover:bg-neutral-800 text-white rounded-full flex items-center justify-center shadow-2xl hover:scale-105 transition-all cursor-pointer border border-[#3C6E71]/40"
           title="Atención Al Cliente Holux"
