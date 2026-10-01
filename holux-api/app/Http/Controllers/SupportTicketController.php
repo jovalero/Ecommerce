@@ -14,19 +14,20 @@ class SupportTicketController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'customer_email' => 'required|email|max:150',
-            'message' => 'required|string|min:3|max:5000',
+            'id' => 'nullable|string|max:50',
+            'customer_email' => 'nullable|string|max:150',
+            'message' => 'required|string|min:1|max:5000',
             'customer_name' => 'nullable|string|max:100',
             'customer_phone' => 'nullable|string|max:40',
             'subject' => 'nullable|string|max:150',
             'category' => 'nullable|string|max:60',
             'source' => 'nullable|string|max:30',
-        ], [
-            'customer_email.required' => 'El correo electrónico es obligatorio.',
-            'customer_email.email' => 'El formato del correo electrónico no es válido.',
-            'message.required' => 'El mensaje de la consulta es obligatorio.',
-            'message.min' => 'El mensaje debe tener al menos 3 caracteres.',
+            'sender' => 'nullable|string|max:20',
         ]);
+
+        if (empty($validated['customer_email'])) {
+            $validated['customer_email'] = 'visitante@tienda.com';
+        }
 
         // Check if user is authenticated via Bearer token in headers
         $userId = $request->attributes->get('user_id');

@@ -430,15 +430,38 @@ export default function App() {
     }
   ];
 
-  // Chat Widget State
+  // Live Chatbot & Support Widget State
   const [isChatOpen, setIsChatOpen] = useState(false);
-  const [chatName, setChatName] = useState('');
-  const [chatEmail, setChatEmail] = useState('');
-  const [chatCategory, setChatCategory] = useState('Consulta General');
-  const [chatMessage, setChatMessage] = useState('');
-  const [chatSuccess, setChatSuccess] = useState(false);
-  const [chatLoading, setChatLoading] = useState(false);
-  const [chatTicketId, setChatTicketId] = useState('');
+  const [liveChatInput, setLiveChatInput] = useState('');
+  const [liveChatId] = useState(() => {
+    let id = localStorage.getItem('holux_live_chat_id');
+    if (!id) {
+      id = `HLX-CHAT-${Math.floor(1000 + Math.random() * 9000)}`;
+      localStorage.setItem('holux_live_chat_id', id);
+    }
+    return id;
+  });
+  const [liveChatMessages, setLiveChatMessages] = useState(() => {
+    try {
+      const saved = localStorage.getItem('holux_live_chat_history');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return [
+      {
+        id: 'bot-welcome',
+        sender: 'bot',
+        text: '¡Hola! 👋 Bienvenido a Holux. Soy tu asistente virtual en línea. ¿En qué podemos ayudarte hoy?',
+        time: new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
+      }
+    ];
+  });
+  const chatScrollBottomRef = useRef(null);
+
+  useEffect(() => {
+    if (isChatOpen && chatScrollBottomRef.current) {
+      chatScrollBottomRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [liveChatMessages, isChatOpen]);
 
   // Navigation & Search Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -1578,6 +1601,143 @@ export default function App() {
       ]);
     }, 1000);
   };
+
+  // Live Chatbot - Send Message Handler & Cloud Sync
+  const handleSendLiveChatMessage = (textToSend) => {
+    if (!textToSend || !textToSend.trim()) return;
+    const cleanText = textToSend.trim();
+    setLiveChatInput('');
+
+    const timeStr = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+    const userMsg = {
+      id: `usr-${Date.now()}`,
+      sender: 'user',
+      text: cleanText,
+      time: timeStr
+    };
+
+    setLiveChatMessages(prev => {
+      const updated = [...prev, userMsg];
+      try { localStorage.setItem('holux_live_chat_history', JSON.stringify(updated)); } catch (e) {}
+      return updated;
+    });
+
+    // Sincronizar consulta con la nube (Admin Support Manager)
+    try {
+      fetch(`${API_BASE_URL}/api/support/tickets`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': import.meta.env?.VITE_SUPABASE_ANON_KEY || ''
+        },
+        body: JSON.stringify({
+          id: liveChatId,
+          customer_name: userProfile?.full_name || 'Visitante Web',
+          customer_email: userProfile?.email || 'visitante@holux.com',
+          customer_phone: userProfile?.phone || null,
+          category: 'Chat en Vivo',
+          subject: `Chat en Vivo - ${userProfile?.full_name || liveChatId}`,
+          message: cleanText,
+          sender: 'customer',
+          source: 'widget'
+        })
+      }).catch(err => console.warn('Chat sync warning:', err));
+    } catch (e) {}
+
+    // Respuestas automáticas e inteligentes del Chatbot
+    const lower = cleanText.toLowerCase();
+    setTimeout(() => {
+      let botReply = '¡Recibido! Tu consulta ya está visible en nuestro Centro de Atención. Un asesor de Holux te responderá por este mismo chat en breve.';
+      
+      if (lower.includes('pedido') || lower.includes('envío') || lower.includes('envio') || lower.includes('lleg') || lower.includes('seguimiento') || lower.includes('andreani')) {
+        botReply = '📦 Despachamos todos los pedidos en 24hs hábiles por Andreani Express con código de seguimiento en tiempo real. En cuanto despachamos tu compra, recibís el código por email y en "Mis Pedidos".';
+      } else if (lower.includes('transferencia') || lower.includes('pago') || lower.includes('descuento') || lower.includes('cbu') || lower.includes('alias')) {
+        botReply = '💳 ¡Tenés 10% de descuento abonando por Transferencia Bancaria! En el checkout elegí "Transferencia Bancaria" para ver nuestro CBU y Alias oficial.';
+      } else if (lower.includes('cambio') || lower.includes('devolución') || lower.includes('devolucion') || lower.includes('talle') || lower.includes('arrepentimiento')) {
+        botReply = '🔄 Tenés 10 días desde recibido tu paquete para realizar cambios directos sin costo. Podés gestionarlo desde tu panel de cliente o escribirnos aquí.';
+      } else if (lower.includes('garantía') || lower.includes('garantia') || lower.includes('falla') || lower.includes('calidad')) {
+        botReply = '🛡️ Todos los productos técnicos Holux cuentan con 1 Año de Garantía Oficial contra cualquier defecto de fabricación.';
+      } else if (lower.includes('asesor') || lower.includes('operador') || lower.includes('humano') || lower.includes('whatsapp') || lower.includes('ayuda')) {
+        botReply = '👤 ¡Un operador está disponible! Si deseás una respuesta inmediata podés presionar arriba el botón de WhatsApp oficial, o dejarnos tu duda aquí y te responderemos por este mismo chat.';
+      }
+
+      const botMsg = {
+        id: `bot-${Date.now()}`,
+        sender: 'bot',
+        text: botReply,
+        time: new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
+      };
+
+      setLiveChatMessages(prev => {
+        const updated = [...prev, botMsg];
+        try { localStorage.setItem('holux_live_chat_history', JSON.stringify(updated)); } catch (e) {}
+        return updated;
+      });
+
+      // Sincronizar mensaje del bot con el ticket
+      try {
+        fetch(`${API_BASE_URL}/api/support/tickets`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': import.meta.env?.VITE_SUPABASE_ANON_KEY || ''
+          },
+          body: JSON.stringify({
+            id: liveChatId,
+            customer_name: userProfile?.full_name || 'Visitante Web',
+            customer_email: userProfile?.email || 'visitante@holux.com',
+            category: 'Chat en Vivo',
+            message: botReply,
+            sender: 'bot',
+            source: 'widget'
+          })
+        }).catch(err => console.warn('Bot sync warning:', err));
+      } catch (e) {}
+    }, 600);
+  };
+
+  // Sincronizar respuestas del Admin en vivo cada 6 segundos cuando el chat está abierto
+  useEffect(() => {
+    if (!isChatOpen) return;
+
+    const syncAdminReplies = async () => {
+      try {
+        const cdnUrl = 'https://fmbhcfsrsfkglmvgbnlm.supabase.co/storage/v1/object/public/product-images/config/support_tickets.json';
+        const res = await fetch(`${cdnUrl}?v=${Date.now()}`);
+        if (!res.ok) return;
+        const allTickets = await res.json();
+        if (!Array.isArray(allTickets)) return;
+
+        const myTicket = allTickets.find(t => t.id === liveChatId);
+        if (myTicket && Array.isArray(myTicket.messages)) {
+          const adminMsgs = myTicket.messages.filter(m => m.sender === 'admin');
+          if (adminMsgs.length > 0) {
+            setLiveChatMessages(prev => {
+              const existingTexts = new Set(prev.map(p => p.text));
+              const newFromAdmin = adminMsgs.filter(am => !existingTexts.has(am.text));
+              if (newFromAdmin.length === 0) return prev;
+
+              const merged = [
+                ...prev,
+                ...newFromAdmin.map(am => ({
+                  id: am.id || `adm-${Date.now()}-${Math.random()}`,
+                  sender: 'admin',
+                  text: am.text,
+                  time: am.time || new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
+                }))
+              ];
+              try { localStorage.setItem('holux_live_chat_history', JSON.stringify(merged)); } catch (e) {}
+              return merged;
+            });
+          }
+        }
+      } catch (e) {}
+    };
+
+    syncAdminReplies();
+    const interval = setInterval(syncAdminReplies, 5000);
+    return () => clearInterval(interval);
+  }, [isChatOpen, liveChatId]);
 
   // Coupon Helpers & Actions
   const handleCopyCouponCode = (couponId, code) => {
@@ -9310,192 +9470,163 @@ export default function App() {
         
         {/* Chat card window */}
         {isChatOpen && (
-          <div className="w-80 sm:w-88 bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-200 mb-4 transition-all duration-300 flex flex-col text-left">
+          <div className="w-84 sm:w-92 bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-200 mb-4 transition-all duration-300 flex flex-col text-left">
             
             {/* Widget Header */}
-            <div className="bg-[#1C2321] text-white p-4 flex items-center justify-between border-b border-[#3C6E71]/30">
+            <div className="bg-[#1C2321] text-white p-3.5 flex items-center justify-between border-b border-[#3C6E71]/30">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-full bg-[#3C6E71] flex items-center justify-center font-bold text-white text-xs shadow">
-                  HLX
+                <div className="relative">
+                  <div className="w-8 h-8 rounded-full bg-[#3C6E71] flex items-center justify-center font-bold text-white text-xs shadow">
+                    HLX
+                  </div>
+                  <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-400 rounded-full border-2 border-[#1C2321]" />
                 </div>
                 <div>
-                  <h4 className="font-display text-xs font-bold tracking-wider uppercase text-white">Atención Al Cliente</h4>
-                  <p className="text-[10px] text-gray-300 font-medium">Lunes a viernes 8 a 17h • Online</p>
+                  <h4 className="font-display text-xs font-bold tracking-wider uppercase text-white">Soporte y Asistente Holux</h4>
+                  <p className="text-[10px] text-emerald-400 font-medium flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    En línea • Respuesta inmediata
+                  </p>
                 </div>
               </div>
-              <button 
-                onClick={() => setIsChatOpen(false)} 
-                className="p-1 hover:bg-white/10 rounded-lg transition-colors text-gray-300 hover:text-white cursor-pointer"
-                title="Cerrar ventana"
-              >
-                <X className="w-4 h-4" />
-              </button>
+              <div className="flex items-center gap-1">
+                <button 
+                  onClick={() => {
+                    if (window.confirm('¿Deseás reiniciar la conversación?')) {
+                      localStorage.removeItem('holux_live_chat_history');
+                      localStorage.removeItem('holux_live_chat_id');
+                      setLiveChatMessages([
+                        {
+                          id: `welcome-${Date.now()}`,
+                          sender: 'bot',
+                          text: '¡Hola! 👋 Bienvenido a Holux. Soy tu asistente virtual. ¿En qué podemos ayudarte hoy?',
+                          time: new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
+                        }
+                      ]);
+                    }
+                  }}
+                  className="p-1.5 hover:bg-white/10 rounded-lg transition-colors text-gray-400 hover:text-white cursor-pointer"
+                  title="Reiniciar chat"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                </button>
+                <button 
+                  onClick={() => setIsChatOpen(false)} 
+                  className="p-1.5 hover:bg-white/10 rounded-lg transition-colors text-gray-400 hover:text-white cursor-pointer"
+                  title="Cerrar ventana"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
             </div>
 
-            {/* Widget Body */}
-            <div className="p-4 space-y-3.5 text-xs text-gray-800 max-h-[460px] overflow-y-auto">
-              
-              {/* Option 1: Direct WhatsApp Button */}
+            {/* Direct WhatsApp Action Banner */}
+            <div className="px-3 pt-3">
               <a 
                 href="https://wa.me/5491112345678?text=Hola%20Holux!%20Estoy%20en%20la%20tienda%20y%20tengo%20una%20consulta."
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-full p-3 bg-emerald-50 hover:bg-emerald-100/90 border border-emerald-200 rounded-xl flex items-center justify-between transition-all group cursor-pointer shadow-sm"
+                className="w-full p-2.5 bg-emerald-50 hover:bg-emerald-100/90 border border-emerald-200 rounded-xl flex items-center justify-between transition-all group cursor-pointer shadow-2xs"
               >
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-[#25D366] text-white flex items-center justify-center shadow-sm">
-                    <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-lg bg-[#25D366] text-white flex items-center justify-center shadow-xs">
+                    <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>
                   </div>
                   <div>
-                    <p className="font-bold text-xs text-emerald-950 font-display">Chatear por WhatsApp</p>
-                    <p className="text-[10px] text-emerald-700">Respuesta inmediata en vivo</p>
+                    <p className="font-bold text-[11px] text-emerald-950 font-display">Chatear por WhatsApp</p>
+                    <p className="text-[9px] text-emerald-700">Respuesta inmediata en vivo con nuestro equipo</p>
                   </div>
                 </div>
-                <ChevronRight className="w-4 h-4 text-emerald-600 group-hover:translate-x-0.5 transition-transform" />
+                <ChevronRight className="w-3.5 h-3.5 text-emerald-600 group-hover:translate-x-0.5 transition-transform" />
               </a>
+            </div>
 
-              {/* Divider */}
-              <div className="flex items-center gap-2 text-[9px] text-gray-400 font-bold uppercase tracking-wider">
-                <div className="h-px bg-gray-200 flex-1"></div>
-                <span>O dejá tu consulta web</span>
-                <div className="h-px bg-gray-200 flex-1"></div>
-              </div>
+            {/* Scrollable Live Chat Thread */}
+            <div className="p-3 space-y-2.5 bg-gray-50/70 overflow-y-auto h-64 sm:h-72 flex flex-col text-xs mt-2 mx-3 rounded-xl border border-gray-200/80">
+              {liveChatMessages.map((msg, idx) => {
+                if (msg.sender === 'user') {
+                  return (
+                    <div key={msg.id || idx} className="flex flex-col items-end">
+                      <div className="max-w-[85%] p-2.5 rounded-2xl bg-[#3C6E71] text-white rounded-br-none text-xs shadow-2xs leading-relaxed">
+                        <p className="whitespace-pre-wrap">{msg.text}</p>
+                        <span className="text-[8px] text-white/75 block text-right font-mono-custom mt-0.5">{msg.time}</span>
+                      </div>
+                    </div>
+                  );
+                } else if (msg.sender === 'admin') {
+                  return (
+                    <div key={msg.id || idx} className="flex flex-col items-start">
+                      <div className="max-w-[88%] p-2.5 rounded-2xl bg-[#1C2321] text-white rounded-bl-none text-xs shadow-sm leading-relaxed border border-emerald-500/50">
+                        <p className="whitespace-pre-wrap">{msg.text}</p>
+                        <span className="text-[8px] text-emerald-400 font-bold block text-right font-mono-custom mt-0.5">{msg.time} • Soporte Oficial HOLUX</span>
+                      </div>
+                    </div>
+                  );
+                } else {
+                  return (
+                    <div key={msg.id || idx} className="flex flex-col items-start">
+                      <div className="max-w-[88%] p-2.5 rounded-2xl bg-white border border-gray-200 text-gray-800 rounded-bl-none text-xs shadow-2xs leading-relaxed">
+                        <p className="whitespace-pre-wrap">{msg.text}</p>
+                        <span className="text-[8px] text-gray-400 block text-right font-mono-custom mt-0.5">{msg.time} • Asistente Bot</span>
+                      </div>
+                    </div>
+                  );
+                }
+              })}
+              <div ref={chatScrollBottomRef} />
+            </div>
 
-              {chatSuccess ? (
-                <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 text-center rounded-xl space-y-2.5">
-                  <Check className="w-7 h-7 mx-auto text-emerald-600 stroke-[3]" />
-                  <p className="font-display font-bold text-xs uppercase tracking-wider text-emerald-900">¡Consulta Registrada!</p>
-                  <p className="font-mono-custom text-[11px] font-bold bg-white px-2 py-1 rounded border border-emerald-200 text-emerald-800 inline-block">
-                    {chatTicketId}
-                  </p>
-                  <p className="text-[11px] text-emerald-700 leading-relaxed">
-                    Tu consulta fue recibida en nuestro sistema. Te responderemos a la brevedad a tu correo electrónico.
-                  </p>
-                  <button
-                    onClick={() => {
-                      setChatSuccess(false);
-                      setChatTicketId('');
-                      setChatMessage('');
-                    }}
-                    className="mt-2 px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-[10px] font-bold font-display uppercase tracking-wider cursor-pointer"
-                  >
-                    Hacer otra consulta
-                  </button>
-                </div>
-              ) : (
-                <form 
-                  onSubmit={async (e) => {
-                    e.preventDefault();
-                    if (!chatMessage.trim()) return;
-                    setChatLoading(true);
-
-                    const emailToSend = chatEmail || userProfile?.email || '';
-                    const nameToSend = chatName || userProfile?.full_name || '';
-
-                    try {
-                      const res = await fetch(`${API_BASE_URL}/api/support/tickets`, {
-                        method: 'POST',
-                        headers: {
-                          'Content-Type': 'application/json',
-                          'apikey': import.meta.env?.VITE_SUPABASE_ANON_KEY || ''
-                        },
-                        body: JSON.stringify({
-                          customer_name: nameToSend,
-                          customer_email: emailToSend,
-                          category: chatCategory,
-                          message: chatMessage.trim(),
-                          source: 'widget'
-                        })
-                      });
-
-                      if (res.ok) {
-                        const data = await res.json();
-                        setChatTicketId(data.ticket?.id || '#HLX-TK-RECIBIDO');
-                        setChatSuccess(true);
-                      } else {
-                        // Fallback in case of server error: create local ID and notify
-                        const fallbackId = `HLX-TK-${Math.floor(1000 + Math.random() * 9000)}`;
-                        setChatTicketId(fallbackId);
-                        setChatSuccess(true);
-                      }
-                    } catch (err) {
-                      console.error('Error enviando consulta:', err);
-                      const fallbackId = `HLX-TK-${Math.floor(1000 + Math.random() * 9000)}`;
-                      setChatTicketId(fallbackId);
-                      setChatSuccess(true);
-                    } finally {
-                      setChatLoading(false);
-                    }
-                  }} 
-                  className="space-y-2.5"
+            {/* Quick Bot Chips */}
+            <div className="px-3 pt-2 flex flex-wrap gap-1">
+              {[
+                { label: "📦 Envío y seguimiento", text: "¿Cuándo llega mi pedido y cómo hago seguimiento?" },
+                { label: "💳 10% OFF Transferencia", text: "¿Cómo pago por transferencia con descuento?" },
+                { label: "🔄 Cambios y devolución", text: "¿Cómo gestiono un cambio o devolución?" },
+                { label: "👤 Hablar con asesor", text: "Quiero comunicarme con un asesor de Holux" },
+              ].map((chip, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => handleSendLiveChatMessage(chip.text)}
+                  className="px-2 py-0.5 bg-gray-100 hover:bg-gray-200 border border-gray-200 hover:border-[#3C6E71] rounded-lg text-[10px] text-gray-700 font-medium transition-all cursor-pointer shadow-2xs"
                 >
-                  <div className="space-y-1">
-                    <label className="text-[9px] font-bold text-gray-500 tracking-wider block uppercase">Tu Nombre (Opcional)</label>
-                    <SmoothInput
-                      type="text"
-                      value={chatName}
-                      onChange={(e) => setChatName(e.target.value)}
-                      placeholder={userProfile?.full_name || "Ej: Juan Pérez"}
-                      className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-xs focus:border-[#3C6E71] focus:ring-0 outline-none bg-white text-gray-800"
-                    />
-                  </div>
+                  {chip.label}
+                </button>
+              ))}
+            </div>
 
-                  <div className="space-y-1">
-                    <label className="text-[9px] font-bold text-gray-500 tracking-wider block uppercase">Tu Correo Electrónico *</label>
-                    <SmoothInput
-                      type="email"
-                      required
-                      value={chatEmail}
-                      onChange={(e) => setChatEmail(e.target.value)}
-                      placeholder={userProfile?.email || "Ej: tuemail@gmail.com"}
-                      className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-xs focus:border-[#3C6E71] focus:ring-0 outline-none bg-white text-gray-800"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[9px] font-bold text-gray-500 tracking-wider block uppercase">Motivo de Consulta</label>
-                    <select
-                      value={chatCategory}
-                      onChange={(e) => setChatCategory(e.target.value)}
-                      className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs focus:border-[#3C6E71] outline-none bg-white text-gray-800 cursor-pointer font-medium"
-                    >
-                      <option value="Consulta General">Consulta General</option>
-                      <option value="Estado de Pedido">Estado de Pedido o Envío</option>
-                      <option value="Cambio o Devolución">Cambio o Devolución</option>
-                      <option value="Garantía y Calidad">Garantía y Calidad</option>
-                      <option value="Ventas Mayoristas">Ventas Mayoristas</option>
-                    </select>
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[9px] font-bold text-gray-500 tracking-wider block uppercase">Mensaje o Consulta *</label>
-                    <textarea
-                      required
-                      rows={3}
-                      value={chatMessage}
-                      onChange={(e) => setChatMessage(e.target.value)}
-                      placeholder="Escribí aquí tu duda o pedido..."
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs focus:border-[#3C6E71] focus:ring-0 outline-none bg-white text-gray-800 resize-none font-sans"
-                    />
-                  </div>
-                  
-                  <button
-                    type="submit"
-                    disabled={chatLoading}
-                    className="w-full py-2.5 bg-[#3C6E71] hover:bg-[#3C6E71]/90 text-white font-display text-xs font-bold tracking-wider uppercase rounded-xl transition-all cursor-pointer disabled:opacity-50 shadow-sm flex items-center justify-center gap-1.5"
-                  >
-                    <Send className="w-3.5 h-3.5" />
-                    {chatLoading ? 'ENVIANDO...' : 'ENVIAR CONSULTA'}
-                  </button>
-                </form>
-              )}
+            {/* Message Input Box */}
+            <div className="p-3">
+              <form 
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleSendLiveChatMessage(liveChatInput);
+                }} 
+                className="flex items-center gap-1.5"
+              >
+                <SmoothInput
+                  type="text"
+                  value={liveChatInput}
+                  onChange={(e) => setLiveChatInput(e.target.value)}
+                  placeholder="Escribí aquí tu mensaje o duda..."
+                  className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs outline-none focus:border-[#3C6E71] focus:bg-white text-gray-800 transition-colors"
+                />
+                <button
+                  type="submit"
+                  disabled={!liveChatInput.trim()}
+                  className="p-2.5 bg-[#3C6E71] hover:bg-[#3C6E71]/90 text-white rounded-xl transition-all cursor-pointer disabled:opacity-40 shadow-xs flex items-center justify-center shrink-0"
+                  title="Enviar mensaje"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                </button>
+              </form>
             </div>
 
             {/* Widget Footer */}
             <div className="p-2 border-t border-gray-100 text-center text-[9px] text-gray-400 font-mono-custom bg-gray-50 flex items-center justify-center gap-1">
               <span>Soporte Oficial Holux</span>
               <span>•</span>
-              <a href="mailto:holux20@gmail.com" className="hover:text-gray-700">holux20@gmail.com</a>
+              <span className="font-bold text-[#3C6E71]">Chat en Vivo Conectado</span>
             </div>
 
           </div>

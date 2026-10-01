@@ -99,9 +99,23 @@ class SupportTicketService
     {
         $tickets = self::all();
 
-        // Generate clean unique ticket ID, e.g. HLX-TK-4821
+        // If an existing chat session/ticket ID was provided, append message to same ticket
+        if (!empty($data['id'])) {
+            $existing = self::find($data['id']);
+            if ($existing) {
+                $senderName = !empty($data['customer_name']) ? trim($data['customer_name']) : ($existing['customer_name'] ?? 'Cliente');
+                $messageText = trim($data['message'] ?? '');
+                if ($messageText) {
+                    $sender = ($data['sender'] ?? '') === 'bot' ? 'bot' : 'customer';
+                    return self::addReply($data['id'], $messageText, $sender, $senderName) ?: $existing;
+                }
+                return $existing;
+            }
+        }
+
+        // Generate clean unique ticket ID, e.g. HLX-TK-4821 or use custom provided ID
         $randCode = strtoupper(substr(md5(uniqid((string)mt_rand(), true)), 0, 4));
-        $ticketId = 'HLX-TK-' . $randCode;
+        $ticketId = !empty($data['id']) ? trim($data['id']) : ('HLX-TK-' . $randCode);
 
         $now = now();
         $dateStr = $now->format('Y-m-d H:i');
