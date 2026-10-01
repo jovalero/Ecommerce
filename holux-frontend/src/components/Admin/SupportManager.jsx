@@ -21,36 +21,62 @@ export default function SupportManager({ API_BASE_URL = 'https://holux-api.onren
     setTimeout(() => setActionMessage(null), 3500);
   };
 
-  // Fetch tickets from backend API
+  // Fetch tickets from backend API (with Supabase Storage CDN instant fallback)
   const fetchTickets = useCallback(async (isSilent = false) => {
     if (!isSilent) setLoading(true);
     else setRefreshing(true);
 
+    const SUPABASE_CDN_URL = 'https://fmbhcfsrsfkglmvgbnlm.supabase.co/storage/v1/object/public/product-images/config/support_tickets.json';
+
     try {
       const authToken = getAuthToken();
-      const res = await fetch(`${API_BASE_URL}/api/admin/tickets`, {
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authToken}`,
-          'apikey': import.meta.env?.VITE_SUPABASE_ANON_KEY || ''
-        }
-      });
+      let ticketList = [];
+      let backendSuccess = false;
 
-      if (res.ok) {
-        const data = await res.json();
-        const ticketList = Array.isArray(data.tickets) ? data.tickets : [];
-        setTickets(ticketList);
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/admin/tickets`, {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`,
+            'apikey': import.meta.env?.VITE_SUPABASE_ANON_KEY || ''
+          }
+        });
 
-        // Keep selected ticket updated with fresh messages if one was selected
-        if (selectedTicket) {
-          const fresh = ticketList.find(t => t.id === selectedTicket.id);
-          if (fresh) setSelectedTicket(fresh);
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data.tickets)) {
+            ticketList = data.tickets;
+            backendSuccess = true;
+          }
         }
-      } else {
-        console.error('Error al cargar tickets:', res.statusText);
+      } catch (backendErr) {
+        // Backend offline or rebuilding
+      }
+
+      // If backend route returned 404 (e.g. Render build still in progress), load directly from Supabase CDN
+      if (!backendSuccess) {
+        try {
+          const cdnRes = await fetch(`${SUPABASE_CDN_URL}?v=${Date.now()}`);
+          if (cdnRes.ok) {
+            const cdnData = await cdnRes.json();
+            if (Array.isArray(cdnData)) {
+              ticketList = cdnData;
+            }
+          }
+        } catch (cdnErr) {
+          console.warn('Fallback CDN warning:', cdnErr);
+        }
+      }
+
+      setTickets(ticketList);
+
+      // Keep selected ticket updated with fresh messages if one was selected
+      if (selectedTicket) {
+        const fresh = ticketList.find(t => t.id === selectedTicket.id);
+        if (fresh) setSelectedTicket(fresh);
       }
     } catch (err) {
-      console.error('Error de conexión con /api/admin/tickets:', err);
+      console.error('Error al sincronizar tickets:', err);
     } finally {
       setLoading(false);
       setRefreshing(false);

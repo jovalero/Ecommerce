@@ -35,7 +35,11 @@ use Illuminate\Support\Facades\Route;
 // ==========================================
 // Health / Keep-alive Ping Route
 Route::get('/ping', function () {
-    return response()->json(['status' => 'alive', 'timestamp' => now()->toIso8601String()]);
+    return response()->json([
+        'status' => 'alive',
+        'version' => 'support-tickets-v2',
+        'timestamp' => now()->toIso8601String()
+    ]);
 });
 
 // Categories and Products
