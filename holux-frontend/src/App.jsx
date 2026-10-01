@@ -47,7 +47,8 @@ import {
   Ruler,
   RefreshCw,
   ZoomIn,
-  Maximize2
+  Maximize2,
+  Send
 } from 'lucide-react';
 
 import DashboardCharts from './components/Admin/DashboardCharts';
