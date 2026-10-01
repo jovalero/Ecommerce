@@ -33,38 +33,37 @@ export default function SupportManager({ API_BASE_URL = 'https://holux-api.onren
       let ticketList = [];
       let backendSuccess = false;
 
+      // 1. Load directly from permanent Supabase CDN first (instant 200 OK, zero 404 error)
       try {
-        const res = await fetch(`${API_BASE_URL}/api/admin/tickets`, {
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${authToken}`,
-            'apikey': import.meta.env?.VITE_SUPABASE_ANON_KEY || ''
-          }
-        });
-
-        if (res.ok) {
-          const data = await res.json();
-          if (Array.isArray(data.tickets)) {
-            ticketList = data.tickets;
-            backendSuccess = true;
+        const cdnRes = await fetch(`${SUPABASE_CDN_URL}?v=${Date.now()}`);
+        if (cdnRes.ok) {
+          const cdnData = await cdnRes.json();
+          if (Array.isArray(cdnData)) {
+            ticketList = cdnData;
           }
         }
-      } catch (backendErr) {
-        // Backend offline or rebuilding
+      } catch (cdnErr) {
+        console.warn('Fallback CDN warning:', cdnErr);
       }
 
-      // If backend route returned 404 (e.g. Render build still in progress), load directly from Supabase CDN
-      if (!backendSuccess) {
+      // 2. If available, sync with live backend API
+      if (authToken) {
         try {
-          const cdnRes = await fetch(`${SUPABASE_CDN_URL}?v=${Date.now()}`);
-          if (cdnRes.ok) {
-            const cdnData = await cdnRes.json();
-            if (Array.isArray(cdnData)) {
-              ticketList = cdnData;
+          const res = await fetch(`${API_BASE_URL}/api/admin/tickets`, {
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${authToken}`
+            }
+          });
+
+          if (res.ok) {
+            const data = await res.json();
+            if (Array.isArray(data.tickets) && data.tickets.length > 0) {
+              ticketList = data.tickets;
             }
           }
-        } catch (cdnErr) {
-          console.warn('Fallback CDN warning:', cdnErr);
+        } catch (backendErr) {
+          // Backend offline or redeploying
         }
       }
 
