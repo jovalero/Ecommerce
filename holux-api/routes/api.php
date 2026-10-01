@@ -49,6 +49,10 @@ Route::put('/settings', [\App\Http\Controllers\Admin\SettingController::class, '
 Route::post('/upload', [\App\Http\Controllers\Admin\MediaUploadController::class, 'store']); // Public & Admin CDN media upload
 Route::post('/admin/upload', [\App\Http\Controllers\Admin\MediaUploadController::class, 'store']);
 
+// Support & Contact Inquiry (Public widget & web form)
+Route::post('/support/tickets', [\App\Http\Controllers\SupportTicketController::class, 'store']);
+Route::post('/support/contact', [\App\Http\Controllers\SupportTicketController::class, 'store']);
+
 // Public Registration with auto-confirm
 Route::post('/register', function (\Illuminate\Http\Request $request) {
     $request->validate([
@@ -130,6 +134,10 @@ Route::middleware(['auth.supabase'])->group(function () {
     Route::get('/favorites', [App\Http\Controllers\FavoriteController::class, 'index']);
     Route::post('/favorites/toggle', [App\Http\Controllers\FavoriteController::class, 'toggle']);
     Route::post('/favorites/sync', [App\Http\Controllers\FavoriteController::class, 'sync']);
+
+    // Customer Support Tickets
+    Route::get('/me/tickets', [\App\Http\Controllers\SupportTicketController::class, 'myTickets']);
+    Route::post('/me/tickets/{id}/reply', [\App\Http\Controllers\SupportTicketController::class, 'customerReply']);
 });
 
 // ==========================================
@@ -210,4 +218,12 @@ Route::prefix('admin')->middleware(['auth.supabase', 'auth.admin'])->group(funct
     // Media Upload (Supabase Storage CDN)
     Route::post('/upload', [\App\Http\Controllers\Admin\MediaUploadController::class, 'store']);
     Route::post('/media/upload', [\App\Http\Controllers\Admin\MediaUploadController::class, 'store']);
+
+    // Support & Tickets Management
+    Route::get('/tickets', [\App\Http\Controllers\SupportTicketController::class, 'index']);
+    Route::get('/tickets/{id}', [\App\Http\Controllers\SupportTicketController::class, 'show']);
+    Route::post('/tickets/{id}/reply', [\App\Http\Controllers\SupportTicketController::class, 'adminReply']);
+    Route::put('/tickets/{id}/status', [\App\Http\Controllers\SupportTicketController::class, 'updateStatus']);
+    Route::patch('/tickets/{id}/status', [\App\Http\Controllers\SupportTicketController::class, 'updateStatus']);
+    Route::delete('/tickets/{id}', [\App\Http\Controllers\SupportTicketController::class, 'destroy']);
 });
