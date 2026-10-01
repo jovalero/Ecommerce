@@ -9470,10 +9470,10 @@ export default function App() {
         
         {/* Chat card window */}
         {isChatOpen && (
-          <div className="w-84 sm:w-92 bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-200 mb-4 transition-all duration-300 flex flex-col text-left">
+          <div className="w-[380px] max-w-[calc(100vw-2rem)] h-[560px] max-h-[calc(100vh-6rem)] bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-200 mb-4 flex flex-col text-left">
             
             {/* Widget Header */}
-            <div className="bg-[#1C2321] text-white p-3.5 flex items-center justify-between border-b border-[#3C6E71]/30">
+            <div className="bg-[#1C2321] text-white p-3.5 flex items-center justify-between border-b border-[#3C6E71]/30 shrink-0">
               <div className="flex items-center gap-2.5">
                 <div className="relative">
                   <div className="w-8 h-8 rounded-full bg-[#3C6E71] flex items-center justify-center font-bold text-white text-xs shadow">
@@ -9521,7 +9521,7 @@ export default function App() {
             </div>
 
             {/* Direct WhatsApp Action Banner */}
-            <div className="px-3 pt-3">
+            <div className="px-3 pt-3 shrink-0">
               <a 
                 href="https://wa.me/5491112345678?text=Hola%20Holux!%20Estoy%20en%20la%20tienda%20y%20tengo%20una%20consulta."
                 target="_blank"
@@ -9542,7 +9542,7 @@ export default function App() {
             </div>
 
             {/* Scrollable Live Chat Thread */}
-            <div className="p-3 space-y-2.5 bg-gray-50/70 overflow-y-auto h-64 sm:h-72 flex flex-col text-xs mt-2 mx-3 rounded-xl border border-gray-200/80">
+            <div className="p-3 space-y-2.5 bg-gray-50/70 overflow-y-auto flex-1 min-h-0 flex flex-col text-xs mt-2 mx-3 rounded-xl border border-gray-200/80">
               {liveChatMessages.map((msg, idx) => {
                 if (msg.sender === 'user') {
                   return (
@@ -9577,7 +9577,7 @@ export default function App() {
             </div>
 
             {/* Quick Bot Chips */}
-            <div className="px-3 pt-2 flex flex-wrap gap-1">
+            <div className="px-3 pt-2 flex flex-wrap gap-1 shrink-0">
               {[
                 { label: "📦 Envío y seguimiento", text: "¿Cuándo llega mi pedido y cómo hago seguimiento?" },
                 { label: "💳 10% OFF Transferencia", text: "¿Cómo pago por transferencia con descuento?" },
@@ -9596,7 +9596,7 @@ export default function App() {
             </div>
 
             {/* Message Input Box */}
-            <div className="p-3">
+            <div className="p-3 shrink-0">
               <form 
                 onSubmit={(e) => {
                   e.preventDefault();
@@ -9623,7 +9623,7 @@ export default function App() {
             </div>
 
             {/* Widget Footer */}
-            <div className="p-2 border-t border-gray-100 text-center text-[9px] text-gray-400 font-mono-custom bg-gray-50 flex items-center justify-center gap-1">
+            <div className="p-2 border-t border-gray-100 text-center text-[9px] text-gray-400 font-mono-custom bg-gray-50 flex items-center justify-center gap-1 shrink-0">
               <span>Soporte Oficial Holux</span>
               <span>•</span>
               <span className="font-bold text-[#3C6E71]">Chat en Vivo Conectado</span>
