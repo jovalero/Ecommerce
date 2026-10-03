@@ -95,7 +95,7 @@ export const HeroSlider = memo(function HeroSlider({
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
-      className="group relative overflow-hidden bg-black text-[#F2EFE9] h-[520px] sm:h-[600px] md:h-[50vw] md:max-h-[650px] lg:h-[48vw] lg:max-h-[720px] xl:h-[calc(100vh-130px)] xl:max-h-[800px] xl:min-h-[580px] flex items-center border-b border-[#3C6E71]/15 select-none cursor-default"
+      className="group relative overflow-hidden bg-black text-[#F2EFE9] w-full aspect-[4/5] sm:aspect-[4/5] md:aspect-[16/10] lg:aspect-[16/9] flex items-center border-b border-[#3C6E71]/15 select-none cursor-default"
     >
       {/* Slide images with smooth GPU-accelerated crossfade transitions */}
       {slides.map((slide, idx) => {
@@ -221,7 +221,7 @@ export const HeroSlider = memo(function HeroSlider({
 
 
       {/* Carousel Slide Indicators */}
-      <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-20 flex gap-3">
+      <div className="absolute bottom-4 sm:bottom-6 left-1/2 transform -translate-x-1/2 z-20 flex gap-2.5">
         {slides.map((_, idx) => (
           <button
             key={idx}
