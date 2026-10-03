@@ -1655,7 +1655,12 @@ export default function App() {
     // Respuestas automáticas e inteligentes del Chatbot
     const lower = cleanText.toLowerCase();
     setTimeout(() => {
-      let botReply = '¡Recibido! Tu consulta ya está visible en nuestro Centro de Atención. Un asesor de Holux te responderá por este mismo chat en breve.';
+      // Verificar si ya se envió el aviso de recepción anteriormente en la conversación
+      const ackAlreadySent = liveChatMessages.some(m => 
+        m.text && m.text.includes('Tu consulta ya está visible en nuestro Centro de Atención')
+      );
+
+      let botReply = null;
       
       if (lower.includes('pedido') || lower.includes('envío') || lower.includes('envio') || lower.includes('lleg') || lower.includes('seguimiento') || lower.includes('andreani')) {
         botReply = '📦 Despachamos todos los pedidos en 24hs hábiles por Andreani Express con código de seguimiento en tiempo real. En cuanto despachamos tu compra, recibís el código por email y en "Mis Pedidos".';
@@ -1667,7 +1672,11 @@ export default function App() {
         botReply = '🛡️ Todos los productos técnicos Holux cuentan con 1 Año de Garantía Oficial contra cualquier defecto de fabricación.';
       } else if (lower.includes('asesor') || lower.includes('operador') || lower.includes('humano') || lower.includes('whatsapp') || lower.includes('ayuda')) {
         botReply = '👤 ¡Un operador está disponible! Si deseás una respuesta inmediata podés presionar arriba el botón de WhatsApp oficial, o dejarnos tu duda aquí y te responderemos por este mismo chat.';
+      } else if (!ackAlreadySent) {
+        botReply = '¡Recibido! Tu consulta ya está visible en nuestro Centro de Atención. Un asesor de Holux te responderá por este mismo chat en breve.';
       }
+
+      if (!botReply) return;
 
       const botMsg = {
         id: `bot-${Date.now()}`,
