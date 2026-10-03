@@ -13,7 +13,8 @@ export const SmoothInput = memo(React.forwardRef(function SmoothInput(
   const inputRef = useRef(null);
 
   useEffect(() => {
-    if (!isTypingRef.current) {
+    if (!isTypingRef.current || value === '') {
+      if (value === '') isTypingRef.current = false;
       setLocalValue(value !== undefined && value !== null ? value : '');
     }
   }, [value]);
@@ -73,7 +74,8 @@ export const SmoothTextarea = memo(React.forwardRef(function SmoothTextarea(
   const textareaRef = useRef(null);
 
   useEffect(() => {
-    if (!isTypingRef.current) {
+    if (!isTypingRef.current || value === '') {
+      if (value === '') isTypingRef.current = false;
       setLocalValue(value !== undefined && value !== null ? value : '');
     }
   }, [value]);

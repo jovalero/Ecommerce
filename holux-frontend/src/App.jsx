@@ -9640,7 +9640,7 @@ export default function App() {
                 }} 
                 className="flex items-center gap-1.5"
               >
-                <SmoothInput
+                <input
                   type="text"
                   value={liveChatInput}
                   onChange={(e) => setLiveChatInput(e.target.value)}
