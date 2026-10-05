@@ -90,6 +90,7 @@ class StoreSettingService
 
     public static function saveRaw(array $data): void
     {
+        $data['updated_at'] = time();
         $json = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
         File::put(self::getStoragePath(), $json);
 
@@ -178,6 +179,7 @@ class StoreSettingService
             'section_titles' => $raw['section_titles'] ?? null,
             'ticker_phrases' => $raw['ticker_phrases'] ?? null,
             'header_nav' => $raw['header_nav'] ?? null,
+            'updated_at' => (int) ($raw['updated_at'] ?? 0),
         ];
     }
 

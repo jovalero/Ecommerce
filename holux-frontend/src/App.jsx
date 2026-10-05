@@ -669,25 +669,28 @@ export default function App() {
       }
     });
 
-    // Universal Cloud Store Settings Fetch (ensures mobile devices & customers get latest banners from Supabase)
     const applyStoreSettings = (s) => {
       if (!s || typeof s !== 'object') return;
-      if (Array.isArray(s.hero_slides) && s.hero_slides.length > 0) {
+      const lastLocalEdit = Number(localStorage.getItem('holux_marketing_updated_at') || 0);
+      const serverTimestamp = (s.updated_at ? s.updated_at * 1000 : 0);
+      const isFreshLocalEdit = lastLocalEdit > 0 && (Date.now() - lastLocalEdit < 10 * 60 * 1000) && lastLocalEdit > serverTimestamp;
+
+      if (!isFreshLocalEdit && Array.isArray(s.hero_slides) && s.hero_slides.length > 0) {
         setHeroSlides(s.hero_slides);
       }
-      if (s.grid_cards && Array.isArray(s.grid_cards) && s.grid_cards.length > 0) {
+      if (!isFreshLocalEdit && s.grid_cards && Array.isArray(s.grid_cards) && s.grid_cards.length > 0) {
         setGridPromoCards(s.grid_cards);
       }
-      if (s.promo_banner && typeof s.promo_banner === 'object') {
+      if (!isFreshLocalEdit && s.promo_banner && typeof s.promo_banner === 'object') {
         setPromoBanner(s.promo_banner);
       }
-      if (s.section_titles && typeof s.section_titles === 'object') {
+      if (!isFreshLocalEdit && s.section_titles && typeof s.section_titles === 'object') {
         setHomeSectionTitles(s.section_titles);
       }
-      if (s.ticker_phrases && Array.isArray(s.ticker_phrases) && s.ticker_phrases.length > 0) {
+      if (!isFreshLocalEdit && s.ticker_phrases && Array.isArray(s.ticker_phrases) && s.ticker_phrases.length > 0) {
         setTickerPhrases(s.ticker_phrases);
       }
-      if (s.header_nav && Array.isArray(s.header_nav) && s.header_nav.length > 0) {
+      if (!isFreshLocalEdit && s.header_nav && Array.isArray(s.header_nav) && s.header_nav.length > 0) {
         setHeaderNavItems(s.header_nav);
       }
       if (s.payment_methods_config && Array.isArray(s.payment_methods_config) && s.payment_methods_config.length > 0) {

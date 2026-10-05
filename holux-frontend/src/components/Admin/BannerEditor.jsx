@@ -298,7 +298,7 @@ export default function BannerEditor({
       highlight,
       cta,
       image: desktopImage,
-      mobileImage,
+      mobileImage: mobileImage || desktopImage,
       overlayOpacity: Number(overlayOpacity),
       link: constructedLink,
       isActive
@@ -312,10 +312,11 @@ export default function BannerEditor({
 
     setHeroSlides(updated);
     await persistBannerData('holux_hero_slides', updated);
+    await handleSaveAllGlobal(updated);
     setEditingIndex(null);
     setIsFormOpen(false);
     setSavedMsg(true);
-    setTimeout(() => setSavedMsg(false), 3000);
+    setTimeout(() => setSavedMsg(false), 4000);
   };
 
   const handleMove = async (idx, direction) => {
@@ -327,6 +328,7 @@ export default function BannerEditor({
     updated[targetIdx] = temp;
     setHeroSlides(updated);
     await persistBannerData('holux_hero_slides', updated);
+    await handleSaveAllGlobal(updated);
   };
 
   const handleDelete = (idx) => {
@@ -338,6 +340,7 @@ export default function BannerEditor({
       const updated = heroSlides.filter((_, i) => i !== idx);
       setHeroSlides(updated);
       await persistBannerData('holux_hero_slides', updated);
+      await handleSaveAllGlobal(updated);
       if (editingIndex === idx) {
         setEditingIndex(null);
         setTitle('');
@@ -346,7 +349,7 @@ export default function BannerEditor({
     setIsConfirmOpen(true);
   };
 
-  const handleSaveAllGlobal = async () => {
+  const handleSaveAllGlobal = async (customSlides = null) => {
     let promoObj = null;
     if (setPromoBanner) {
       promoObj = {
@@ -366,8 +369,10 @@ export default function BannerEditor({
     if (setHomeSectionTitles) setHomeSectionTitles(updatedTitles);
     if (setGridPromoCards) setGridPromoCards(promoCards);
 
+    const slidesToSave = customSlides || heroSlides;
+
     const allSettings = {
-      holux_hero_slides: heroSlides,
+      holux_hero_slides: slidesToSave,
       holux_grid_promo_cards: promoCards,
       holux_home_section_titles: updatedTitles,
       holux_ticker_phrases: tickerPhrases,
@@ -378,7 +383,7 @@ export default function BannerEditor({
     await persistAllStoreSettings(allSettings);
 
     setSavedMsg(true);
-    setTimeout(() => setSavedMsg(false), 3500);
+    setTimeout(() => setSavedMsg(false), 4000);
   };
 
   return (

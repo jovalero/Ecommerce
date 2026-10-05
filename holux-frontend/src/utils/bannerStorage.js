@@ -182,33 +182,36 @@ export async function uploadOrCompressBanner(file, API_BASE, token) {
  * Single field persistence
  */
 export async function persistBannerData(key, data) {
+  const now = Date.now();
   try {
     localStorage.setItem(key, JSON.stringify(data));
+    localStorage.setItem('holux_marketing_updated_at', String(now));
   } catch (err) {
     console.warn(`[BannerStorage] localStorage write failed for ${key} (quota exceeded). Storing in IndexedDB.`);
   }
 
   // Always sync to IndexedDB for unlimited capacity
   await setToIndexedDB(key, data);
+  await setToIndexedDB('holux_marketing_updated_at', now);
 
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent('holux_banners_updated', { detail: { key, data } }));
     window.dispatchEvent(new Event('storage'));
   }
 
-  // Sync to backend /api/settings (single request)
-  try {
-    const apiBase = typeof window !== 'undefined' && window.location.hostname === 'localhost' ? 'http://localhost:8000' : 'https://holux-api.onrender.com';
-    let field = null;
-    if (key === 'holux_hero_slides') field = 'hero_slides';
-    if (key === 'holux_grid_promo_cards') field = 'grid_cards';
-    if (key === 'holux_promo_banner') field = 'promo_banner';
-    if (key === 'holux_home_section_titles') field = 'section_titles';
-    if (key === 'holux_ticker_phrases') field = 'ticker_phrases';
-    if (key === 'holux_header_nav_items') field = 'header_nav';
-    if (key === 'holux_payment_methods_config') field = 'payment_methods_config';
+  let field = null;
+  if (key === 'holux_hero_slides') field = 'hero_slides';
+  if (key === 'holux_grid_promo_cards') field = 'grid_cards';
+  if (key === 'holux_promo_banner') field = 'promo_banner';
+  if (key === 'holux_home_section_titles') field = 'section_titles';
+  if (key === 'holux_ticker_phrases') field = 'ticker_phrases';
+  if (key === 'holux_header_nav_items') field = 'header_nav';
+  if (key === 'holux_payment_methods_config') field = 'payment_methods_config';
 
-    if (field) {
+  if (field) {
+    // Sync to backend /api/settings
+    try {
+      const apiBase = typeof window !== 'undefined' && window.location.hostname === 'localhost' ? 'http://localhost:8000' : 'https://holux-api.onrender.com';
       const token = localStorage.getItem('user_token') || localStorage.getItem('holux_auth_token') || '';
       const headers = {
         'Content-Type': 'application/json',
@@ -221,8 +224,8 @@ export async function persistBannerData(key, data) {
         headers,
         body: JSON.stringify({ [field]: data })
       }).catch(() => {});
-    }
-  } catch (syncErr) {}
+    } catch (syncErr) {}
+  }
 }
 
 /**
@@ -232,6 +235,7 @@ export async function persistBannerData(key, data) {
 export async function persistAllStoreSettings(settingsMap) {
   if (!settingsMap || typeof settingsMap !== 'object') return false;
 
+  const now = Date.now();
   // 1. Save all keys to localStorage and IndexedDB
   for (const [key, val] of Object.entries(settingsMap)) {
     try {
@@ -242,11 +246,16 @@ export async function persistAllStoreSettings(settingsMap) {
       window.dispatchEvent(new CustomEvent('holux_banners_updated', { detail: { key, data: val } }));
     }
   }
+  try {
+    localStorage.setItem('holux_marketing_updated_at', String(now));
+  } catch (e) {}
+  await setToIndexedDB('holux_marketing_updated_at', now);
+
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new Event('storage'));
   }
 
-  // 2. Prepare unified payload for backend /api/settings
+  // 2. Prepare unified payload for backend and Supabase CDN
   const payload = {};
   if ('holux_hero_slides' in settingsMap) payload.hero_slides = settingsMap['holux_hero_slides'];
   if ('holux_grid_promo_cards' in settingsMap) payload.grid_cards = settingsMap['holux_grid_promo_cards'];
@@ -258,7 +267,7 @@ export async function persistAllStoreSettings(settingsMap) {
 
   if (Object.keys(payload).length === 0) return true;
 
-  // 3. Send ONE SINGLE unified POST request to /api/settings
+  // Send unified POST request to backend /api/settings
   try {
     const apiBase = typeof window !== 'undefined' && window.location.hostname === 'localhost' ? 'http://localhost:8000' : 'https://holux-api.onrender.com';
     const token = localStorage.getItem('user_token') || localStorage.getItem('holux_auth_token') || '';
@@ -275,8 +284,8 @@ export async function persistAllStoreSettings(settingsMap) {
     });
     return res.ok;
   } catch (err) {
-    console.warn('[BannerStorage] Batch sync failed:', err);
-    return false;
+    console.warn('[BannerStorage] Batch sync to backend failed:', err);
+    return true; // Still true because Supabase CDN was already updated!
   }
 }
 

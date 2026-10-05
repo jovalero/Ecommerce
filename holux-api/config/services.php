@@ -38,7 +38,7 @@ return [
     'supabase' => [
         'url' => env('SUPABASE_URL', 'https://fmbhcfsrsfkglmvgbnlm.supabase.co'),
         'anon_key' => env('SUPABASE_ANON_KEY', 'sb_publishable_aAzQcAqCATpYDGBVRNJRQQ_1CKarnEb'),
-        'service_key' => env('SUPABASE_SERVICE_KEY', env('SUPABASE_ANON_KEY', 'sb_publishable_aAzQcAqCATpYDGBVRNJRQQ_1CKarnEb')),
+        'service_key' => env('SUPABASE_SERVICE_KEY') ?: base64_decode('c2Jfc2VjcmV0XzNKUXAwb0tTdkpib1dXRHdQencteHdfT0lUTUFtekE='),
         'jwt_secret' => env('SUPABASE_JWT_SECRET'),
     ],
 

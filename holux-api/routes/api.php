@@ -66,8 +66,8 @@ Route::post('/register', function (\Illuminate\Http\Request $request) {
         'phone' => 'nullable|string'
     ]);
 
-    $supabaseUrl = env('SUPABASE_URL', 'https://fmbhcfsrsfkglmvgbnlm.supabase.co');
-    $supabaseServiceKey = env('SUPABASE_SERVICE_KEY');
+    $supabaseUrl = config('services.supabase.url', 'https://fmbhcfsrsfkglmvgbnlm.supabase.co');
+    $supabaseServiceKey = config('services.supabase.service_key');
 
     $response = \Illuminate\Support\Facades\Http::withHeaders([
         'apikey' => $supabaseServiceKey,

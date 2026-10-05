@@ -7,8 +7,8 @@ export const initialStoreData = {
       "desc": "",
       "highlight": "",
       "cta": "VER CATÁLOGO",
-      "image": "https://fmbhcfsrsfkglmvgbnlm.supabase.co/storage/v1/object/public/banners/hero_slide_1_desktop.jpg",
-      "mobileImage": "https://fmbhcfsrsfkglmvgbnlm.supabase.co/storage/v1/object/public/banners/hero_slide_1_mobile.png",
+      "image": "https://fmbhcfsrsfkglmvgbnlm.supabase.co/storage/v1/object/public/banners/33e23ec7-8a6f-4265-ba7b-cef293c10760.png",
+      "mobileImage": "https://fmbhcfsrsfkglmvgbnlm.supabase.co/storage/v1/object/public/banners/92909fb2-4752-4c03-bda0-5653109c5bb2.png",
       "overlayOpacity": 0,
       "link": "#/catalogo",
       "isActive": true
@@ -18,9 +18,9 @@ export const initialStoreData = {
       "span": "",
       "desc": "",
       "highlight": "",
-      "cta": "",
-      "image": "https://fmbhcfsrsfkglmvgbnlm.supabase.co/storage/v1/object/public/banners/hero_slide_2_desktop.jpg",
-      "mobileImage": "https://fmbhcfsrsfkglmvgbnlm.supabase.co/storage/v1/object/public/banners/hero_slide_2_mobile.jpg",
+      "cta": "VER CATÁLOGO",
+      "image": "https://fmbhcfsrsfkglmvgbnlm.supabase.co/storage/v1/object/public/banners/7951d8d2-4b8d-4b71-8d12-b341ac552441.png",
+      "mobileImage": "https://fmbhcfsrsfkglmvgbnlm.supabase.co/storage/v1/object/public/banners/e5eabde8-1660-4826-b300-842dc20a8ba5.png",
       "overlayOpacity": 0,
       "link": "#/catalogo",
       "isActive": true
