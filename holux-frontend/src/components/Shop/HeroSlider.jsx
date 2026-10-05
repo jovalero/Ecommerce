@@ -95,7 +95,7 @@ export const HeroSlider = memo(function HeroSlider({
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
-      className="group relative overflow-hidden bg-black text-[#F2EFE9] w-full aspect-[4/5] sm:aspect-[4/5] md:aspect-[16/10] lg:aspect-[16/9] flex items-center border-b border-[#3C6E71]/15 select-none cursor-default"
+      className="group relative overflow-hidden bg-black text-[#F2EFE9] w-full aspect-[4/5] md:aspect-[1920/750] flex items-center border-b border-[#3C6E71]/15 select-none cursor-default"
     >
       {/* Slide images with smooth GPU-accelerated crossfade transitions */}
       {slides.map((slide, idx) => {
@@ -140,21 +140,21 @@ export const HeroSlider = memo(function HeroSlider({
             }`}
             style={{ transform: 'translate3d(0, 0, 0)' }}
           >
-            {/* Mobile & Tablet Portrait Image (Active up to 1024px: phones, iPads & tablets) */}
+            {/* Mobile Portrait Image (Active up to 768px: smartphones) */}
             <img
               src={slide.mobileImage || slide.image}
-              alt={slide.title || 'Banner Holux Mobile & Tablet'}
+              alt={slide.title || 'Banner Holux Mobile'}
               decoding="async"
               loading="eager"
-              className="absolute inset-0 w-full h-full object-cover object-center block lg:hidden opacity-100"
+              className="absolute inset-0 w-full h-full object-cover object-center block md:hidden opacity-100"
             />
-            {/* Desktop / Laptop Horizontal Image (Active on large screens 1024px+) */}
+            {/* Desktop & Tablet Panoramic Image (Active on screens 768px+: tablets, laptops, desktops) */}
             <img
               src={slide.image || slide.mobileImage}
               alt={slide.title || 'Banner Holux Desktop'}
               decoding="async"
               loading="eager"
-              className="absolute inset-0 w-full h-full object-cover object-center hidden lg:block opacity-100"
+              className="absolute inset-0 w-full h-full object-cover object-center hidden md:block opacity-100"
             />
 
             {/* Black Overlay and gradients ONLY when overlayDarkness > 0 */}

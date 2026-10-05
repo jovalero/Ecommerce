@@ -1297,7 +1297,7 @@ export default function BannerEditor({
                 <div className="flex items-center justify-between gap-1 flex-wrap">
                   <label className="text-[10px] font-bold text-gray-700 uppercase tracking-wider block">IMAGEN DESKTOP</label>
                   <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 font-mono-custom">
-                    📐 Medida: 1920 × 1080 px (16:9 Panorámica)
+                    📐 Medida: 1920 × 750 px (Panorámica Centrada)
                   </span>
                 </div>
                 
