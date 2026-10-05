@@ -288,224 +288,209 @@ export default function CatalogView({
     }
   }, [initialCollection]);
 
-  // --- FETCH PRODUCTS SERVER-SIDE WITH SUPABASE DIRECT CLOUD FALLBACK ---
+  // --- FETCH PRODUCTS: SUPABASE DIRECT FIRST (0-100MS), API FALLBACK ---
   const fetchProductsServer = async () => {
     setLoading(true);
-    let loadedFromApi = false;
+    let loadedFromSupa = false;
 
+    // 1. Fetch directly from Supabase Cloud Database (Fast CDN/REST)
     try {
-      const params = new URLSearchParams();
-      if (selectedCategories.length > 0) {
-        params.append('categories', selectedCategories.join(','));
-      }
-      if (selectedCollections.length > 0) {
-        params.append('collections', selectedCollections.join(','));
-      }
-      if (selectedBrands.length > 0) {
-        params.append('brands', selectedBrands.join(','));
-      }
-      if (selectedSizes.length > 0) {
-        params.append('sizes', selectedSizes.join(','));
-      }
-      if (userPriceMax < priceRange.max) {
-        params.append('max_price', userPriceMax);
-      }
-      if (inStockOnly) {
-        params.append('in_stock', '1');
-      }
-      if (searchQuery.trim()) {
-        params.append('search', searchQuery.trim());
-      }
-      if (sortBy) {
-        params.append('sort_by', sortBy);
-      }
-      params.append('page', page);
-      params.append('per_page', perPage);
-
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 6000);
-
-      const res = await fetch(`${API_BASE_URL}/api/products?${params.toString()}`, {
-        signal: controller.signal
+      const supaUrl = import.meta.env.VITE_SUPABASE_URL || 'https://fmbhcfsrsfkglmvgbnlm.supabase.co';
+      const supaKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_aAzQcAqCATpYDGBVRNJRQQ_1CKarnEb';
+      
+      const supaRes = await fetch(`${supaUrl}/rest/v1/products?select=*,categories(id,name,slug)&order=created_at.desc`, {
+        headers: { 'apikey': supaKey, 'Authorization': `Bearer ${supaKey}` }
       });
-      clearTimeout(timeoutId);
 
-      if (res.ok) {
-        const result = await res.json();
-        const prods = result.data || [];
-        if (prods.length > 0 || (result.total === 0 && (selectedCategories.length > 0 || searchQuery.trim()))) {
-          setProducts(prods);
-          setTotalProducts(result.total || 0);
-          setLastPage(result.last_page || 1);
-          setFromItem(result.from || 0);
-          setToItem(result.to || 0);
+      if (supaRes.ok) {
+        const allProds = await supaRes.json();
+        if (Array.isArray(allProds) && allProds.length > 0) {
+          const enrichProd = (p) => {
+            const meta = productsMetadata[p.id] || {};
+            const resolveImg = resolveProductImage;
+            const images = (Array.isArray(p.images) && p.images.length > 0)
+              ? p.images.map(resolveImg).filter(Boolean)
+              : (Array.isArray(meta.images) ? meta.images.map(resolveImg).filter(Boolean) : (p.image_url ? [resolveImg(p.image_url)] : []));
+            const image_url = resolveImg(p.image_url) || (images && images[0]) || meta.image_url || null;
 
-          if (result.price_range) {
-            setPriceRange(result.price_range);
-            if (userPriceMax === 200000 && result.price_range.max > 0) {
-              setUserPriceMax(result.price_range.max);
-            }
-          }
-          if (result.available_sizes) {
-            setAvailableSizes(result.available_sizes);
-          }
-          loadedFromApi = true;
-        }
-      }
-    } catch (err) {}
-
-    // Fallback directly to Supabase cloud database if API didn't respond
-    if (!loadedFromApi) {
-      try {
-        const supaUrl = import.meta.env.VITE_SUPABASE_URL || 'https://fmbhcfsrsfkglmvgbnlm.supabase.co';
-        const supaKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_aAzQcAqCATpYDGBVRNJRQQ_1CKarnEb';
-        
-        const supaRes = await fetch(`${supaUrl}/rest/v1/products?select=*,categories(id,name,slug)&order=created_at.desc`, {
-          headers: { 'apikey': supaKey, 'Authorization': `Bearer ${supaKey}` }
-        });
-
-        if (supaRes.ok) {
-          const allProds = await supaRes.json();
-          if (Array.isArray(allProds)) {
-            const enrichProd = (p) => {
-              const meta = productsMetadata[p.id] || {};
-              const resolveImg = resolveProductImage;
-              const images = (Array.isArray(p.images) && p.images.length > 0)
-                ? p.images.map(resolveImg).filter(Boolean)
-                : (Array.isArray(meta.images) ? meta.images.map(resolveImg).filter(Boolean) : (p.image_url ? [resolveImg(p.image_url)] : []));
-              const image_url = resolveImg(p.image_url) || (images && images[0]) || meta.image_url || null;
-
-              return {
-                ...p,
-                description: p.description || meta.description || '',
-                specs: p.specs || meta.specs || [],
-                tags: p.tags || meta.tags || [],
-                is_featured: p.is_featured ?? meta.is_featured ?? false,
-                is_new: p.is_new ?? meta.is_new ?? false,
-                image_url,
-                images
-              };
+            return {
+              ...p,
+              description: p.description || meta.description || '',
+              specs: p.specs || meta.specs || [],
+              tags: p.tags || meta.tags || [],
+              is_featured: p.is_featured ?? meta.is_featured ?? false,
+              is_new: p.is_new ?? meta.is_new ?? false,
+              image_url,
+              images
             };
+          };
 
-            let filtered = allProds.map(enrichProd);
+          let filtered = allProds.map(enrichProd);
 
-            // 1. Category Filter
-            if (selectedCategories.length > 0) {
-              filtered = filtered.filter(p => {
-                const catSlug = (p.categories?.slug || '').toLowerCase();
-                const catName = (p.categories?.name || '').toLowerCase();
-                const pCatId = (p.category_id || p.categories?.id || '').toLowerCase();
-                const pNameLow = (p.name || '').toLowerCase();
-                const isUnisex = catSlug === 'perfumes-unisex' || pCatId === 'a25fc37e-21d7-4554-9ff1-bc29c626da0d' || pNameLow.includes('unisex') || pNameLow.includes('unissex') || catName.includes('unisex');
+          // 1. Category Filter
+          if (selectedCategories.length > 0) {
+            filtered = filtered.filter(p => {
+              const catSlug = (p.categories?.slug || '').toLowerCase();
+              const catName = (p.categories?.name || '').toLowerCase();
+              const pCatId = (p.category_id || p.categories?.id || '').toLowerCase();
+              const pNameLow = (p.name || '').toLowerCase();
+              const isUnisex = catSlug === 'perfumes-unisex' || pCatId === 'a25fc37e-21d7-4554-9ff1-bc29c626da0d' || pNameLow.includes('unisex') || pNameLow.includes('unissex') || catName.includes('unisex');
 
-                return selectedCategories.some(sel => {
-                  const selLow = String(sel).toLowerCase();
-                  if (selLow === 'perfumes-unisex' || selLow === 'unisex') {
-                    return isUnisex;
-                  }
-                  if (selLow === 'perfumes-hombre' || selLow === 'hombre') {
-                    return catSlug === 'perfumes-hombre' || pCatId === 'd166dfbc-923a-4e85-99cf-e10f2d34d4cf' || catName.includes('hombre') || isUnisex;
-                  }
-                  if (selLow === 'perfumes-mujer' || selLow === 'mujer') {
-                    return catSlug === 'perfumes-mujer' || pCatId === '731e12dd-0800-490d-b18a-922dcc3de08c' || catName.includes('mujer') || isUnisex;
-                  }
-                  return selLow === catSlug || selLow === pCatId || catName.includes(selLow);
-                });
+              return selectedCategories.some(sel => {
+                const selLow = String(sel).toLowerCase();
+                if (selLow === 'perfumes-unisex' || selLow === 'unisex') {
+                  return isUnisex;
+                }
+                if (selLow === 'perfumes-hombre' || selLow === 'hombre') {
+                  return catSlug === 'perfumes-hombre' || pCatId === 'd166dfbc-923a-4e85-99cf-e10f2d34d4cf' || catName.includes('hombre') || isUnisex;
+                }
+                if (selLow === 'perfumes-mujer' || selLow === 'mujer') {
+                  return catSlug === 'perfumes-mujer' || pCatId === '731e12dd-0800-490d-b18a-922dcc3de08c' || catName.includes('mujer') || isUnisex;
+                }
+                return selLow === catSlug || selLow === pCatId || catName.includes(selLow);
               });
-            }
+            });
+          }
 
-            // 2. Collection / Gender Filter
-            if (selectedCollections.length > 0) {
-              filtered = filtered.filter(p => {
-                const pGender = (p.gender || p.collection || '').toLowerCase();
-                const pNameLow = (p.name || '').toLowerCase();
-                const catSlug = (p.categories?.slug || '').toLowerCase();
-                const catName = (p.categories?.name || '').toLowerCase();
-                const isUnisex = catSlug === 'perfumes-unisex' || pNameLow.includes('unisex') || pNameLow.includes('unissex') || catName.includes('unisex');
+          // 2. Collection / Gender Filter
+          if (selectedCollections.length > 0) {
+            filtered = filtered.filter(p => {
+              const pGender = (p.gender || p.collection || '').toLowerCase();
+              const pNameLow = (p.name || '').toLowerCase();
+              const catSlug = (p.categories?.slug || '').toLowerCase();
+              const catName = (p.categories?.name || '').toLowerCase();
+              const isUnisex = catSlug === 'perfumes-unisex' || pNameLow.includes('unisex') || pNameLow.includes('unissex') || catName.includes('unisex');
 
-                return selectedCollections.some(col => {
-                  const c = String(col).toLowerCase();
-                  if (c === 'outlet') return Number(p.offer_price) > 0 || Number(p.discount_percent) > 0;
-                  if (c === 'unisex') return isUnisex;
-                  if (c === 'hombre' || c === 'masculino') return pGender.includes('hombre') || pGender.includes('masculino') || pNameLow.includes('masculino') || isUnisex;
-                  if (c === 'mujer' || c === 'femenino') return pGender.includes('mujer') || pGender.includes('femenino') || pNameLow.includes('feminino') || pNameLow.includes('femenino') || isUnisex;
-                  return pGender.includes(c) || pNameLow.includes(c) || catName.includes(c);
-                });
+              return selectedCollections.some(col => {
+                const c = String(col).toLowerCase();
+                if (c === 'outlet') return Number(p.offer_price) > 0 || Number(p.discount_percent) > 0;
+                if (c === 'unisex') return isUnisex;
+                if (c === 'hombre' || c === 'masculino') return pGender.includes('hombre') || pGender.includes('masculino') || pNameLow.includes('masculino') || isUnisex;
+                if (c === 'mujer' || c === 'femenino') return pGender.includes('mujer') || pGender.includes('femenino') || pNameLow.includes('feminino') || pNameLow.includes('femenino') || isUnisex;
+                return pGender.includes(c) || pNameLow.includes(c) || catName.includes(c);
               });
-            }
+            });
+          }
 
-            // 3. Brand Filter
-            if (selectedBrands.length > 0) {
-              filtered = filtered.filter(p => {
-                const pBrand = (p.brand || '').toLowerCase();
-                const pName = (p.name || '').toLowerCase();
-                return selectedBrands.some(b => {
-                  const bLow = String(b).toLowerCase();
-                  return pBrand === bLow || pName.includes(bLow);
-                });
+          // 3. Brand Filter
+          if (selectedBrands.length > 0) {
+            filtered = filtered.filter(p => {
+              const pBrand = (p.brand || '').toLowerCase();
+              const pName = (p.name || '').toLowerCase();
+              return selectedBrands.some(b => {
+                const bLow = String(b).toLowerCase();
+                return pBrand === bLow || pName.includes(bLow);
               });
+            });
+          }
+
+          // 4. In Stock Filter
+          if (inStockOnly) {
+            filtered = filtered.filter(p => Number(p.stock) > 0);
+          }
+
+          // 5. Max Price Filter
+          if (userPriceMax > 0 && userPriceMax < priceRange.max) {
+            filtered = filtered.filter(p => {
+              const effective = Number(p.offer_price) > 0 ? Number(p.offer_price) : Number(p.price);
+              return effective <= userPriceMax;
+            });
+          }
+
+          // 6. Search Query
+          if (searchQuery.trim()) {
+            const q = searchQuery.toLowerCase().trim();
+            filtered = filtered.filter(p => 
+              (p.name && p.name.toLowerCase().includes(q)) ||
+              (p.brand && p.brand.toLowerCase().includes(q)) ||
+              (p.description && p.description.toLowerCase().includes(q))
+            );
+          }
+
+          // 7. Sort
+          if (sortBy === 'price_asc' || sortBy === 'price-asc') {
+            filtered.sort((a, b) => {
+              const priceA = Number(a.offer_price && a.offer_price > 0 ? a.offer_price : a.price) || 0;
+              const priceB = Number(b.offer_price && b.offer_price > 0 ? b.offer_price : b.price) || 0;
+              return priceA - priceB;
+            });
+          } else if (sortBy === 'price_desc' || sortBy === 'price-desc') {
+            filtered.sort((a, b) => {
+              const priceA = Number(a.offer_price && a.offer_price > 0 ? a.offer_price : a.price) || 0;
+              const priceB = Number(b.offer_price && b.offer_price > 0 ? b.offer_price : b.price) || 0;
+              return priceB - priceA;
+            });
+          } else if (sortBy === 'newest') {
+            filtered.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+          } else if (sortBy === 'name_asc' || sortBy === 'name-asc') {
+            filtered.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+          } else if (sortBy === 'name_desc' || sortBy === 'name-desc') {
+            filtered.sort((a, b) => (b.name || '').localeCompare(a.name || ''));
+          }
+
+          // Pagination
+          const total = filtered.length;
+          const last = Math.max(1, Math.ceil(total / perPage));
+          const start = (page - 1) * perPage;
+          const paginated = filtered.slice(start, start + perPage);
+
+          setProducts(paginated);
+          setTotalProducts(total);
+          setLastPage(last);
+          setFromItem(total > 0 ? start + 1 : 0);
+          setToItem(Math.min(start + perPage, total));
+          loadedFromSupa = true;
+        }
+      }
+    } catch (supaErr) {
+      console.warn("Supabase fetch in CatalogView failed:", supaErr);
+    }
+
+    // 2. Fallback to Laravel Backend API if Supabase didn't load
+    if (!loadedFromSupa && API_BASE_URL) {
+      try {
+        const params = new URLSearchParams();
+        if (selectedCategories.length > 0) params.append('categories', selectedCategories.join(','));
+        if (selectedCollections.length > 0) params.append('collections', selectedCollections.join(','));
+        if (selectedBrands.length > 0) params.append('brands', selectedBrands.join(','));
+        if (selectedSizes.length > 0) params.append('sizes', selectedSizes.join(','));
+        if (userPriceMax < priceRange.max) params.append('max_price', userPriceMax);
+        if (inStockOnly) params.append('in_stock', '1');
+        if (searchQuery.trim()) params.append('search', searchQuery.trim());
+        if (sortBy) params.append('sort_by', sortBy);
+        params.append('page', page);
+        params.append('per_page', perPage);
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 4000);
+
+        const res = await fetch(`${API_BASE_URL}/api/products?${params.toString()}`, {
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+
+        if (res.ok) {
+          const result = await res.json();
+          const prods = result.data || [];
+          if (prods.length > 0 || (result.total === 0 && (selectedCategories.length > 0 || searchQuery.trim()))) {
+            setProducts(prods);
+            setTotalProducts(result.total || 0);
+            setLastPage(result.last_page || 1);
+            setFromItem(result.from || 0);
+            setToItem(result.to || 0);
+
+            if (result.price_range) {
+              setPriceRange(result.price_range);
+              if (userPriceMax === 200000 && result.price_range.max > 0) {
+                setUserPriceMax(result.price_range.max);
+              }
             }
-
-            // 4. In Stock Filter
-            if (inStockOnly) {
-              filtered = filtered.filter(p => Number(p.stock) > 0);
+            if (result.available_sizes) {
+              setAvailableSizes(result.available_sizes);
             }
-
-            // 5. Max Price Filter
-            if (userPriceMax > 0 && userPriceMax < priceRange.max) {
-              filtered = filtered.filter(p => {
-                const effective = Number(p.offer_price) > 0 ? Number(p.offer_price) : Number(p.price);
-                return effective <= userPriceMax;
-              });
-            }
-
-            // 6. Search Query
-            if (searchQuery.trim()) {
-              const q = searchQuery.toLowerCase().trim();
-              filtered = filtered.filter(p => 
-                (p.name && p.name.toLowerCase().includes(q)) ||
-                (p.brand && p.brand.toLowerCase().includes(q)) ||
-                (p.description && p.description.toLowerCase().includes(q))
-              );
-            }
-
-            // 7. Sort
-            if (sortBy === 'price_asc' || sortBy === 'price-asc') {
-              filtered.sort((a, b) => {
-                const priceA = Number(a.offer_price && a.offer_price > 0 ? a.offer_price : a.price) || 0;
-                const priceB = Number(b.offer_price && b.offer_price > 0 ? b.offer_price : b.price) || 0;
-                return priceA - priceB;
-              });
-            } else if (sortBy === 'price_desc' || sortBy === 'price-desc') {
-              filtered.sort((a, b) => {
-                const priceA = Number(a.offer_price && a.offer_price > 0 ? a.offer_price : a.price) || 0;
-                const priceB = Number(b.offer_price && b.offer_price > 0 ? b.offer_price : b.price) || 0;
-                return priceB - priceA;
-              });
-            } else if (sortBy === 'newest') {
-              filtered.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
-            } else if (sortBy === 'name_asc' || sortBy === 'name-asc') {
-              filtered.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-            } else if (sortBy === 'name_desc' || sortBy === 'name-desc') {
-              filtered.sort((a, b) => (b.name || '').localeCompare(a.name || ''));
-            }
-
-            // Pagination
-            const total = filtered.length;
-            const last = Math.max(1, Math.ceil(total / perPage));
-            const start = (page - 1) * perPage;
-            const paginated = filtered.slice(start, start + perPage);
-
-            setProducts(paginated);
-            setTotalProducts(total);
-            setLastPage(last);
-            setFromItem(total > 0 ? start + 1 : 0);
-            setToItem(Math.min(start + perPage, total));
           }
         }
-      } catch (supaErr) {
-        console.error("Error loading products from Supabase fallback:", supaErr);
-      }
+      } catch (err) {}
     }
 
     setLoading(false);

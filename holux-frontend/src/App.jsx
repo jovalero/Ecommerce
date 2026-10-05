@@ -518,9 +518,9 @@ export default function App() {
   // Cart & Orders (100% Supabase-driven marketing and settings)
   const [heroSlides, setHeroSlides] = useState(slides);
   const [homeSectionTitles, setHomeSectionTitles] = useState(initialStoreData?.section_titles || {
-    novedadesTitle: 'NOVEDADES EN PERFUMERÍA',
-    novedadesSubtitle: 'Descubrí los últimos lanzamientos y fragancias exclusivas',
-    destacadosTitle: 'FRAGANCIAS DESTACADAS',
+    novedadesTitle: 'NUEVOS INGRESOS',
+    novedadesSubtitle: 'Descubrí las últimas fragancias disponibles en nuestra tienda.',
+    destacadosTitle: 'PRODUCTOS DESTACADOS',
     destacadosSubtitle: 'Una selección especial recomendada por nuestros expertos'
   });
   const [gridPromoCards, setGridPromoCards] = useState(initialStoreData?.grid_cards || PROMO_BANNERS);
@@ -638,39 +638,57 @@ export default function App() {
 
   // Asynchronously sync persistent banners, 3 promo cards & section titles from IndexedDB
   useEffect(() => {
+    // Purge any legacy corrupted strings from localStorage/IndexedDB
+    const isCorruptedText = (val) => {
+      if (!val) return false;
+      const s = typeof val === 'string' ? val : JSON.stringify(val);
+      return s.includes('\uFFFD') || /DESCUBR\b|LTIMAS\b|SELECCIN\b|INTERS\b|ENVOS\b|CATLOGO\b|CATEGORAS\b/.test(s);
+    };
+
+    ['holux_hero_slides', 'holux_home_section_titles', 'holux_grid_promo_cards', 'holux_header_nav_items', 'holux_promo_banner', 'holux_ticker_phrases'].forEach(k => {
+      try {
+        const item = localStorage.getItem(k);
+        if (item && isCorruptedText(item)) {
+          localStorage.removeItem(k);
+          localStorage.removeItem('holux_marketing_updated_at');
+        }
+      } catch (e) {}
+    });
+
     loadPersistedBannerData('holux_hero_slides', null).then(saved => {
-      if (Array.isArray(saved)) {
+      if (Array.isArray(saved) && !isCorruptedText(saved)) {
         setHeroSlides(saved);
       }
     });
     loadPersistedBannerData('holux_home_section_titles', null).then(saved => {
-      if (saved) {
+      if (saved && !isCorruptedText(saved)) {
         setHomeSectionTitles(saved);
       }
     });
     loadPersistedBannerData('holux_grid_promo_cards', null).then(saved => {
-      if (Array.isArray(saved) && saved.length > 0) {
+      if (Array.isArray(saved) && saved.length > 0 && !isCorruptedText(saved)) {
         setGridPromoCards(saved);
       }
     });
     loadPersistedBannerData('holux_header_nav_items', null).then(saved => {
-      if (Array.isArray(saved) && saved.length > 0) {
+      if (Array.isArray(saved) && saved.length > 0 && !isCorruptedText(saved)) {
         setHeaderNavItems(saved);
       }
     });
     loadPersistedBannerData('holux_promo_banner', null).then(saved => {
-      if (saved && typeof saved === 'object') {
+      if (saved && typeof saved === 'object' && !isCorruptedText(saved)) {
         setPromoBanner(saved);
       }
     });
     loadPersistedBannerData('holux_ticker_phrases', null).then(saved => {
-      if (Array.isArray(saved) && saved.length > 0) {
+      if (Array.isArray(saved) && saved.length > 0 && !isCorruptedText(saved)) {
         setTickerPhrases(saved);
       }
     });
 
     const applyStoreSettings = (s) => {
       if (!s || typeof s !== 'object') return;
+      if (isCorruptedText(s)) return;
       const lastLocalEdit = Number(localStorage.getItem('holux_marketing_updated_at') || 0);
       const serverTimestamp = (s.updated_at ? s.updated_at * 1000 : 0);
       const isFreshLocalEdit = lastLocalEdit > 0 && (Date.now() - lastLocalEdit < 10 * 60 * 1000) && lastLocalEdit > serverTimestamp;
@@ -1360,31 +1378,38 @@ export default function App() {
         };
       };
 
+      // 2. Fetch Products (Fast Direct Supabase First, Laravel API Fallback)
       let prodsLoaded = false;
       try {
-        const resProd = await fetch(`${API_BASE_URL}/api/products?per_page=100`);
-        if (resProd.ok) {
-          const result = await resProd.json();
-          const prods = Array.isArray(result) ? result : (result.data || []);
-          if (prods.length > 0) {
-            setProducts(prods.map(enrichProd));
+        const supaProd = await fetch(`${SUPABASE_URL}/rest/v1/products?select=*,categories(id,name,slug)&order=created_at.desc`, {
+          headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+        });
+        if (supaProd.ok) {
+          const prods = await supaProd.json();
+          if (Array.isArray(prods) && prods.length > 0) {
+            setProducts(prods.map(enrichProductItem));
             prodsLoaded = true;
           }
         }
-      } catch (err) {}
+      } catch (supaErr) {
+        console.warn("Direct Supabase products fetch error:", supaErr);
+      }
 
       if (!prodsLoaded) {
         try {
-          const supaProd = await fetch(`${SUPABASE_URL}/rest/v1/products?select=*,categories(id,name,slug)&order=created_at.desc`, {
-            headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
-          });
-          if (supaProd.ok) {
-            const prods = await supaProd.json();
-            if (Array.isArray(prods)) {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 4000);
+          const resProd = await fetch(`${API_BASE_URL}/api/products?per_page=100`, { signal: controller.signal });
+          clearTimeout(timeoutId);
+          if (resProd.ok) {
+            const result = await resProd.json();
+            const prods = Array.isArray(result) ? result : (result.data || []);
+            if (prods.length > 0) {
               setProducts(prods.map(enrichProductItem));
+              prodsLoaded = true;
             }
           }
-        } catch (supaErr) {}
+        } catch (err) {}
       }
     } catch (e) {
       console.error("Error loading catalog:", e);
