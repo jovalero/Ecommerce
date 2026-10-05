@@ -75,7 +75,7 @@ import InfoPagesView from './components/Shop/InfoPagesView';
 import Footer from './components/Shop/Footer';
 import MobileMenuDrawer from './components/Navigation/MobileMenuDrawer';
 import { useProductCatalog } from './hooks/useProductCatalog';
-import { loadPersistedBannerData, resolveProductImage } from './utils/bannerStorage';
+import { loadPersistedBannerData, persistBannerData, resolveProductImage } from './utils/bannerStorage';
 import { initialStoreData } from './config/initialStoreData';
 import { productsMetadata } from './config/productsMetadata';
 
@@ -2703,6 +2703,41 @@ export default function App() {
       if (productData.id) {
         setAdminProductsList(prev => prev.map(p => p.id === productData.id ? { ...p, ...productData } : p));
         setProducts(prev => prev.map(p => p.id === productData.id ? { ...p, ...productData } : p));
+
+        // Sync curation flags with home section titles
+        let nextDest = homeSectionTitles?.destacadosProductIds || [];
+        let nextNov = homeSectionTitles?.novedadesProductIds || [];
+        let titlesChanged = false;
+
+        if (productData.is_featured !== undefined) {
+          if (productData.is_featured && !nextDest.includes(productData.id)) {
+            nextDest = [...nextDest, productData.id];
+            titlesChanged = true;
+          } else if (!productData.is_featured && nextDest.includes(productData.id)) {
+            nextDest = nextDest.filter(id => id !== productData.id);
+            titlesChanged = true;
+          }
+        }
+
+        if (productData.is_new !== undefined) {
+          if (productData.is_new && !nextNov.includes(productData.id)) {
+            nextNov = [...nextNov, productData.id];
+            titlesChanged = true;
+          } else if (!productData.is_new && nextNov.includes(productData.id)) {
+            nextNov = nextNov.filter(id => id !== productData.id);
+            titlesChanged = true;
+          }
+        }
+
+        if (titlesChanged) {
+          const updatedTitles = {
+            ...homeSectionTitles,
+            destacadosProductIds: nextDest,
+            novedadesProductIds: nextNov
+          };
+          setHomeSectionTitles(updatedTitles);
+          persistBannerData('holux_home_section_titles', updatedTitles);
+        }
       } else {
         const newProd = { ...productData, id: `prod-${Date.now()}` };
         setAdminProductsList(prev => [newProd, ...prev]);
@@ -3518,6 +3553,29 @@ export default function App() {
   }, [products, activeCategory, activeGender, searchQuery, sortBy]);
 
   const filteredProducts = sortedProducts;
+
+  // Curated Carousel Products for Home Page (Custom Selected IDs with Automatic Fallback)
+  const displayedNovedades = useMemo(() => {
+    const customIds = homeSectionTitles?.novedadesProductIds;
+    if (Array.isArray(customIds) && customIds.length > 0) {
+      const list = customIds.map(id => products.find(p => String(p.id) === String(id))).filter(Boolean);
+      if (list.length > 0) return list;
+    }
+    const flagged = products.filter(p => p.is_new);
+    if (flagged.length > 0) return flagged;
+    return [...products].reverse().slice(0, 8);
+  }, [products, homeSectionTitles?.novedadesProductIds]);
+
+  const displayedDestacados = useMemo(() => {
+    const customIds = homeSectionTitles?.destacadosProductIds;
+    if (Array.isArray(customIds) && customIds.length > 0) {
+      const list = customIds.map(id => products.find(p => String(p.id) === String(id))).filter(Boolean);
+      if (list.length > 0) return list;
+    }
+    const flagged = products.filter(p => p.is_featured);
+    if (flagged.length > 0) return flagged;
+    return products.slice(0, 10);
+  }, [products, homeSectionTitles?.destacadosProductIds]);
 
   if (currentView === 'customer_panel') {
     if (!token) {
@@ -5850,7 +5908,7 @@ export default function App() {
                 tickerPhrases={tickerPhrases}
                 setTickerPhrases={setTickerPhrases}
                 categoriesList={adminCategoriesList}
-                productsList={adminProductsList}
+                productsList={(adminProductsList && adminProductsList.length > 0) ? adminProductsList : products}
                 homeSectionTitles={homeSectionTitles}
                 setHomeSectionTitles={setHomeSectionTitles}
                 gridPromoCards={gridPromoCards}
@@ -6279,6 +6337,23 @@ export default function App() {
             {adminTab === 'products' && (
               <ProductCatalogManager
                 catalog={productCatalogState}
+                homeSectionTitles={homeSectionTitles}
+                onToggleSectionProduct={(prodId, section) => {
+                  let nextNov = homeSectionTitles?.novedadesProductIds || [];
+                  let nextDest = homeSectionTitles?.destacadosProductIds || [];
+                  if (section === 'novedades') {
+                    nextNov = nextNov.includes(prodId) ? nextNov.filter(id => id !== prodId) : [...nextNov, prodId];
+                  } else if (section === 'destacados') {
+                    nextDest = nextDest.includes(prodId) ? nextDest.filter(id => id !== prodId) : [...nextDest, prodId];
+                  }
+                  const updated = {
+                    ...homeSectionTitles,
+                    novedadesProductIds: nextNov,
+                    destacadosProductIds: nextDest
+                  };
+                  setHomeSectionTitles(updated);
+                  persistBannerData('holux_home_section_titles', updated);
+                }}
                 onEditProduct={(prod) => {
                   setSelectedProductModal(prod);
                   setIsProductModalOpen(true);
@@ -6658,6 +6733,7 @@ export default function App() {
           <ProductEditModal
             product={selectedProductModal}
             categories={categories}
+            homeSectionTitles={homeSectionTitles}
             onClose={() => setIsProductModalOpen(false)}
             onSave={handleSaveProductModal}
             onDuplicate={(p) => {
@@ -7418,7 +7494,7 @@ export default function App() {
                   onMouseMove={handleNovedadesMouseMove}
                   className="flex gap-3 sm:gap-5 overflow-x-auto scroll-smooth snap-x snap-mandatory scrollbar-hide py-4 select-none cursor-default"
                 >
-                  {[...products].reverse().slice(0, 8).map(product => (
+                  {displayedNovedades.map(product => (
                     <div
                       key={product.id}
                       className="snap-start shrink-0 w-[165px] sm:w-[220px] md:w-[280px]"
@@ -7522,7 +7598,7 @@ export default function App() {
                     onMouseMove={handleDestacadosMouseMove}
                     className="flex gap-3 sm:gap-5 overflow-x-auto scroll-smooth snap-x snap-mandatory scrollbar-hide py-4 select-none cursor-default"
                   >
-                    {products.map(product => (
+                    {displayedDestacados.map(product => (
                       <div
                         key={product.id}
                         className="snap-start shrink-0 w-[165px] sm:w-[220px] md:w-[280px]"

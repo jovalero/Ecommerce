@@ -4,7 +4,7 @@ import ConfirmationModal from './ConfirmationModal';
 import { SmoothInput, SmoothTextarea } from '../Common/SmoothInput';
 import { API_BASE_URL } from '../../config/api';
 
-export default function ProductEditModal({ product, categories = [], onClose, onSave, onDuplicate }) {
+export default function ProductEditModal({ product, categories = [], onClose, onSave, onDuplicate, homeSectionTitles = null }) {
   // Basic info
   const [name, setName] = useState(product?.name || '');
   const [brand, setBrand] = useState(product?.brand || 'HOLUX');
@@ -210,8 +210,18 @@ export default function ProductEditModal({ product, categories = [], onClose, on
   };
 
   // Curation Flags
-  const [isFeatured, setIsFeatured] = useState(product?.is_featured || false);
-  const [isNew, setIsNew] = useState(product?.is_new || false);
+  const [isFeatured, setIsFeatured] = useState(() => {
+    if (product?.id && Array.isArray(homeSectionTitles?.destacadosProductIds)) {
+      return homeSectionTitles.destacadosProductIds.includes(product.id);
+    }
+    return Boolean(product?.is_featured);
+  });
+  const [isNew, setIsNew] = useState(() => {
+    if (product?.id && Array.isArray(homeSectionTitles?.novedadesProductIds)) {
+      return homeSectionTitles.novedadesProductIds.includes(product.id);
+    }
+    return Boolean(product?.is_new);
+  });
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
   // Submit Handler with Confirmation

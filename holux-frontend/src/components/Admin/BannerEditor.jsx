@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Image, Link, Calendar, CheckCircle2, Eye, Save, Trash2, Plus, MoveUp, MoveDown, ShieldCheck, Sparkles, CreditCard, Megaphone, LayoutTemplate, Layers, Compass, Monitor, Smartphone, Tablet, ChevronRight, Grid, User } from 'lucide-react';
+import { Image, Link, Calendar, CheckCircle2, Eye, Save, Trash2, Plus, MoveUp, MoveDown, ShieldCheck, Sparkles, CreditCard, Megaphone, LayoutTemplate, Layers, Compass, Monitor, Smartphone, Tablet, ChevronRight, Grid, User, Search, X, Flame, Star } from 'lucide-react';
 import ConfirmationModal from './ConfirmationModal';
 import { persistBannerData, persistAllStoreSettings, uploadOrCompressBanner } from '../../utils/bannerStorage';
 
@@ -172,10 +172,13 @@ export default function BannerEditor({
 
   // Section Headers State (Novedades & Destacados)
   const [novedadesTitle, setNovedadesTitle] = useState(() => {
-    return homeSectionTitles?.novedadesTitle || 'NOVEDADES DE HOLUX';
+    return homeSectionTitles?.novedadesTitle || 'NUEVOS INGRESOS';
   });
   const [novedadesSubtitle, setNovedadesSubtitle] = useState(() => {
-    return homeSectionTitles?.novedadesSubtitle || 'Descubrí los últimos lanzamientos de nuestra colección';
+    return homeSectionTitles?.novedadesSubtitle || 'Descubrí las últimas fragancias disponibles en nuestra tienda.';
+  });
+  const [novedadesProductIds, setNovedadesProductIds] = useState(() => {
+    return Array.isArray(homeSectionTitles?.novedadesProductIds) ? homeSectionTitles.novedadesProductIds : [];
   });
   const [destacadosTitle, setDestacadosTitle] = useState(() => {
     return homeSectionTitles?.destacadosTitle || 'PRODUCTOS DESTACADOS';
@@ -183,6 +186,98 @@ export default function BannerEditor({
   const [destacadosSubtitle, setDestacadosSubtitle] = useState(() => {
     return homeSectionTitles?.destacadosSubtitle || 'Una selección especial recomendada por nuestros expertos';
   });
+  const [destacadosProductIds, setDestacadosProductIds] = useState(() => {
+    return Array.isArray(homeSectionTitles?.destacadosProductIds) ? homeSectionTitles.destacadosProductIds : [];
+  });
+
+  const [novedadesSearch, setNovedadesSearch] = useState('');
+  const [destacadosSearch, setDestacadosSearch] = useState('');
+
+  useEffect(() => {
+    if (homeSectionTitles) {
+      if (homeSectionTitles.novedadesTitle) setNovedadesTitle(homeSectionTitles.novedadesTitle);
+      if (homeSectionTitles.novedadesSubtitle) setNovedadesSubtitle(homeSectionTitles.novedadesSubtitle);
+      if (Array.isArray(homeSectionTitles.novedadesProductIds)) setNovedadesProductIds(homeSectionTitles.novedadesProductIds);
+      if (homeSectionTitles.destacadosTitle) setDestacadosTitle(homeSectionTitles.destacadosTitle);
+      if (homeSectionTitles.destacadosSubtitle) setDestacadosSubtitle(homeSectionTitles.destacadosSubtitle);
+      if (Array.isArray(homeSectionTitles.destacadosProductIds)) setDestacadosProductIds(homeSectionTitles.destacadosProductIds);
+    }
+  }, [homeSectionTitles]);
+
+  const saveSectionTitles = (novIds, destIds, novT = novedadesTitle, novS = novedadesSubtitle, destT = destacadosTitle, destS = destacadosSubtitle) => {
+    const updated = {
+      novedadesTitle: novT,
+      novedadesSubtitle: novS,
+      novedadesProductIds: novIds,
+      destacadosTitle: destT,
+      destacadosSubtitle: destS,
+      destacadosProductIds: destIds
+    };
+    if (setHomeSectionTitles) setHomeSectionTitles(updated);
+    localStorage.setItem('holux_home_section_titles', JSON.stringify(updated));
+  };
+
+  const handleAddNovedad = (prodId) => {
+    if (!novedadesProductIds.includes(prodId)) {
+      const next = [...novedadesProductIds, prodId];
+      setNovedadesProductIds(next);
+      saveSectionTitles(next, destacadosProductIds);
+    }
+    setNovedadesSearch('');
+  };
+
+  const handleRemoveNovedad = (prodId) => {
+    const next = novedadesProductIds.filter(id => id !== prodId);
+    setNovedadesProductIds(next);
+    saveSectionTitles(next, destacadosProductIds);
+  };
+
+  const handleMoveNovedad = (index, direction) => {
+    const next = [...novedadesProductIds];
+    const targetIdx = direction === 'up' ? index - 1 : index + 1;
+    if (targetIdx < 0 || targetIdx >= next.length) return;
+    const temp = next[index];
+    next[index] = next[targetIdx];
+    next[targetIdx] = temp;
+    setNovedadesProductIds(next);
+    saveSectionTitles(next, destacadosProductIds);
+  };
+
+  const handleClearNovedades = () => {
+    setNovedadesProductIds([]);
+    saveSectionTitles([], destacadosProductIds);
+  };
+
+  const handleAddDestacado = (prodId) => {
+    if (!destacadosProductIds.includes(prodId)) {
+      const next = [...destacadosProductIds, prodId];
+      setDestacadosProductIds(next);
+      saveSectionTitles(novedadesProductIds, next);
+    }
+    setDestacadosSearch('');
+  };
+
+  const handleRemoveDestacado = (prodId) => {
+    const next = destacadosProductIds.filter(id => id !== prodId);
+    setDestacadosProductIds(next);
+    saveSectionTitles(novedadesProductIds, next);
+  };
+
+  const handleMoveDestacado = (index, direction) => {
+    const next = [...destacadosProductIds];
+    const targetIdx = direction === 'up' ? index - 1 : index + 1;
+    if (targetIdx < 0 || targetIdx >= next.length) return;
+    const temp = next[index];
+    next[index] = next[targetIdx];
+    next[targetIdx] = temp;
+    setDestacadosProductIds(next);
+    saveSectionTitles(novedadesProductIds, next);
+  };
+
+  const handleClearDestacados = () => {
+    setDestacadosProductIds([]);
+    saveSectionTitles(novedadesProductIds, []);
+  };
 
   // Confirmation Modal State
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
@@ -363,8 +458,10 @@ export default function BannerEditor({
     const updatedTitles = {
       novedadesTitle,
       novedadesSubtitle,
+      novedadesProductIds,
       destacadosTitle,
-      destacadosSubtitle
+      destacadosSubtitle,
+      destacadosProductIds
     };
     if (setHomeSectionTitles) setHomeSectionTitles(updatedTitles);
     if (setGridPromoCards) setGridPromoCards(promoCards);
@@ -883,12 +980,17 @@ export default function BannerEditor({
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* BLOQUE NOVEDADES */}
-          <div className="bg-gray-50 p-4 border border-gray-200 rounded-xl space-y-3">
-            <div className="flex items-center gap-2 border-b border-gray-200 pb-2">
-              <Sparkles className="w-3.5 h-3.5 text-[#3C6E71]" />
-              <h4 className="text-[11px] font-bold text-gray-800 uppercase tracking-wider">
-                1. Carrusel de Novedades / Lanzamientos
-              </h4>
+          <div className="bg-gray-50 p-4 border border-gray-200 rounded-xl space-y-4">
+            <div className="flex items-center justify-between border-b border-gray-200 pb-2">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-3.5 h-3.5 text-[#3C6E71]" />
+                <h4 className="text-[11px] font-bold text-gray-800 uppercase tracking-wider">
+                  1. Carrusel de Novedades / Lanzamientos
+                </h4>
+              </div>
+              <span className={`text-[9.5px] font-bold px-2 py-0.5 rounded-full ${novedadesProductIds.length > 0 ? 'bg-blue-100 text-blue-800 border border-blue-200' : 'bg-gray-200 text-gray-700'}`}>
+                {novedadesProductIds.length > 0 ? `${novedadesProductIds.length} fijados` : 'Automático'}
+              </span>
             </div>
             
             <div className="space-y-1">
@@ -900,11 +1002,9 @@ export default function BannerEditor({
                 value={novedadesTitle}
                 onChange={(e) => {
                   setNovedadesTitle(e.target.value);
-                  const updated = { novedadesTitle: e.target.value, novedadesSubtitle, destacadosTitle, destacadosSubtitle };
-                  if (setHomeSectionTitles) setHomeSectionTitles(updated);
-                  localStorage.setItem('holux_home_section_titles', JSON.stringify(updated));
+                  saveSectionTitles(novedadesProductIds, destacadosProductIds, e.target.value, novedadesSubtitle, destacadosTitle, destacadosSubtitle);
                 }}
-                placeholder="Ej: NOVEDADES DE HOLUX"
+                placeholder="Ej: NUEVOS INGRESOS"
                 className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-bold text-gray-900 focus:border-[#3C6E71] outline-none"
               />
             </div>
@@ -918,23 +1018,166 @@ export default function BannerEditor({
                 value={novedadesSubtitle}
                 onChange={(e) => {
                   setNovedadesSubtitle(e.target.value);
-                  const updated = { novedadesTitle, novedadesSubtitle: e.target.value, destacadosTitle, destacadosSubtitle };
-                  if (setHomeSectionTitles) setHomeSectionTitles(updated);
-                  localStorage.setItem('holux_home_section_titles', JSON.stringify(updated));
+                  saveSectionTitles(novedadesProductIds, destacadosProductIds, novedadesTitle, e.target.value, destacadosTitle, destacadosSubtitle);
                 }}
-                placeholder="Ej: DESCUBRÍ LOS ÚLTIMOS LANZAMIENTOS DE NUESTRA COLECCIÓN"
+                placeholder="Ej: DESCUBRÍ LAS ÚLTIMAS FRAGANCIAS DISPONIBLES EN NUESTRA TIENDA."
                 className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs text-gray-700 focus:border-[#3C6E71] outline-none"
               />
+            </div>
+
+            {/* CURACIÓN DE PRODUCTOS EN NOVEDADES */}
+            <div className="space-y-2 pt-2 border-t border-gray-200">
+              <div className="flex items-center justify-between">
+                <label className="text-[10px] font-bold text-gray-700 uppercase tracking-wider flex items-center gap-1.5">
+                  <Flame className="w-3.5 h-3.5 text-blue-600" />
+                  Productos Mostrados en Novedades
+                </label>
+                {novedadesProductIds.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleClearNovedades}
+                    className="text-[9.5px] text-red-600 hover:text-red-800 font-bold underline cursor-pointer"
+                  >
+                    Restablecer a Automático
+                  </button>
+                )}
+              </div>
+
+              {/* Buscador de productos para agregar */}
+              <div className="relative">
+                <div className="flex items-center bg-white border border-gray-200 rounded-xl px-2.5 py-1.5 focus-within:border-[#3C6E71]">
+                  <Search className="w-3.5 h-3.5 text-gray-400 mr-2 shrink-0" />
+                  <input
+                    type="text"
+                    value={novedadesSearch}
+                    onChange={(e) => setNovedadesSearch(e.target.value)}
+                    placeholder="Buscar perfume para agregar a Novedades..."
+                    className="w-full text-xs text-gray-800 bg-transparent outline-none placeholder:text-gray-400"
+                  />
+                  {novedadesSearch && (
+                    <button type="button" onClick={() => setNovedadesSearch('')} className="text-gray-400 hover:text-gray-600">
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Dropdown de resultados de búsqueda */}
+                {novedadesSearch.trim() && (
+                  <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-52 overflow-y-auto z-30 divide-y divide-gray-100">
+                    {productsList
+                      .filter(p => !novedadesProductIds.includes(p.id) && (
+                        (p.name && p.name.toLowerCase().includes(novedadesSearch.toLowerCase())) ||
+                        (p.brand && p.brand.toLowerCase().includes(novedadesSearch.toLowerCase()))
+                      ))
+                      .slice(0, 7)
+                      .map(prod => (
+                        <div
+                          key={prod.id}
+                          onClick={() => handleAddNovedad(prod.id)}
+                          className="p-2.5 hover:bg-gray-50 flex items-center justify-between gap-3 cursor-pointer transition-colors"
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <img
+                              src={prod.image_url || 'https://images.unsplash.com/photo-1541643600914-78b084683601?w=80'}
+                              alt={prod.name}
+                              className="w-8 h-8 rounded-lg object-cover bg-gray-100 shrink-0"
+                            />
+                            <div className="min-w-0">
+                              <p className="text-xs font-bold text-gray-900 truncate">{prod.name}</p>
+                              <p className="text-[10px] text-gray-500 font-mono-custom">{prod.brand} • ARS ${Number(prod.price || 0).toLocaleString('es-AR')}</p>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            className="px-2 py-0.5 bg-[#3C6E71] text-white text-[10px] font-bold rounded-lg shrink-0 hover:bg-[#284B63] transition-colors cursor-pointer"
+                          >
+                            + Agregar
+                          </button>
+                        </div>
+                      ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Lista de productos fijados */}
+              {novedadesProductIds.length === 0 ? (
+                <div className="p-3 bg-white border border-dashed border-gray-200 rounded-xl text-center">
+                  <p className="text-[10.5px] text-gray-500">
+                    ✨ <strong>Modo automático activo</strong>: la tienda muestra las fragancias más recientes. Buscá arriba para fijar los perfumes que quieras.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+                  {novedadesProductIds.map((prodId, idx) => {
+                    const prod = productsList.find(p => String(p.id) === String(prodId));
+                    if (!prod) return null;
+                    return (
+                      <div
+                        key={prodId}
+                        className="flex items-center justify-between gap-2 p-2 bg-white border border-gray-200 rounded-xl shadow-2xs hover:border-gray-300 transition-colors"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-800 text-[10px] font-bold flex items-center justify-center shrink-0">
+                            #{idx + 1}
+                          </span>
+                          <img
+                            src={prod.image_url || 'https://images.unsplash.com/photo-1541643600914-78b084683601?w=80'}
+                            alt={prod.name}
+                            className="w-7 h-7 rounded-lg object-cover bg-gray-100 shrink-0"
+                          />
+                          <div className="min-w-0">
+                            <p className="text-xs font-bold text-gray-900 truncate">{prod.name}</p>
+                            <p className="text-[10px] text-gray-400 font-mono-custom">{prod.brand} • ARS ${Number(prod.price || 0).toLocaleString('es-AR')}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            type="button"
+                            disabled={idx === 0}
+                            onClick={() => handleMoveNovedad(idx, 'up')}
+                            className="p-1 text-gray-400 hover:text-gray-700 disabled:opacity-20 cursor-pointer"
+                            title="Mover arriba"
+                          >
+                            <MoveUp className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            disabled={idx === novedadesProductIds.length - 1}
+                            onClick={() => handleMoveNovedad(idx, 'down')}
+                            className="p-1 text-gray-400 hover:text-gray-700 disabled:opacity-20 cursor-pointer"
+                            title="Mover abajo"
+                          >
+                            <MoveDown className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveNovedad(prodId)}
+                            className="p-1 text-red-500 hover:text-red-700 cursor-pointer ml-1"
+                            title="Quitar"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
 
           {/* BLOQUE DESTACADOS */}
-          <div className="bg-gray-50 p-4 border border-gray-200 rounded-xl space-y-3">
-            <div className="flex items-center gap-2 border-b border-gray-200 pb-2">
-              <Eye className="w-3.5 h-3.5 text-[#3C6E71]" />
-              <h4 className="text-[11px] font-bold text-gray-800 uppercase tracking-wider">
-                2. Carrusel de Productos Destacados
-              </h4>
+          <div className="bg-gray-50 p-4 border border-gray-200 rounded-xl space-y-4">
+            <div className="flex items-center justify-between border-b border-gray-200 pb-2">
+              <div className="flex items-center gap-2">
+                <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
+                <h4 className="text-[11px] font-bold text-gray-800 uppercase tracking-wider">
+                  2. Carrusel de Productos Destacados
+                </h4>
+              </div>
+              <span className={`text-[9.5px] font-bold px-2 py-0.5 rounded-full ${destacadosProductIds.length > 0 ? 'bg-amber-100 text-amber-800 border border-amber-200' : 'bg-gray-200 text-gray-700'}`}>
+                {destacadosProductIds.length > 0 ? `${destacadosProductIds.length} fijados` : 'Automático'}
+              </span>
             </div>
 
             <div className="space-y-1">
@@ -946,9 +1189,7 @@ export default function BannerEditor({
                 value={destacadosTitle}
                 onChange={(e) => {
                   setDestacadosTitle(e.target.value);
-                  const updated = { novedadesTitle, novedadesSubtitle, destacadosTitle: e.target.value, destacadosSubtitle };
-                  if (setHomeSectionTitles) setHomeSectionTitles(updated);
-                  localStorage.setItem('holux_home_section_titles', JSON.stringify(updated));
+                  saveSectionTitles(novedadesProductIds, destacadosProductIds, novedadesTitle, novedadesSubtitle, e.target.value, destacadosSubtitle);
                 }}
                 placeholder="Ej: PRODUCTOS DESTACADOS"
                 className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-bold text-gray-900 focus:border-[#3C6E71] outline-none"
@@ -964,13 +1205,151 @@ export default function BannerEditor({
                 value={destacadosSubtitle}
                 onChange={(e) => {
                   setDestacadosSubtitle(e.target.value);
-                  const updated = { novedadesTitle, novedadesSubtitle, destacadosTitle, destacadosSubtitle: e.target.value };
-                  if (setHomeSectionTitles) setHomeSectionTitles(updated);
-                  localStorage.setItem('holux_home_section_titles', JSON.stringify(updated));
+                  saveSectionTitles(novedadesProductIds, destacadosProductIds, novedadesTitle, novedadesSubtitle, destacadosTitle, e.target.value);
                 }}
                 placeholder="Ej: UNA SELECCIÓN ESPECIAL RECOMENDADA POR NUESTROS EXPERTOS"
                 className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs text-gray-700 focus:border-[#3C6E71] outline-none"
               />
+            </div>
+
+            {/* CURACIÓN DE PRODUCTOS EN DESTACADOS */}
+            <div className="space-y-2 pt-2 border-t border-gray-200">
+              <div className="flex items-center justify-between">
+                <label className="text-[10px] font-bold text-gray-700 uppercase tracking-wider flex items-center gap-1.5">
+                  <Star className="w-3.5 h-3.5 text-amber-500" />
+                  Productos Mostrados en Destacados
+                </label>
+                {destacadosProductIds.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleClearDestacados}
+                    className="text-[9.5px] text-red-600 hover:text-red-800 font-bold underline cursor-pointer"
+                  >
+                    Restablecer a Automático
+                  </button>
+                )}
+              </div>
+
+              {/* Buscador de productos para agregar */}
+              <div className="relative">
+                <div className="flex items-center bg-white border border-gray-200 rounded-xl px-2.5 py-1.5 focus-within:border-[#3C6E71]">
+                  <Search className="w-3.5 h-3.5 text-gray-400 mr-2 shrink-0" />
+                  <input
+                    type="text"
+                    value={destacadosSearch}
+                    onChange={(e) => setDestacadosSearch(e.target.value)}
+                    placeholder="Buscar perfume para agregar a Destacados..."
+                    className="w-full text-xs text-gray-800 bg-transparent outline-none placeholder:text-gray-400"
+                  />
+                  {destacadosSearch && (
+                    <button type="button" onClick={() => setDestacadosSearch('')} className="text-gray-400 hover:text-gray-600">
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Dropdown de resultados de búsqueda */}
+                {destacadosSearch.trim() && (
+                  <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-52 overflow-y-auto z-30 divide-y divide-gray-100">
+                    {productsList
+                      .filter(p => !destacadosProductIds.includes(p.id) && (
+                        (p.name && p.name.toLowerCase().includes(destacadosSearch.toLowerCase())) ||
+                        (p.brand && p.brand.toLowerCase().includes(destacadosSearch.toLowerCase()))
+                      ))
+                      .slice(0, 7)
+                      .map(prod => (
+                        <div
+                          key={prod.id}
+                          onClick={() => handleAddDestacado(prod.id)}
+                          className="p-2.5 hover:bg-gray-50 flex items-center justify-between gap-3 cursor-pointer transition-colors"
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <img
+                              src={prod.image_url || 'https://images.unsplash.com/photo-1541643600914-78b084683601?w=80'}
+                              alt={prod.name}
+                              className="w-8 h-8 rounded-lg object-cover bg-gray-100 shrink-0"
+                            />
+                            <div className="min-w-0">
+                              <p className="text-xs font-bold text-gray-900 truncate">{prod.name}</p>
+                              <p className="text-[10px] text-gray-500 font-mono-custom">{prod.brand} • ARS ${Number(prod.price || 0).toLocaleString('es-AR')}</p>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            className="px-2 py-0.5 bg-[#3C6E71] text-white text-[10px] font-bold rounded-lg shrink-0 hover:bg-[#284B63] transition-colors cursor-pointer"
+                          >
+                            + Agregar
+                          </button>
+                        </div>
+                      ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Lista de productos fijados */}
+              {destacadosProductIds.length === 0 ? (
+                <div className="p-3 bg-white border border-dashed border-gray-200 rounded-xl text-center">
+                  <p className="text-[10.5px] text-gray-500">
+                    ⭐ <strong>Modo automático activo</strong>: la tienda muestra los perfumes recomendados del catálogo. Buscá arriba para fijar los que quieras.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+                  {destacadosProductIds.map((prodId, idx) => {
+                    const prod = productsList.find(p => String(p.id) === String(prodId));
+                    if (!prod) return null;
+                    return (
+                      <div
+                        key={prodId}
+                        className="flex items-center justify-between gap-2 p-2 bg-white border border-gray-200 rounded-xl shadow-2xs hover:border-gray-300 transition-colors"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <span className="w-5 h-5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold flex items-center justify-center shrink-0">
+                            #{idx + 1}
+                          </span>
+                          <img
+                            src={prod.image_url || 'https://images.unsplash.com/photo-1541643600914-78b084683601?w=80'}
+                            alt={prod.name}
+                            className="w-7 h-7 rounded-lg object-cover bg-gray-100 shrink-0"
+                          />
+                          <div className="min-w-0">
+                            <p className="text-xs font-bold text-gray-900 truncate">{prod.name}</p>
+                            <p className="text-[10px] text-gray-400 font-mono-custom">{prod.brand} • ARS ${Number(prod.price || 0).toLocaleString('es-AR')}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            type="button"
+                            disabled={idx === 0}
+                            onClick={() => handleMoveDestacado(idx, 'up')}
+                            className="p-1 text-gray-400 hover:text-gray-700 disabled:opacity-20 cursor-pointer"
+                            title="Mover arriba"
+                          >
+                            <MoveUp className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            disabled={idx === destacadosProductIds.length - 1}
+                            onClick={() => handleMoveDestacado(idx, 'down')}
+                            className="p-1 text-gray-400 hover:text-gray-700 disabled:opacity-20 cursor-pointer"
+                            title="Mover abajo"
+                          >
+                            <MoveDown className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveDestacado(prodId)}
+                            className="p-1 text-red-500 hover:text-red-700 cursor-pointer ml-1"
+                            title="Quitar"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         </div>

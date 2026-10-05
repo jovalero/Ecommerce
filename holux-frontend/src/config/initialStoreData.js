@@ -55,8 +55,10 @@ export const initialStoreData = {
   "section_titles": {
     "novedadesTitle": "NUEVOS INGRESOS",
     "novedadesSubtitle": "Descubrí las últimas fragancias disponibles en nuestra tienda.",
+    "novedadesProductIds": [],
     "destacadosTitle": "PRODUCTOS DESTACADOS",
-    "destacadosSubtitle": "Una selección especial recomendada por nuestros expertos"
+    "destacadosSubtitle": "Una selección especial recomendada por nuestros expertos",
+    "destacadosProductIds": []
   },
   "ticker": [
     "| ENVÍO GRATIS EN COMPRAS MAYORES A $150.000",

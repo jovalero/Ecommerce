@@ -34,7 +34,9 @@ export default function ProductCatalogManager({
   onEditProduct,
   onDuplicateProduct,
   onCreateProduct,
-  onDeleteProductSingle
+  onDeleteProductSingle,
+  homeSectionTitles = null,
+  onToggleSectionProduct = null
 }) {
   const {
     search,
@@ -684,6 +686,41 @@ export default function ProductCatalogManager({
                             <span className="text-[9px] bg-purple-50 text-purple-700 border border-purple-200 px-1.5 py-0.2 rounded font-mono-custom font-semibold">
                               {prod.variants.length} {prod.variants.length === 1 ? 'talle' : 'talles'}
                             </span>
+                          </div>
+                        )}
+                        {onToggleSectionProduct && (
+                          <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onToggleSectionProduct(prod.id, 'destacados');
+                              }}
+                              className={`inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-md transition-all cursor-pointer ${
+                                homeSectionTitles?.destacadosProductIds?.includes(prod.id)
+                                  ? 'bg-amber-100 text-amber-900 border border-amber-300 shadow-2xs font-semibold'
+                                  : 'bg-gray-100 text-gray-500 hover:bg-amber-50 hover:text-amber-800 border border-gray-200'
+                              }`}
+                              title={homeSectionTitles?.destacadosProductIds?.includes(prod.id) ? 'Quitar de Destacados en Portada' : 'Mostrar en Destacados en Portada'}
+                            >
+                              ⭐ {homeSectionTitles?.destacadosProductIds?.includes(prod.id) ? 'Destacado' : '+ Destacar'}
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onToggleSectionProduct(prod.id, 'novedades');
+                              }}
+                              className={`inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-md transition-all cursor-pointer ${
+                                homeSectionTitles?.novedadesProductIds?.includes(prod.id)
+                                  ? 'bg-blue-100 text-blue-900 border border-blue-300 shadow-2xs font-semibold'
+                                  : 'bg-gray-100 text-gray-500 hover:bg-blue-50 hover:text-blue-800 border border-gray-200'
+                              }`}
+                              title={homeSectionTitles?.novedadesProductIds?.includes(prod.id) ? 'Quitar de Novedades en Portada' : 'Mostrar en Novedades en Portada'}
+                            >
+                              🔥 {homeSectionTitles?.novedadesProductIds?.includes(prod.id) ? 'Novedad' : '+ Novedad'}
+                            </button>
                           </div>
                         )}
                       </td>
