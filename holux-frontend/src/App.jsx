@@ -2257,7 +2257,7 @@ export default function App() {
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data) && data.length > 0) {
-          setAdminProductsList(data);
+          setAdminProductsList(data.map(enrichProductItem));
         }
       }
     } catch (e) {
@@ -5908,7 +5908,7 @@ export default function App() {
                 tickerPhrases={tickerPhrases}
                 setTickerPhrases={setTickerPhrases}
                 categoriesList={adminCategoriesList}
-                productsList={(adminProductsList && adminProductsList.length > 0) ? adminProductsList : products}
+                productsList={(products && products.length > 0) ? products : (adminProductsList && adminProductsList.length > 0 ? adminProductsList : (productCatalogState?.products || []))}
                 homeSectionTitles={homeSectionTitles}
                 setHomeSectionTitles={setHomeSectionTitles}
                 gridPromoCards={gridPromoCards}

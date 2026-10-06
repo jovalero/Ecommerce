@@ -1,7 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Image, Link, Calendar, CheckCircle2, Eye, Save, Trash2, Plus, MoveUp, MoveDown, ShieldCheck, Sparkles, CreditCard, Megaphone, LayoutTemplate, Layers, Compass, Monitor, Smartphone, Tablet, ChevronRight, Grid, User, Search, X, Flame, Star } from 'lucide-react';
 import ConfirmationModal from './ConfirmationModal';
-import { persistBannerData, persistAllStoreSettings, uploadOrCompressBanner } from '../../utils/bannerStorage';
+import { persistBannerData, persistAllStoreSettings, uploadOrCompressBanner, resolveProductImage } from '../../utils/bannerStorage';
+import { productsMetadata } from '../../config/productsMetadata';
+
+const getProdThumb = (prod) => {
+  if (!prod) return 'https://images.unsplash.com/photo-1541643600914-78b084683601?w=80';
+  const meta = (prod.id && productsMetadata[prod.id]) ? productsMetadata[prod.id] : {};
+  const raw = prod.image_url || (Array.isArray(prod.images) && prod.images[0]) || meta.image_url || (Array.isArray(meta.images) && meta.images[0]);
+  return resolveProductImage(raw) || 'https://images.unsplash.com/photo-1541643600914-78b084683601?w=80';
+};
 
 export default function BannerEditor({
   heroSlides = [],
@@ -1078,7 +1086,7 @@ export default function BannerEditor({
                         >
                           <div className="flex items-center gap-2.5 min-w-0">
                             <img
-                              src={prod.image_url || 'https://images.unsplash.com/photo-1541643600914-78b084683601?w=80'}
+                              src={getProdThumb(prod)}
                               alt={prod.name}
                               className="w-8 h-8 rounded-lg object-cover bg-gray-100 shrink-0"
                             />
@@ -1121,7 +1129,7 @@ export default function BannerEditor({
                             #{idx + 1}
                           </span>
                           <img
-                            src={prod.image_url || 'https://images.unsplash.com/photo-1541643600914-78b084683601?w=80'}
+                            src={getProdThumb(prod)}
                             alt={prod.name}
                             className="w-7 h-7 rounded-lg object-cover bg-gray-100 shrink-0"
                           />
@@ -1265,7 +1273,7 @@ export default function BannerEditor({
                         >
                           <div className="flex items-center gap-2.5 min-w-0">
                             <img
-                              src={prod.image_url || 'https://images.unsplash.com/photo-1541643600914-78b084683601?w=80'}
+                              src={getProdThumb(prod)}
                               alt={prod.name}
                               className="w-8 h-8 rounded-lg object-cover bg-gray-100 shrink-0"
                             />
@@ -1308,7 +1316,7 @@ export default function BannerEditor({
                             #{idx + 1}
                           </span>
                           <img
-                            src={prod.image_url || 'https://images.unsplash.com/photo-1541643600914-78b084683601?w=80'}
+                            src={getProdThumb(prod)}
                             alt={prod.name}
                             className="w-7 h-7 rounded-lg object-cover bg-gray-100 shrink-0"
                           />
