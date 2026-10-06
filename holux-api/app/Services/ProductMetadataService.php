@@ -7,12 +7,17 @@ use Illuminate\Support\Facades\Storage;
 class ProductMetadataService
 {
     protected static string $fileName = 'products_metadata.json';
+    protected static ?array $memoryCache = null;
 
     /**
      * Load all products metadata.
      */
     protected static function load(): array
     {
+        if (self::$memoryCache !== null) {
+            return self::$memoryCache;
+        }
+
         // 1. Fetch from Supabase Storage CDN (Universal Persistent Source of Truth)
         try {
             $supabaseUrl = config('services.supabase.url', 'https://fmbhcfsrsfkglmvgbnlm.supabase.co');
@@ -22,6 +27,7 @@ class ProductMetadataService
                 $remote = json_decode($res->getBody()->getContents(), true);
                 if (is_array($remote)) {
                     Storage::put(self::$fileName, json_encode($remote, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+                    self::$memoryCache = $remote;
                     return $remote;
                 }
             }
@@ -30,16 +36,17 @@ class ProductMetadataService
         }
 
         // 2. Fallback to local cache
-        if (!Storage::exists(self::$fileName)) {
-            return [];
+        if (Storage::exists(self::$fileName)) {
+            try {
+                $json = Storage::get(self::$fileName);
+                $data = json_decode($json, true) ?: [];
+                self::$memoryCache = $data;
+                return $data;
+            } catch (\Throwable $e) {}
         }
 
-        try {
-            $json = Storage::get(self::$fileName);
-            return json_decode($json, true) ?: [];
-        } catch (\Throwable $e) {
-            return [];
-        }
+        self::$memoryCache = [];
+        return [];
     }
 
     /**
@@ -48,6 +55,7 @@ class ProductMetadataService
     protected static function save(array $data): void
     {
         try {
+            self::$memoryCache = $data;
             $json = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
             Storage::put(self::$fileName, $json);
 
@@ -106,10 +114,25 @@ class ProductMetadataService
     }
 
     /**
-     * Attach metadata to a list of products.
+     * Attach metadata to a list of products (Single load pass).
      */
     public static function attachMany(array $products): array
     {
-        return array_map([self::class, 'attach'], $products);
+        $allMeta = self::load();
+        return array_map(function ($product) use ($allMeta) {
+            $id = $product['id'] ?? null;
+            if (!$id) {
+                return $product;
+            }
+            $meta = $allMeta[$id] ?? [];
+            if (!empty($meta)) {
+                foreach ($meta as $key => $val) {
+                    if ($val !== null) {
+                        $product[$key] = $val;
+                    }
+                }
+            }
+            return $product;
+        }, $products);
     }
 }

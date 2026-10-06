@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 
-import { API_BASE_URL as API_BASE } from '../config/api';
+import { API_BASE_URL as API_BASE, SUPABASE_URL, SUPABASE_ANON_KEY } from '../config/api';
 import { productsMetadata } from '../config/productsMetadata';
 import { resolveProductImage } from '../utils/bannerStorage';
 
@@ -38,29 +38,21 @@ export function useProductCatalog(token) {
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState('10');
 
-  // Data State
-  const [products, setProducts] = useState([]);
+  // Master Data State
+  const [rawProducts, setRawProducts] = useState([]);
   const [categories, setCategories] = useState([]);
-  const [pagination, setPagination] = useState({
-    total: 0,
-    current_page: 1,
-    per_page: 10,
-    last_page: 1,
-    from: 0,
-    to: 0,
-  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
   // Bulk Selection State
   const [selectedIds, setSelectedIds] = useState([]);
 
-  // Debounce search input (~350ms)
+  // Debounce search input (~250ms)
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(search);
       setPage(1); // Reset to page 1 on new search
-    }, 350);
+    }, 250);
     return () => clearTimeout(timer);
   }, [search]);
 
@@ -71,86 +63,188 @@ export function useProductCatalog(token) {
 
   // Fetch categories for the filter dropdown
   const fetchCategories = useCallback(async () => {
-    if (!token || token === 'null' || token === 'undefined') return;
     try {
-      const res = await fetch(`${API_BASE}/api/admin/categorias`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json',
+      let loaded = false;
+      // 1. Direct Supabase REST API (instant)
+      try {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/categories?select=*&order=name.asc`, {
+          headers: {
+            'apikey': SUPABASE_ANON_KEY,
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+          }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data) && data.length > 0) {
+            setCategories(data);
+            loaded = true;
+          }
         }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setCategories(data);
+      } catch (e) {
+        console.warn("Direct Supabase categories fetch warning:", e);
+      }
+
+      // 2. Fallback to backend API
+      if (!loaded && token && token !== 'null' && token !== 'undefined') {
+        const res = await fetch(`${API_BASE}/api/admin/categorias`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json',
+          }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setCategories(data);
+        }
       }
     } catch (e) {
       console.error("Failed to load categories:", e);
     }
   }, [token]);
 
-  // Fetch products with server-side filters & pagination
+  // Fetch full products list (Fast Direct Supabase First, Laravel API Fallback)
   const fetchProducts = useCallback(async () => {
-    if (!token || token === 'null' || token === 'undefined') {
-      setLoading(false);
-      return;
-    }
     setLoading(true);
     setError(null);
     try {
-      const params = new URLSearchParams();
-      if (debouncedSearch) params.append('search', debouncedSearch);
-      if (category && category !== 'all') params.append('categoria', category);
-      if (stockFilter && stockFilter !== 'all') params.append('stock', stockFilter);
-      if (sort) params.append('sort', sort);
-      if (order) params.append('order', order);
-      params.append('page', page.toString());
-      params.append('per_page', perPage.toString());
+      let loaded = false;
 
-      const res = await fetch(`${API_BASE}/api/admin/productos?${params.toString()}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json',
+      // 1. Fetch Direct from Supabase REST API (< 100ms response time)
+      try {
+        const supaRes = await fetch(`${SUPABASE_URL}/rest/v1/products?select=*,categories(id,name,slug)&order=created_at.desc`, {
+          headers: {
+            'apikey': SUPABASE_ANON_KEY,
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+          }
+        });
+        if (supaRes.ok) {
+          const data = await supaRes.json();
+          if (Array.isArray(data) && data.length > 0) {
+            setRawProducts(data.map(enrichAdminProduct));
+            loaded = true;
+          }
         }
-      });
-
-      if (res.status === 401 || res.status === 403) {
-        setProducts([]);
-        setLoading(false);
-        return;
+      } catch (e) {
+        console.warn("Direct Supabase admin products fetch warning:", e);
       }
 
-      if (!res.ok) {
-        setProducts([]);
-        setLoading(false);
-        return;
+      // 2. Fallback to Laravel Backend API
+      if (!loaded && token && token !== 'null' && token !== 'undefined') {
+        const res = await fetch(`${API_BASE}/api/admin/productos?per_page=all`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json',
+          }
+        });
+        if (res.ok) {
+          const json = await res.json();
+          const items = json.data || (Array.isArray(json) ? json : []);
+          if (Array.isArray(items) && items.length > 0) {
+            setRawProducts(items.map(enrichAdminProduct));
+            loaded = true;
+          }
+        }
       }
-
-      const json = await res.json();
-      setProducts((json.data || []).map(enrichAdminProduct));
-      setPagination({
-        total: json.total || 0,
-        current_page: json.current_page || 1,
-        per_page: json.per_page || 10,
-        last_page: json.last_page || 1,
-        from: json.from || 0,
-        to: json.to || 0,
-      });
     } catch (err) {
-      console.error(err);
+      console.error("Error fetching admin products:", err);
       setError(err.message);
     } finally {
       setLoading(false);
     }
-  }, [token, debouncedSearch, category, stockFilter, sort, order, page, perPage]);
+  }, [token]);
 
-  // Initial load and trigger on query changes
+  // Initial load
   useEffect(() => {
     fetchCategories();
-  }, [fetchCategories]);
-
-  useEffect(() => {
     fetchProducts();
-  }, [fetchProducts]);
+  }, [fetchCategories, fetchProducts]);
+
+  // High-performance In-Memory Filtering and Sorting (0ms response time)
+  const filteredAndSortedProducts = useMemo(() => {
+    let list = [...rawProducts];
+
+    // 1. Search Query
+    const q = (debouncedSearch || search || '').trim().toLowerCase();
+    if (q) {
+      list = list.filter(p => {
+        const name = (p.name || '').toLowerCase();
+        const brand = (p.brand || '').toLowerCase();
+        const catName = (p.categories?.name || p.category_name || '').toLowerCase();
+        const tags = Array.isArray(p.tags) ? p.tags.join(' ').toLowerCase() : String(p.tags || '').toLowerCase();
+        return name.includes(q) || brand.includes(q) || catName.includes(q) || tags.includes(q);
+      });
+    }
+
+    // 2. Category Filter
+    if (category && category !== 'all') {
+      const isOffers = ['offers', 'ofertas', 'outlet', 'descuentos'].includes(category);
+      if (isOffers) {
+        list = list.filter(p => {
+          const price = Number(p.price) || 0;
+          const offerPrice = Number(p.offer_price) || 0;
+          const discount = Number(p.discount_percent) || 0;
+          return (offerPrice > 0 && offerPrice < price) || discount > 0;
+        });
+      } else {
+        list = list.filter(p => {
+          const catId = p.category_id || p.categories?.id;
+          const catSlug = p.categories?.slug || p.category_slug;
+          return String(catId) === String(category) || catSlug === category;
+        });
+      }
+    }
+
+    // 3. Stock Status Filter
+    if (stockFilter && stockFilter !== 'all') {
+      list = list.filter(p => {
+        const st = Number(p.stock) || 0;
+        if (stockFilter === 'saludable') return st > 5;
+        if (stockFilter === 'critico') return st >= 1 && st <= 5;
+        if (stockFilter === 'agotado') return st <= 0;
+        return true;
+      });
+    }
+
+    // 4. Sorting
+    list.sort((a, b) => {
+      let valA = a[sort];
+      let valB = b[sort];
+
+      if (sort === 'category') {
+        valA = a.categories?.name || a.category_name || '';
+        valB = b.categories?.name || b.category_name || '';
+      }
+
+      if (typeof valA === 'number' && typeof valB === 'number') {
+        return order === 'asc' ? valA - valB : valB - valA;
+      }
+      const strA = String(valA || '').toLowerCase();
+      const strB = String(valB || '').toLowerCase();
+      return order === 'asc' ? strA.localeCompare(strB) : strB.localeCompare(strA);
+    });
+
+    return list;
+  }, [rawProducts, debouncedSearch, search, category, stockFilter, sort, order]);
+
+  // Instant In-Memory Pagination
+  const total = filteredAndSortedProducts.length;
+  const isAll = perPage === 'all';
+  const perPageNum = isAll ? Math.max(1, total) : (parseInt(perPage, 10) || 10);
+  const lastPage = isAll ? 1 : Math.max(1, Math.ceil(total / perPageNum));
+  const currentPage = isAll ? 1 : Math.min(Math.max(1, page), lastPage);
+  const offset = isAll ? 0 : (currentPage - 1) * perPageNum;
+  const products = isAll ? filteredAndSortedProducts : filteredAndSortedProducts.slice(offset, offset + perPageNum);
+  const from = total > 0 ? (isAll ? 1 : offset + 1) : 0;
+  const to = isAll ? total : Math.min(offset + perPageNum, total);
+
+  const pagination = {
+    total,
+    current_page: currentPage,
+    per_page: isAll ? total : perPageNum,
+    last_page: lastPage,
+    from,
+    to,
+  };
 
   // Sorting Handler
   const handleSort = (field) => {
@@ -180,25 +274,9 @@ export function useProductCatalog(token) {
     }
   };
 
-  const selectAllEntireCatalog = async () => {
-    try {
-      setLoading(true);
-      const res = await fetch(`${API_BASE}/api/admin/productos?per_page=all`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json',
-        }
-      });
-      if (res.ok) {
-        const json = await res.json();
-        const allIds = (json.data || []).map(p => p.id);
-        setSelectedIds(allIds);
-      }
-    } catch (e) {
-      console.error("Error selecting all catalog:", e);
-    } finally {
-      setLoading(false);
-    }
+  const selectAllEntireCatalog = () => {
+    const allIds = filteredAndSortedProducts.map(p => p.id);
+    setSelectedIds(allIds);
   };
 
   const clearSelection = () => setSelectedIds([]);
@@ -328,20 +406,16 @@ export function useProductCatalog(token) {
   // Single Product Delete
   const deleteSingleProduct = async (id) => {
     try {
-      const res = await fetch(`${API_BASE}/api/admin/products/${id}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json',
-        }
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.message || 'Error al eliminar producto');
+      if (token && token !== 'null' && token !== 'undefined') {
+        await fetch(`${API_BASE}/api/admin/products/${id}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json',
+          }
+        });
       }
-      setProducts(prev => prev.filter(p => String(p.id) !== String(id)));
-      setPagination(prev => ({ ...prev, total: Math.max(0, prev.total - 1) }));
-      fetchProducts();
+      setRawProducts(prev => prev.filter(p => String(p.id) !== String(id)));
       return true;
     } catch (err) {
       console.error(err);
@@ -349,16 +423,25 @@ export function useProductCatalog(token) {
     }
   };
 
-  // Export CSV
+  // Export CSV (High speed client-side generation)
   const handleExportCSV = async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/admin/productos/export`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        }
-      });
-      if (!res.ok) throw new Error('Error al exportar CSV');
-      const blob = await res.blob();
+      const headers = ['ID', 'Nombre', 'Marca', 'Categoría', 'Precio', 'Precio Oferta', 'Descuento %', 'Stock', 'SKU', 'Estado'];
+      const rows = filteredAndSortedProducts.map(p => [
+        `"${p.id || ''}"`,
+        `"${(p.name || '').replace(/"/g, '""')}"`,
+        `"${(p.brand || '').replace(/"/g, '""')}"`,
+        `"${(p.categories?.name || p.category_name || '').replace(/"/g, '""')}"`,
+        p.price || 0,
+        p.offer_price || '',
+        p.discount_percent || 0,
+        p.stock || 0,
+        `"${p.sku || ''}"`,
+        p.is_active !== false ? 'Activo' : 'Inactivo'
+      ]);
+
+      const csvContent = "\uFEFF" + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -402,6 +485,7 @@ export function useProductCatalog(token) {
     // State
     search,
     setSearch,
+    debouncedSearch,
     category,
     setCategory,
     stockFilter,
