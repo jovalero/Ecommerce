@@ -29,6 +29,7 @@ import {
 import ConfirmationModal from './ConfirmationModal';
 import { productsMetadata } from '../../config/productsMetadata';
 import { API_BASE_URL } from '../../config/api';
+import { resolveProductImage } from '../../utils/bannerStorage';
 
 export default function ProductCatalogManager({
   catalog, // hook return object from useProductCatalog
@@ -853,7 +854,8 @@ export default function ProductCatalogManager({
                         >
                           {(() => {
                             const meta = productsMetadata[prod.id] || {};
-                            const prodImg = prod.image_url || (meta.images && meta.images[0]) || meta.image_url || (prod.images && prod.images[0]) || 'https://images.unsplash.com/photo-1541643600914-78b084683601?w=200';
+                            const rawImg = prod.image_url || (meta.images && meta.images[0]) || meta.image_url || (prod.images && prod.images[0]);
+                            const prodImg = resolveProductImage(rawImg) || 'https://images.unsplash.com/photo-1541643600914-78b084683601?w=200';
                             return (
                               <img
                                 src={prodImg}

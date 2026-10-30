@@ -3,6 +3,8 @@ import { X, Plus, Trash2, Image as ImageIcon, Video, Copy, Tag, DollarSign, Laye
 import ConfirmationModal from './ConfirmationModal';
 import { SmoothInput, SmoothTextarea } from '../Common/SmoothInput';
 import { API_BASE_URL } from '../../config/api';
+import { productsMetadata } from '../../config/productsMetadata';
+import { resolveProductImage } from '../../utils/bannerStorage';
 
 export default function ProductEditModal({ product, categories = [], onClose, onSave, onDuplicate, homeSectionTitles = null, currentDolarRate = 1625 }) {
   // Basic info
@@ -94,11 +96,19 @@ export default function ProductEditModal({ product, categories = [], onClose, on
   };
 
   // Media (Images & Video)
-  const [images, setImages] = useState(
-    Array.isArray(product?.images) && product.images.length > 0
-      ? product.images.map(normalizeHttpsUrl)
-      : (product?.image_url ? [normalizeHttpsUrl(product.image_url)] : ['https://images.unsplash.com/photo-1551028719-00167b16eac5?w=800&auto=format&fit=crop&q=80'])
-  );
+  const [images, setImages] = useState(() => {
+    const meta = (product?.id && productsMetadata[product.id]) ? productsMetadata[product.id] : {};
+    const candidateImages = (Array.isArray(product?.images) && product.images.length > 0)
+      ? product.images
+      : (Array.isArray(meta.images) && meta.images.length > 0)
+        ? meta.images
+        : (product?.image_url ? [product.image_url] : (meta.image_url ? [meta.image_url] : []));
+
+    if (candidateImages.length > 0) {
+      return candidateImages.map(resolveProductImage).filter(Boolean);
+    }
+    return ['https://images.unsplash.com/photo-1541643600914-78b084683601?w=800&auto=format&fit=crop&q=80'];
+  });
   const [newImageUrl, setNewImageUrl] = useState('');
   const [videoUrl, setVideoUrl] = useState(normalizeHttpsUrl(product?.video_url || ''));
 
