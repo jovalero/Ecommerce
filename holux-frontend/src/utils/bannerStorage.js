@@ -207,6 +207,7 @@ export async function persistBannerData(key, data) {
   if (key === 'holux_ticker_phrases') field = 'ticker_phrases';
   if (key === 'holux_header_nav_items') field = 'header_nav';
   if (key === 'holux_payment_methods_config') field = 'payment_methods_config';
+  if (key === 'holux_dolar_rate') field = 'dolar_rate';
 
   if (field) {
     // Sync to backend /api/settings
@@ -264,6 +265,7 @@ export async function persistAllStoreSettings(settingsMap) {
   if ('holux_ticker_phrases' in settingsMap) payload.ticker_phrases = settingsMap['holux_ticker_phrases'];
   if ('holux_header_nav_items' in settingsMap) payload.header_nav = settingsMap['holux_header_nav_items'];
   if ('holux_payment_methods_config' in settingsMap) payload.payment_methods_config = settingsMap['holux_payment_methods_config'];
+  if ('holux_dolar_rate' in settingsMap) payload.dolar_rate = settingsMap['holux_dolar_rate'];
 
   if (Object.keys(payload).length === 0) return true;
 

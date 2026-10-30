@@ -23,6 +23,7 @@ class StoreSettingService
             // 1. Tax & Fiscal Settings
             'tax_rate' => 21.0,
             'currency_symbol' => 'ARS $',
+            'dolar_rate' => 1625.0,
 
             // 2. Payment Gateway Settings (Mercado Pago & Transfer)
             'payment_gateway' => 'mercadopago', // mercadopago | stripe
@@ -118,6 +119,7 @@ class StoreSettingService
             // 1. Tax
             'tax_rate' => (float) ($raw['tax_rate'] ?? 21.0),
             'currency_symbol' => $raw['currency_symbol'] ?? 'ARS $',
+            'dolar_rate' => (float) ($raw['dolar_rate'] ?? 1625.0),
 
             // 2. Payments
             'payment_gateway' => $raw['payment_gateway'] ?? 'mercadopago',
@@ -213,9 +215,13 @@ class StoreSettingService
         $raw = self::getRaw();
         $oldTax = $raw['tax_rate'] ?? 21.0;
         $oldCurr = $raw['currency_symbol'] ?? 'ARS $';
+        $oldDolar = $raw['dolar_rate'] ?? 1625.0;
 
         $raw['tax_rate'] = (float) $data['tax_rate'];
         $raw['currency_symbol'] = trim($data['currency_symbol'] ?? 'ARS $');
+        if (isset($data['dolar_rate'])) {
+            $raw['dolar_rate'] = (float) $data['dolar_rate'];
+        }
 
         self::saveRaw($raw);
 
@@ -227,6 +233,8 @@ class StoreSettingService
                 'tax_rate_after' => $raw['tax_rate'],
                 'currency_before' => $oldCurr,
                 'currency_after' => $raw['currency_symbol'],
+                'dolar_rate_before' => $oldDolar,
+                'dolar_rate_after' => $raw['dolar_rate'] ?? $oldDolar,
             ],
             $admin
         );

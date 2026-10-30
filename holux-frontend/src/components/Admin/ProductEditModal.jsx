@@ -4,7 +4,7 @@ import ConfirmationModal from './ConfirmationModal';
 import { SmoothInput, SmoothTextarea } from '../Common/SmoothInput';
 import { API_BASE_URL } from '../../config/api';
 
-export default function ProductEditModal({ product, categories = [], onClose, onSave, onDuplicate, homeSectionTitles = null }) {
+export default function ProductEditModal({ product, categories = [], onClose, onSave, onDuplicate, homeSectionTitles = null, currentDolarRate = 1625 }) {
   // Basic info
   const [name, setName] = useState(product?.name || '');
   const [brand, setBrand] = useState(product?.brand || 'HOLUX');
@@ -44,12 +44,45 @@ export default function ProductEditModal({ product, categories = [], onClose, on
   });
   const [tags, setTags] = useState(product?.tags ? product.tags.join(', ') : 'Fragancias, Perfumes, Nicho');
 
-  // Pricing & Costs
-  const [price, setPrice] = useState(product?.price || 0);
+  // Pricing, Currency & Costs
+  const dolarRate = Number(currentDolarRate) || Number(localStorage.getItem('holux_dolar_rate')) || 1625;
+  const [currency, setCurrency] = useState(() => {
+    if (product?.currency) return product.currency;
+    if (product?.price_usd !== undefined && product?.price_usd !== null && product.price_usd > 0) return 'USD';
+    return 'USD';
+  });
+  const [priceUsd, setPriceUsd] = useState(() => {
+    if (product?.price_usd !== undefined && product?.price_usd !== null && product.price_usd > 0) return product.price_usd;
+    if (product?.price && dolarRate > 0) return Math.round((Number(product.price) / dolarRate) * 100) / 100;
+    return '';
+  });
+  const [price, setPrice] = useState(() => {
+    if (product?.price) return product.price;
+    if (product?.price_usd && dolarRate > 0) return Math.round(product.price_usd * dolarRate);
+    return 0;
+  });
   const [offerPrice, setOfferPrice] = useState(product?.offer_price || 0);
   const [costPrice, setCostPrice] = useState(product?.cost_price || 0);
   const [stock, setStock] = useState(product?.stock ?? 10);
   const [installments, setInstallments] = useState(product?.installments || 6);
+
+  const handlePriceUsdChange = (val) => {
+    setPriceUsd(val);
+    const num = parseFloat(val);
+    if (!isNaN(num) && num >= 0) {
+      setPrice(Math.round(num * dolarRate));
+    }
+  };
+
+  const handleCurrencyChange = (newCurr) => {
+    setCurrency(newCurr);
+    if (newCurr === 'USD') {
+      if ((priceUsd === '' || priceUsd === null) && price > 0 && dolarRate > 0) {
+        const computedUsd = Math.round((Number(price) / dolarRate) * 100) / 100;
+        setPriceUsd(computedUsd);
+      }
+    }
+  };
 
   const normalizeHttpsUrl = (url) => {
     if (!url || typeof url !== 'string') return url;
@@ -240,6 +273,8 @@ export default function ProductEditModal({ product, categories = [], onClose, on
       description,
       specs: specs ? specs.split('\n').map(s => s.trim()).filter(Boolean) : [],
       tags: tags.split(',').map(t => t.trim()).filter(Boolean),
+      currency,
+      price_usd: currency === 'USD' ? (Number(priceUsd) || null) : null,
       price: Number(price),
       offer_price: Number(offerPrice),
       cost_price: Number(costPrice),
@@ -544,10 +579,10 @@ export default function ProductEditModal({ product, categories = [], onClose, on
 
           {/* 2. PRECIOS, OFERTAS Y DESCUENTOS (% OFF) */}
           <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-4">
-            <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-2 flex-wrap gap-2">
               <h4 className="font-display text-xs font-bold text-gray-800 uppercase tracking-wider flex items-center gap-2">
                 <DollarSign className="w-4 h-4 text-emerald-600" />
-                PRECIOS, OFERTAS Y DESCUENTOS (% OFF)
+                PRECIOS, MONEDA Y DESCUENTOS
               </h4>
               {cost > 0 && (
                 <div className="flex items-center gap-2">
@@ -559,20 +594,105 @@ export default function ProductEditModal({ product, categories = [], onClose, on
               )}
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+            {/* Currency Mode Selector Bar */}
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">Precio Normal / Lista (ARS $) *</label>
-                <input
-                  type="number"
-                  required
-                  min="0"
-                  value={price}
-                  onChange={(e) => setPrice(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:border-[#3C6E71] outline-none font-mono-custom font-bold text-gray-800 text-sm"
-                  placeholder="Ej: 120000"
-                />
-                <span className="text-[10px] text-gray-400 mt-1 block">Precio base tachado si hay oferta</span>
+                <span className="text-[11px] font-bold text-gray-800 uppercase tracking-wider block">
+                  Moneda Base del Producto
+                </span>
+                <span className="text-[10px] text-gray-500">
+                  {currency === 'USD' 
+                    ? `Cotización activa: $${dolarRate.toLocaleString('es-AR')} ARS/USD. El precio en pesos se calcula y actualiza automáticamente.`
+                    : 'Precio fijo en Pesos Argentinos (ARS). Queda congelado y no se modifica con el dólar.'}
+                </span>
               </div>
+
+              <div className="flex items-center gap-1.5 bg-white p-1 rounded-lg border border-gray-200 shadow-2xs">
+                <button
+                  type="button"
+                  onClick={() => handleCurrencyChange('USD')}
+                  className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                    currency === 'USD'
+                      ? 'bg-blue-600 text-white shadow-xs'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                  }`}
+                >
+                  <span>💵 Dólar (USD)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleCurrencyChange('ARS')}
+                  className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                    currency === 'ARS'
+                      ? 'bg-emerald-600 text-white shadow-xs'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                  }`}
+                >
+                  <span>🇦🇷 Pesos (ARS)</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+              {currency === 'USD' ? (
+                <>
+                  <div>
+                    <label className="text-[10px] font-bold text-blue-700 uppercase tracking-wider block mb-1">
+                      Precio en Dólares (U$D) *
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-blue-600 font-mono-custom">U$D</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        required
+                        min="0"
+                        value={priceUsd}
+                        onChange={(e) => handlePriceUsdChange(e.target.value)}
+                        className="w-full pl-11 pr-3 py-2 border border-blue-300 bg-blue-50/20 rounded-lg focus:border-blue-600 outline-none font-mono-custom font-bold text-blue-900 text-sm"
+                        placeholder="Ej: 50.00"
+                      />
+                    </div>
+                    <span className="text-[10px] text-blue-600 font-semibold mt-1 block">
+                      = ARS ${Math.round(price).toLocaleString('es-AR')} (@ ${dolarRate})
+                    </span>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold text-gray-700 uppercase tracking-wider block mb-1">
+                      Precio en Tienda (ARS $) *
+                    </label>
+                    <input
+                      type="number"
+                      required
+                      min="0"
+                      value={price}
+                      onChange={(e) => setPrice(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:border-[#3C6E71] outline-none font-mono-custom font-bold text-gray-800 text-sm bg-gray-50"
+                      placeholder="Ej: 81250"
+                    />
+                    <span className="text-[10px] text-gray-400 mt-1 block">Calculado automáticamente en pesos</span>
+                  </div>
+                </>
+              ) : (
+                <div className="sm:col-span-2">
+                  <label className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider block mb-1">
+                    Precio Fijo en Pesos (ARS $) *
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    min="0"
+                    value={price}
+                    onChange={(e) => setPrice(e.target.value)}
+                    className="w-full px-3 py-2 border border-emerald-300 bg-emerald-50/20 rounded-lg focus:border-emerald-600 outline-none font-mono-custom font-bold text-gray-800 text-sm"
+                    placeholder="Ej: 120000"
+                  />
+                  <span className="text-[10px] text-emerald-700 mt-1 block font-medium">
+                    📌 Precio fijo en Pesos. No cambiará si varía el dólar.
+                  </span>
+                </div>
+              )}
 
               <div>
                 <label className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider block mb-1">
@@ -597,11 +717,13 @@ export default function ProductEditModal({ product, categories = [], onClose, on
                   value={costPrice}
                   onChange={(e) => setCostPrice(e.target.value)}
                   placeholder="Costo de producción/compra"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:border-[#3C6E71] outline-none font-mono-custom text-gray-600"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:border-[#3C6E71] outline-none font-mono-custom text-gray-600 text-sm"
                 />
-                <span className="text-[10px] text-gray-400 mt-1 block">Para calcular rentabilidad interna</span>
+                <span className="text-[10px] text-gray-400 mt-1 block">Para calcular rentabilidad</span>
               </div>
+            </div>
 
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
               <div>
                 <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">Stock Global Disponible *</label>
                 <input
@@ -610,9 +732,22 @@ export default function ProductEditModal({ product, categories = [], onClose, on
                   min="0"
                   value={stock}
                   onChange={(e) => setStock(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:border-[#3C6E71] outline-none font-bold font-mono-custom text-gray-900"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:border-[#3C6E71] outline-none font-bold font-mono-custom text-gray-900 text-sm"
                 />
                 <span className="text-[10px] text-gray-400 mt-1 block">Unidades en inventario</span>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">Cuotas sin Interés</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="24"
+                  value={installments}
+                  onChange={(e) => setInstallments(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:border-[#3C6E71] outline-none font-bold font-mono-custom text-gray-900 text-sm"
+                />
+                <span className="text-[10px] text-gray-400 mt-1 block">Cuotas promocionales mostradas en la tarjeta</span>
               </div>
             </div>
 

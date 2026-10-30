@@ -160,6 +160,7 @@ Route::prefix('admin')->middleware(['auth.supabase', 'auth.admin'])->group(funct
     Route::get('/orders/{id}/ticket', [TicketController::class, 'show']); // Generate admin PDF ticket
 
     // Catalog Products CRUD
+    Route::post('/products/recalculate-usd', [AdminProductController::class, 'recalculateUsd']);
     Route::apiResource('/products', AdminProductController::class)->names([
         'index' => 'admin.products.index',
         'store' => 'admin.products.store',

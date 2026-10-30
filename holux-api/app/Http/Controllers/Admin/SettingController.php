@@ -43,6 +43,7 @@ class SettingController extends Controller
         $validated = $request->validate([
             'tax_rate' => ['required', 'numeric', 'min:0', 'max:100'],
             'currency_symbol' => ['required', 'string', 'max:15'],
+            'dolar_rate' => ['nullable', 'numeric', 'min:1'],
         ], [
             'tax_rate.required' => 'El porcentaje de IVA es obligatorio.',
             'tax_rate.min' => 'La alícuota de IVA no puede ser negativa.',
@@ -156,7 +157,7 @@ class SettingController extends Controller
         $admin = $this->getAdminContext($request);
         $data = $request->all();
 
-        if (isset($data['tax_rate'])) {
+        if (isset($data['tax_rate']) || isset($data['dolar_rate'])) {
             StoreSettingService::updateTax($data, $admin);
         }
         if (isset($data['payment_gateway_mode']) || isset($data['bank_cbu']) || isset($data['bank_alias']) || isset($data['bank_holder']) || isset($data['bank_cuit']) || isset($data['transfer_discount_percent']) || isset($data['max_installments']) || isset($data['payment_methods_config']) || isset($data['sandbox_public_key']) || isset($data['production_public_key'])) {

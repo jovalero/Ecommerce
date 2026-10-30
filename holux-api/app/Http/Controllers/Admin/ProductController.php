@@ -64,7 +64,7 @@ class ProductController extends Controller
             $metadata = $request->only([
                 'variants', 'images', 'image_url', 'description', 'tags', 'specs', 'specifications',
                 'category_ids', 'offer_price', 'cost_price', 'slug', 'meta_title', 'meta_description',
-                'is_featured', 'is_new', 'video_url'
+                'is_featured', 'is_new', 'video_url', 'currency', 'price_usd'
             ]);
             if (!empty($metadata)) {
                 \App\Services\ProductMetadataService::set($newProduct['id'], $metadata);
@@ -126,7 +126,7 @@ class ProductController extends Controller
             $metadata = $request->only([
                 'variants', 'images', 'image_url', 'description', 'tags', 'specs', 'specifications',
                 'category_ids', 'offer_price', 'cost_price', 'slug', 'meta_title', 'meta_description',
-                'is_featured', 'is_new', 'video_url'
+                'is_featured', 'is_new', 'video_url', 'currency', 'price_usd'
             ]);
             if (!empty($metadata)) {
                 \App\Services\ProductMetadataService::set($id, $metadata);
@@ -179,5 +179,58 @@ class ProductController extends Controller
                 'message' => 'Error al eliminar el producto.'
             ], 500);
         }
+    }
+
+    /**
+     * Recalculate all USD-denominated products using new exchange rate.
+     * Fixed ARS products are preserved untouched.
+     *
+     * @param Request $request
+     * @param SupabaseService $supabase
+     * @return JsonResponse
+     */
+    public function recalculateUsd(Request $request, SupabaseService $supabase): JsonResponse
+    {
+        $dolarRate = (float) ($request->input('dolar_rate') ?? \App\Services\StoreSettingService::getRaw()['dolar_rate'] ?? 1625.0);
+        if ($dolarRate <= 0) {
+            return response()->json(['message' => 'Cotización del dólar inválida.'], 422);
+        }
+
+        // Persist dollar rate to store settings
+        $settings = \App\Services\StoreSettingService::getRaw();
+        $settings['dolar_rate'] = $dolarRate;
+        \App\Services\StoreSettingService::saveRaw($settings);
+
+        $allMeta = \App\Services\ProductMetadataService::load();
+        $updatedCount = 0;
+        $updatedProducts = [];
+
+        foreach ($allMeta as $productId => $meta) {
+            $currency = $meta['currency'] ?? (!empty($meta['price_usd']) ? 'USD' : 'ARS');
+            $priceUsd = isset($meta['price_usd']) ? (float)$meta['price_usd'] : 0;
+
+            // Only update products marked as USD with valid USD price
+            if ($currency === 'USD' && $priceUsd > 0) {
+                $newPriceArs = (int) round($priceUsd * $dolarRate);
+                try {
+                    $supabase->update('products', $productId, ['price' => $newPriceArs], true);
+                    $updatedCount++;
+                    $updatedProducts[] = [
+                        'id' => $productId,
+                        'price_usd' => $priceUsd,
+                        'new_price_ars' => $newPriceArs
+                    ];
+                } catch (\Throwable $e) {
+                    Log::warning("Failed to recalculate price for product {$productId}: " . $e->getMessage());
+                }
+            }
+        }
+
+        return response()->json([
+            'message' => "Se actualizaron exitosamente {$updatedCount} productos en dólares a la cotización de $" . number_format($dolarRate, 0, ',', '.') . " ARS.",
+            'updated_count' => $updatedCount,
+            'dolar_rate' => $dolarRate,
+            'products' => $updatedProducts
+        ]);
     }
 }

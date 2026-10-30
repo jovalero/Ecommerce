@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import ConfirmationModal from './ConfirmationModal';
 import { productsMetadata } from '../../config/productsMetadata';
+import { API_BASE_URL } from '../../config/api';
 
 export default function ProductCatalogManager({
   catalog, // hook return object from useProductCatalog
@@ -45,6 +46,8 @@ export default function ProductCatalogManager({
     setCategory,
     stockFilter,
     setStockFilter,
+    currencyFilter,
+    setCurrencyFilter,
     sort,
     order,
     page,
@@ -72,6 +75,101 @@ export default function ProductCatalogManager({
     handleImportCSV,
   } = catalog;
 
+  // Global Dollar & Currency Exchange State
+  const [dolarRate, setDolarRate] = useState(() => {
+    return Number(localStorage.getItem('holux_dolar_rate')) || 1625;
+  });
+  const [inputDolarRate, setInputDolarRate] = useState(() => {
+    return Number(localStorage.getItem('holux_dolar_rate')) || 1625;
+  });
+  const [isSavingDolarRate, setIsSavingDolarRate] = useState(false);
+  const [dolarSavedMsg, setDolarSavedMsg] = useState(false);
+  const [isRecalculatingUsd, setIsRecalculatingUsd] = useState(false);
+  const [recalculateConfirmOpen, setRecalculateConfirmOpen] = useState(false);
+  const [recalculateSuccessMsg, setRecalculateSuccessMsg] = useState(null);
+
+  // Sync dollar rate from live Supabase storage
+  useEffect(() => {
+    fetch(`https://fmbhcfsrsfkglmvgbnlm.supabase.co/storage/v1/object/public/product-images/config/store_settings.json?v=${Date.now()}`, { cache: 'no-store' })
+      .then(r => r.json())
+      .then(data => {
+        if (data?.dolar_rate) {
+          const rate = Number(data.dolar_rate);
+          setDolarRate(rate);
+          setInputDolarRate(rate);
+          localStorage.setItem('holux_dolar_rate', String(rate));
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  // Save current Dollar rate
+  const handleSaveDolarRate = async () => {
+    const rate = parseFloat(inputDolarRate);
+    if (isNaN(rate) || rate <= 0) return;
+    setIsSavingDolarRate(true);
+    setDolarRate(rate);
+    localStorage.setItem('holux_dolar_rate', String(rate));
+    window.dispatchEvent(new CustomEvent('holux_dolar_rate_updated', { detail: rate }));
+
+    try {
+      const token = localStorage.getItem('user_token') || localStorage.getItem('holux_auth_token') || '';
+      await fetch(`${API_BASE_URL}/api/settings`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ dolar_rate: rate })
+      });
+
+      setDolarSavedMsg(true);
+      setTimeout(() => setDolarSavedMsg(false), 3000);
+    } catch (err) {
+      console.warn("Failed saving dolar rate:", err);
+      setDolarSavedMsg(true);
+      setTimeout(() => setDolarSavedMsg(false), 3000);
+    } finally {
+      setIsSavingDolarRate(false);
+    }
+  };
+
+  // Recalculate all USD-linked products in Supabase via backend API
+  const handleExecuteRecalculate = async () => {
+    const rate = parseFloat(inputDolarRate);
+    if (isNaN(rate) || rate <= 0) return;
+    setIsRecalculatingUsd(true);
+    setRecalculateConfirmOpen(false);
+
+    try {
+      const token = localStorage.getItem('user_token') || localStorage.getItem('holux_auth_token') || '';
+      const res = await fetch(`${API_BASE_URL}/api/admin/products/recalculate-usd`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({ dolar_rate: rate })
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Error al recalcular productos');
+
+      setDolarRate(rate);
+      localStorage.setItem('holux_dolar_rate', String(rate));
+      window.dispatchEvent(new CustomEvent('holux_dolar_rate_updated', { detail: rate }));
+      fetchProducts();
+      setRecalculateSuccessMsg(data.message || `¡Productos en dólares actualizados a $${rate.toLocaleString('es-AR')} ARS!`);
+      setTimeout(() => setRecalculateSuccessMsg(null), 5000);
+    } catch (err) {
+      console.error("Recalculate failed:", err);
+      alert("Error al recalcular: " + err.message);
+    } finally {
+      setIsRecalculatingUsd(false);
+    }
+  };
+
   // Modals Local State
   const [isBulkPriceModalOpen, setIsBulkPriceModalOpen] = useState(false);
   const [editableProducts, setEditableProducts] = useState([]);
@@ -96,7 +194,10 @@ export default function ProductCatalogManager({
 
   const visibleIds = products.map(p => p.id);
   const allVisibleSelected = visibleIds.length > 0 && visibleIds.every(id => selectedIds.includes(id));
-  const hasActiveFilters = Boolean(search || (category && category !== 'all') || (stockFilter && stockFilter !== 'all'));
+  const hasActiveFilters = Boolean(search || (category && category !== 'all') || (stockFilter && stockFilter !== 'all') || (currencyFilter && currencyFilter !== 'all'));
+
+  // Calculate total products marked in USD across catalog
+  const usdProductsCount = Object.values(productsMetadata || {}).filter(m => (m.currency === 'USD') || (m.price_usd && m.currency !== 'ARS')).length;
 
   // Open Bulk Price Modal with selected products data
   const handleOpenBulkPriceModal = () => {
@@ -298,11 +399,96 @@ export default function ProductCatalogManager({
         </div>
       </div>
 
-      {/* 2. FILTERS AND SEARCH BAR */}
+      {/* 2. COTIZACIÓN DEL DÓLAR & PRECIOS AUTOMÁTICOS */}
+      <div className="bg-gradient-to-r from-[#3C6E71]/10 via-white to-blue-50/50 border border-[#3C6E71]/25 rounded-2xl p-5 shadow-sm space-y-3">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-xl bg-[#3C6E71] text-white flex items-center justify-center shrink-0 shadow-sm mt-0.5">
+              <DollarSign className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="text-xs font-bold tracking-wider text-gray-900 uppercase font-display">
+                  COTIZACIÓN DÓLAR OFICIAL / VENTA
+                </h3>
+                <span className="bg-[#3C6E71]/15 text-[#3C6E71] text-[10px] font-bold px-2 py-0.5 rounded-full font-mono-custom">
+                  {usdProductsCount} productos en USD
+                </span>
+                {dolarSavedMsg && (
+                  <span className="bg-emerald-100 text-emerald-800 border border-emerald-300 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 animate-pulse">
+                    ✓ ¡Cotización guardada!
+                  </span>
+                )}
+                {recalculateSuccessMsg && (
+                  <span className="bg-emerald-100 text-emerald-800 border border-emerald-300 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                    {recalculateSuccessMsg}
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-gray-600 mt-1 max-w-xl">
+                Los productos cotizados en <strong>Dólares (USD)</strong> se actualizan automáticamente en Pesos a este valor. Los productos fijados en <strong>Pesos (ARS)</strong> se mantienen inalterables.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2.5">
+            <div className="flex items-center gap-1.5 bg-white border border-gray-300 rounded-xl px-3 py-1.5 shadow-2xs focus-within:border-[#3C6E71] focus-within:ring-2 focus-within:ring-[#3C6E71]/20">
+              <span className="text-xs font-bold text-gray-400 font-mono-custom">1 USD = $</span>
+              <input
+                type="number"
+                step="1"
+                min="1"
+                value={inputDolarRate}
+                onChange={(e) => setInputDolarRate(e.target.value)}
+                className="w-24 text-sm font-bold font-mono-custom text-gray-900 outline-none"
+                placeholder="1625"
+              />
+              <span className="text-xs font-bold text-gray-500 font-mono-custom">ARS</span>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleSaveDolarRate}
+              disabled={isSavingDolarRate}
+              className="px-3.5 py-2 bg-white border border-gray-300 hover:border-gray-400 text-gray-700 rounded-xl font-display text-xs font-bold tracking-wider transition-all cursor-pointer shadow-sm hover:bg-gray-50 disabled:opacity-50"
+              title="Guardar valor del dólar para nuevas cargas"
+            >
+              {isSavingDolarRate ? 'Guardando...' : 'GUARDAR'}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setRecalculateConfirmOpen(true)}
+              disabled={isRecalculatingUsd}
+              className="px-4 py-2 bg-[#3C6E71] hover:bg-[#3C6E71]/90 text-white rounded-xl font-display text-xs font-bold tracking-wider flex items-center gap-1.5 transition-all cursor-pointer shadow-sm shadow-[#3C6E71]/20 disabled:opacity-50"
+              title="Recalcular todos los productos en dólares con la nueva cotización"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isRecalculatingUsd ? 'animate-spin' : ''}`} />
+              <span>{isRecalculatingUsd ? 'RECALCULANDO...' : 'RECALCULAR PRODUCTOS USD'}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Confirmation Modal for Recalculating USD products */}
+      {recalculateConfirmOpen && (
+        <ConfirmationModal
+          isOpen={true}
+          title="¿RECALCULAR PRECIOS EN PESOS?"
+          message={`Se actualizarán automáticamente los ${usdProductsCount} productos configurados en Dólares a la cotización de $${Number(inputDolarRate).toLocaleString('es-AR')} ARS/USD.\n\nLos productos en Pesos fijos NO se verán afectados.\n\n¿Deseas continuar?`}
+          confirmText="Sí, Recalcular y Actualizar"
+          cancelText="Cancelar"
+          type="primary"
+          onConfirm={handleExecuteRecalculate}
+          onClose={() => setRecalculateConfirmOpen(false)}
+        />
+      )}
+
+      {/* 3. FILTERS AND SEARCH BAR */}
       <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
           {/* Search input with Debounce */}
-          <div className="sm:col-span-5 relative">
+          <div className="sm:col-span-4 relative">
             <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
@@ -339,17 +525,30 @@ export default function ProductCatalogManager({
             </select>
           </div>
 
+          {/* Currency Filter */}
+          <div className="sm:col-span-2">
+            <select
+              value={currencyFilter || 'all'}
+              onChange={(e) => setCurrencyFilter && setCurrencyFilter(e.target.value)}
+              className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 focus:border-[#3C6E71] focus:bg-white rounded-xl text-xs font-medium text-gray-700 outline-none transition-all cursor-pointer"
+            >
+              <option value="all">Todas las Monedas</option>
+              <option value="USD">💵 En Dólares (USD)</option>
+              <option value="ARS">🇦🇷 En Pesos (ARS)</option>
+            </select>
+          </div>
+
           {/* Stock Level Filter */}
-          <div className="sm:col-span-3">
+          <div className="sm:col-span-2">
             <select
               value={stockFilter}
               onChange={(e) => setStockFilter(e.target.value)}
               className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 focus:border-[#3C6E71] focus:bg-white rounded-xl text-xs font-medium text-gray-700 outline-none transition-all cursor-pointer"
             >
-              <option value="all">Todos los niveles de stock</option>
-              <option value="saludable">🟢 Stock Saludable (&gt; 5 uds)</option>
-              <option value="critico">🟡 Stock Crítico (1 a 5 uds)</option>
-              <option value="agotado">🔴 Agotados (0 uds)</option>
+              <option value="all">Niveles de stock</option>
+              <option value="saludable">🟢 Saludable (&gt; 5)</option>
+              <option value="critico">🟡 Crítico (1 a 5)</option>
+              <option value="agotado">🔴 Agotados (0)</option>
             </select>
           </div>
 
@@ -386,6 +585,12 @@ export default function ProductCatalogManager({
               <span className="bg-purple-50 text-purple-700 font-bold px-2.5 py-1 rounded-lg flex items-center gap-1.5">
                 Categoría: {category === 'offers' ? '🔥 Solo en Oferta / Descuento' : (categories.find(c => c.slug === category || c.id === category)?.name || category)}
                 <button type="button" onClick={() => setCategory('all')} className="hover:text-black cursor-pointer"><X className="w-3 h-3" /></button>
+              </span>
+            )}
+            {currencyFilter && currencyFilter !== 'all' && (
+              <span className="bg-blue-50 text-blue-800 font-bold px-2.5 py-1 rounded-lg flex items-center gap-1.5">
+                Moneda: {currencyFilter === 'USD' ? '💵 Solo Dólares (USD)' : '🇦🇷 Solo Pesos (ARS)'}
+                <button type="button" onClick={() => setCurrencyFilter('all')} className="hover:text-black cursor-pointer"><X className="w-3 h-3" /></button>
               </span>
             )}
             {stockFilter !== 'all' && (
@@ -744,27 +949,43 @@ export default function ProductCatalogManager({
                           const effective = (offPrice > 0 && offPrice < basePrice) ? offPrice : (discPct > 0 ? Math.round(basePrice * (1 - discPct / 100)) : basePrice);
                           const pct = isOffActive ? (discPct > 0 ? discPct : (origPrice > basePrice ? Math.round(((origPrice - basePrice) / origPrice) * 100) : Math.round(((basePrice - offPrice) / basePrice) * 100))) : 0;
 
-                          if (isOffActive) {
-                            return (
-                              <div className="space-y-0.5">
-                                <div className="flex items-center gap-1.5 flex-wrap">
-                                  <span className="font-bold text-emerald-700 text-xs">
-                                    ARS ${Math.round(effective).toLocaleString('es-AR')}
-                                  </span>
-                                  <span className="bg-[#3C6E71] text-white text-[9.5px] font-semibold px-2 py-0.5 rounded-full font-sans shadow-2xs">
-                                    {pct}%
-                                  </span>
-                                </div>
-                                <div className="text-[10px] text-gray-400 line-through">
-                                  ARS ${Math.round(origPrice > basePrice ? origPrice : basePrice).toLocaleString('es-AR')}
-                                </div>
-                              </div>
-                            );
-                          }
+                          const meta = productsMetadata[prod.id] || {};
+                          const isUsd = (prod.currency === 'USD') || (meta.currency === 'USD') || (prod.price_usd || meta.price_usd);
+                          const usdVal = prod.price_usd || meta.price_usd;
 
                           return (
-                            <div className="font-bold text-gray-900 text-xs">
-                              ARS ${Math.round(basePrice).toLocaleString('es-AR')}
+                            <div className="space-y-1">
+                              {isOffActive ? (
+                                <div className="space-y-0.5">
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <span className="font-bold text-emerald-700 text-xs">
+                                      ARS ${Math.round(effective).toLocaleString('es-AR')}
+                                    </span>
+                                    <span className="bg-[#3C6E71] text-white text-[9.5px] font-semibold px-2 py-0.5 rounded-full font-sans shadow-2xs">
+                                      {pct}%
+                                    </span>
+                                  </div>
+                                  <div className="text-[10px] text-gray-400 line-through">
+                                    ARS ${Math.round(origPrice > basePrice ? origPrice : basePrice).toLocaleString('es-AR')}
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="font-bold text-gray-900 text-xs">
+                                  ARS ${Math.round(basePrice).toLocaleString('es-AR')}
+                                </div>
+                              )}
+
+                              <div>
+                                {isUsd && usdVal ? (
+                                  <span className="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200" title={`Precio base: U$D ${usdVal}`}>
+                                    💵 U$D {usdVal}
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 text-[9px] font-semibold px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 border border-gray-200" title="Precio fijo en pesos">
+                                    🇦🇷 ARS Fijo
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           );
                         })()}

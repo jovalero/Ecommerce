@@ -535,6 +535,9 @@ export default function App() {
   const [selectedPrintOrder, setSelectedPrintOrder] = useState(null);
   const [selectedOrderDetail, setSelectedOrderDetail] = useState(null);
   const [adminOrderSearchQuery, setAdminOrderSearchQuery] = useState('');
+  const [dolarRate, setDolarRate] = useState(() => {
+    return Number(localStorage.getItem('holux_dolar_rate')) || 1625;
+  });
   const [cart, setCart] = useState(() => {
     const saved = localStorage.getItem('holux_cart');
     return saved ? JSON.parse(saved) : [];
@@ -728,6 +731,11 @@ export default function App() {
         localStorage.setItem('holux_shipping_rates', JSON.stringify(s));
         window.dispatchEvent(new CustomEvent('holux_shipping_rates_updated', { detail: s }));
       }
+      if (s.dolar_rate !== undefined) {
+        const rate = Number(s.dolar_rate);
+        setDolarRate(rate);
+        localStorage.setItem('holux_dolar_rate', String(rate));
+      }
     };
 
     // 1. Fetch direct from Supabase CDN (0ms, ultra-fast global CDN with live cache-busting)
@@ -764,8 +772,15 @@ export default function App() {
         setTickerPhrases(e.detail.data);
       }
     };
+    const handleDolarSync = (e) => {
+      if (e?.detail) setDolarRate(Number(e.detail));
+    };
     window.addEventListener('holux_banners_updated', handleBannersSync);
-    return () => window.removeEventListener('holux_banners_updated', handleBannersSync);
+    window.addEventListener('holux_dolar_rate_updated', handleDolarSync);
+    return () => {
+      window.removeEventListener('holux_banners_updated', handleBannersSync);
+      window.removeEventListener('holux_dolar_rate_updated', handleDolarSync);
+    };
   }, []);
 
   // Keyboard navigation & body scroll lock for product image zoom modal
@@ -2701,6 +2716,9 @@ export default function App() {
       });
 
       if (productData.id) {
+        if (!productsMetadata[productData.id]) productsMetadata[productData.id] = {};
+        if (productData.currency) productsMetadata[productData.id].currency = productData.currency;
+        if (productData.price_usd !== undefined) productsMetadata[productData.id].price_usd = productData.price_usd;
         setAdminProductsList(prev => prev.map(p => p.id === productData.id ? { ...p, ...productData } : p));
         setProducts(prev => prev.map(p => p.id === productData.id ? { ...p, ...productData } : p));
 
@@ -6734,6 +6752,7 @@ export default function App() {
             product={selectedProductModal}
             categories={categories}
             homeSectionTitles={homeSectionTitles}
+            currentDolarRate={dolarRate}
             onClose={() => setIsProductModalOpen(false)}
             onSave={handleSaveProductModal}
             onDuplicate={(p) => {

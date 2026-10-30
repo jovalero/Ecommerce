@@ -22,6 +22,8 @@ export const enrichAdminProduct = (p) => {
     description: p.description || meta.description || '',
     specs: (Array.isArray(p.specs) && p.specs.length > 0) ? p.specs : (meta.specs || []),
     tags: (Array.isArray(p.tags) && p.tags.length > 0) ? p.tags : (meta.tags || []),
+    currency: p.currency || meta.currency || (p.price_usd || meta.price_usd ? 'USD' : 'ARS'),
+    price_usd: (p.price_usd !== undefined && p.price_usd !== null) ? Number(p.price_usd) : ((meta.price_usd !== undefined && meta.price_usd !== null) ? Number(meta.price_usd) : null),
     image_url,
     images
   };
@@ -33,6 +35,7 @@ export function useProductCatalog(token) {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [category, setCategory] = useState('all');
   const [stockFilter, setStockFilter] = useState('all');
+  const [currencyFilter, setCurrencyFilter] = useState('all');
   const [sort, setSort] = useState('created_at');
   const [order, setOrder] = useState('desc');
   const [page, setPage] = useState(1);
@@ -56,10 +59,10 @@ export function useProductCatalog(token) {
     return () => clearTimeout(timer);
   }, [search]);
 
-  // Reset page when category or stock filter changes
+  // Reset page when category, stock or currency filter changes
   useEffect(() => {
     setPage(1);
-  }, [category, stockFilter]);
+  }, [category, stockFilter, currencyFilter]);
 
   // Fetch categories for the filter dropdown
   const fetchCategories = useCallback(async () => {
@@ -205,7 +208,15 @@ export function useProductCatalog(token) {
       });
     }
 
-    // 4. Sorting
+    // 4. Currency Filter
+    if (currencyFilter && currencyFilter !== 'all') {
+      list = list.filter(p => {
+        const curr = p.currency || (p.price_usd ? 'USD' : 'ARS');
+        return curr === currencyFilter;
+      });
+    }
+
+    // 5. Sorting
     list.sort((a, b) => {
       let valA = a[sort];
       let valB = b[sort];
@@ -224,7 +235,7 @@ export function useProductCatalog(token) {
     });
 
     return list;
-  }, [rawProducts, debouncedSearch, search, category, stockFilter, sort, order]);
+  }, [rawProducts, debouncedSearch, search, category, stockFilter, currencyFilter, sort, order]);
 
   // Instant In-Memory Pagination
   const total = filteredAndSortedProducts.length;
@@ -286,6 +297,7 @@ export function useProductCatalog(token) {
     setDebouncedSearch('');
     setCategory('all');
     setStockFilter('all');
+    setCurrencyFilter('all');
     setSort('created_at');
     setOrder('desc');
     setPage(1);
@@ -490,6 +502,8 @@ export function useProductCatalog(token) {
     setCategory,
     stockFilter,
     setStockFilter,
+    currencyFilter,
+    setCurrencyFilter,
     sort,
     order,
     page,

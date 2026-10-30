@@ -55,6 +55,9 @@ export default function StoreSettings({ API_BASE_URL, token }) {
   // 1. Tax & Fiscal State
   const [taxRate, setTaxRate] = useState(21.0);
   const [currencySymbol, setCurrencySymbol] = useState('ARS $');
+  const [dolarRate, setDolarRate] = useState(() => {
+    return Number(localStorage.getItem('holux_dolar_rate')) || 1625;
+  });
 
   // 2. Payment Gateway State
   const [paymentGateway, setPaymentGateway] = useState('mercadopago');
@@ -136,6 +139,10 @@ export default function StoreSettings({ API_BASE_URL, token }) {
         // 1. Tax
         setTaxRate(s.tax_rate ?? 21.0);
         setCurrencySymbol(s.currency_symbol ?? 'ARS $');
+        if (s.dolar_rate) {
+          setDolarRate(Number(s.dolar_rate));
+          localStorage.setItem('holux_dolar_rate', String(s.dolar_rate));
+        }
 
         // 2. Payments
         setPaymentGateway(s.payment_gateway ?? 'mercadopago');
@@ -320,6 +327,7 @@ export default function StoreSettings({ API_BASE_URL, token }) {
         // Tax
         tax_rate: rate,
         currency_symbol: currencySymbol,
+        dolar_rate: parseFloat(dolarRate) || 1625.0,
 
         // Payment
         payment_gateway: paymentGateway,
@@ -502,6 +510,30 @@ export default function StoreSettings({ API_BASE_URL, token }) {
                 placeholder="Ej: ARS $"
               />
               <p className="text-[10px] text-gray-400">Prefijo monetario mostrado en catálogo y comprobantes.</p>
+            </div>
+
+            <div className="space-y-1.5 sm:col-span-2 bg-[#3C6E71]/5 p-4 rounded-xl border border-[#3C6E71]/20">
+              <label className="font-bold text-[#3C6E71] uppercase tracking-wider block text-xs flex items-center gap-1.5">
+                <DollarSign className="w-4 h-4" />
+                Cotización Central del Dólar (USD / ARS)
+              </label>
+              <div className="relative max-w-xs">
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-bold text-gray-500 font-mono-custom text-xs">1 USD = $</span>
+                <input
+                  type="number"
+                  step="1"
+                  min="1"
+                  required
+                  value={dolarRate}
+                  onChange={(e) => setDolarRate(e.target.value)}
+                  className="w-full pl-22 pr-12 py-2.5 bg-white border border-[#3C6E71]/40 rounded-xl text-xs font-mono-custom font-bold text-gray-900 focus:border-[#3C6E71] outline-none transition-all"
+                  placeholder="1625"
+                />
+                <span className="absolute right-3.5 top-1/2 -translate-y-1/2 font-bold text-gray-500 font-mono-custom text-xs">ARS</span>
+              </div>
+              <p className="text-[10px] text-gray-500">
+                Los productos cotizados en Dólares se convierten automáticamente a Pesos según este valor. Los productos en Pesos fijos no se modifican.
+              </p>
             </div>
           </div>
         </div>
