@@ -135,7 +135,7 @@ export default function ProductCatalogManager({
     }
   };
 
-  // Recalculate all USD-linked products in Supabase via backend API
+  // Recalculate all USD-linked products in Supabase via backend API (with bulk-price fallback)
   const handleExecuteRecalculate = async () => {
     const rate = parseFloat(inputDolarRate);
     if (isNaN(rate) || rate <= 0) return;
@@ -144,24 +144,73 @@ export default function ProductCatalogManager({
 
     try {
       const token = localStorage.getItem('user_token') || localStorage.getItem('holux_auth_token') || '';
-      const res = await fetch(`${API_BASE_URL}/api/admin/products/recalculate-usd`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify({ dolar_rate: rate })
-      });
+      
+      // Prepare USD products array with new calculated ARS prices
+      const usdItems = [];
+      for (const [id, meta] of Object.entries(productsMetadata || {})) {
+        const isUsd = (meta.currency === 'USD') || (meta.price_usd && Number(meta.price_usd) > 0);
+        const priceUsd = Number(meta.price_usd || 0);
+        if (isUsd && priceUsd > 0) {
+          const newPriceArs = Math.round(priceUsd * rate);
+          usdItems.push({ id, price: newPriceArs });
+        }
+      }
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Error al recalcular productos');
+      let success = false;
+      let successMessage = '';
 
+      // 1. Try dedicated recalculate endpoint
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/admin/products/recalculate-usd`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({ dolar_rate: rate })
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          success = true;
+          successMessage = data.message || `¡Productos en dólares actualizados a $${rate.toLocaleString('es-AR')} ARS!`;
+        }
+      } catch (err) {
+        console.warn("recalculate-usd endpoint skipped, using bulk-price fallback:", err);
+      }
+
+      // 2. Fallback to /api/admin/productos/bulk-price (universal and production verified)
+      if (!success && usdItems.length > 0) {
+        const bulkRes = await fetch(`${API_BASE_URL}/api/admin/productos/bulk-price`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({ items: usdItems })
+        });
+
+        if (bulkRes.ok) {
+          success = true;
+          successMessage = `Se recalcularon exitosamente ${usdItems.length} productos en dólares a la cotización de $${rate.toLocaleString('es-AR')} ARS.`;
+        } else {
+          const errData = await bulkRes.json().catch(() => ({}));
+          throw new Error(errData.message || 'Error al actualizar precios');
+        }
+      }
+
+      // 3. Persist new rate globally
       setDolarRate(rate);
       localStorage.setItem('holux_dolar_rate', String(rate));
       window.dispatchEvent(new CustomEvent('holux_dolar_rate_updated', { detail: rate }));
-      fetchProducts();
-      setRecalculateSuccessMsg(data.message || `¡Productos en dólares actualizados a $${rate.toLocaleString('es-AR')} ARS!`);
+      try {
+        await persistBannerData('holux_dolar_rate', rate);
+      } catch (e) {}
+
+      await fetchProducts();
+      setRecalculateSuccessMsg(successMessage || `¡Productos en dólares actualizados a $${rate.toLocaleString('es-AR')} ARS!`);
       setTimeout(() => setRecalculateSuccessMsg(null), 5000);
     } catch (err) {
       console.error("Recalculate failed:", err);
@@ -854,15 +903,24 @@ export default function ProductCatalogManager({
                         >
                           {(() => {
                             const meta = productsMetadata[prod.id] || {};
-                            const rawImg = prod.image_url || (meta.images && meta.images[0]) || meta.image_url || (prod.images && prod.images[0]);
-                            const prodImg = resolveProductImage(rawImg) || 'https://images.unsplash.com/photo-1541643600914-78b084683601?w=200';
+                            let rawImg = prod.image_url || (meta.images && meta.images[0]) || meta.image_url || (prod.images && prod.images[0]);
+                            if (!rawImg && prod.name) {
+                              const clean = prod.name.trim().toLowerCase();
+                              const found = Object.values(productsMetadata).find(m => m.name && m.name.trim().toLowerCase() === clean);
+                              if (found) rawImg = found.image_url || (found.images && found.images[0]);
+                            }
+                            const prodImg = resolveProductImage(rawImg) || '/holuxlogo.png';
                             return (
                               <img
                                 src={prodImg}
                                 alt={prod.name}
                                 onError={(e) => {
                                   e.target.onerror = null;
-                                  e.target.src = 'https://images.unsplash.com/photo-1541643600914-78b084683601?w=200';
+                                  if (meta.images && meta.images[1]) {
+                                    e.target.src = resolveProductImage(meta.images[1]);
+                                  } else {
+                                    e.target.src = '/holuxlogo.png';
+                                  }
                                 }}
                                 className="w-full h-full object-cover group-hover/thumb:scale-105 transition-transform"
                               />
@@ -1220,14 +1278,20 @@ export default function ProductCatalogManager({
                         <div className="w-11 h-11 rounded-lg bg-gray-100 border border-gray-200 overflow-hidden flex-shrink-0 shadow-sm">
                           {(() => {
                             const meta = productsMetadata[prod.id] || {};
-                            const prodImg = prod.image_url || (meta.images && meta.images[0]) || meta.image_url || 'https://images.unsplash.com/photo-1541643600914-78b084683601?w=200';
+                            let rawImg = prod.image_url || (meta.images && meta.images[0]) || meta.image_url;
+                            if (!rawImg && prod.name) {
+                              const clean = prod.name.trim().toLowerCase();
+                              const found = Object.values(productsMetadata).find(m => m.name && m.name.trim().toLowerCase() === clean);
+                              if (found) rawImg = found.image_url || (found.images && found.images[0]);
+                            }
+                            const prodImg = resolveProductImage(rawImg) || '/holuxlogo.png';
                             return (
                               <img
                                 src={prodImg}
                                 alt={prod.name}
                                 onError={(e) => {
                                   e.target.onerror = null;
-                                  e.target.src = 'https://images.unsplash.com/photo-1541643600914-78b084683601?w=200';
+                                  e.target.src = '/holuxlogo.png';
                                 }}
                                 className="w-full h-full object-cover"
                               />

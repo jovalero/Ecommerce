@@ -159,8 +159,10 @@ Route::prefix('admin')->middleware(['auth.supabase', 'auth.admin'])->group(funct
     Route::post('/orders/{id}/notify', [AdminOrderController::class, 'resendNotification']); // resend notification email
     Route::get('/orders/{id}/ticket', [TicketController::class, 'show']); // Generate admin PDF ticket
 
-    // Catalog Products CRUD
-    Route::post('/products/recalculate-usd', [AdminProductController::class, 'recalculateUsd']);
+    // Catalog Products CRUD & Recalculate
+    Route::match(['POST', 'PUT'], '/products/recalculate-usd', [AdminProductController::class, 'recalculateUsd']);
+    Route::match(['POST', 'PUT'], '/recalculate-dolar', [AdminProductController::class, 'recalculateUsd']);
+    Route::match(['POST', 'PUT'], '/recalculate-usd', [AdminProductController::class, 'recalculateUsd']);
     Route::apiResource('/products', AdminProductController::class)->names([
         'index' => 'admin.products.index',
         'store' => 'admin.products.store',
