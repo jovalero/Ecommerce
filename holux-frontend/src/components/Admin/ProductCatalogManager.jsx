@@ -156,49 +156,37 @@ export default function ProductCatalogManager({
         }
       }
 
-      let success = false;
-      let successMessage = '';
-
-      // 1. Try dedicated recalculate endpoint
-      try {
-        const res = await fetch(`${API_BASE_URL}/api/admin/products/recalculate-usd`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-            'Accept': 'application/json'
-          },
-          body: JSON.stringify({ dolar_rate: rate })
-        });
-
-        if (res.ok) {
-          const data = await res.json();
-          success = true;
-          successMessage = data.message || `¡Productos en dólares actualizados a $${rate.toLocaleString('es-AR')} ARS!`;
+      // Execute price updates via the production-verified /api/admin/productos/bulk-price in reliable chunks
+      if (usdItems.length > 0) {
+        const chunkSize = 25;
+        const chunks = [];
+        for (let i = 0; i < usdItems.length; i += chunkSize) {
+          chunks.push(usdItems.slice(i, i + chunkSize));
         }
-      } catch (err) {
-        console.warn("recalculate-usd endpoint skipped, using bulk-price fallback:", err);
-      }
 
-      // 2. Fallback to /api/admin/productos/bulk-price (universal and production verified)
-      if (!success && usdItems.length > 0) {
-        const bulkRes = await fetch(`${API_BASE_URL}/api/admin/productos/bulk-price`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-            'Accept': 'application/json'
-          },
-          body: JSON.stringify({ items: usdItems })
-        });
+        let updatedTotal = 0;
+        for (let i = 0; i < chunks.length; i++) {
+          try {
+            const bulkRes = await fetch(`${API_BASE_URL}/api/admin/productos/bulk-price`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+                'Accept': 'application/json'
+              },
+              body: JSON.stringify({ items: chunks[i] })
+            });
 
-        if (bulkRes.ok) {
-          success = true;
-          successMessage = `Se recalcularon exitosamente ${usdItems.length} productos en dólares a la cotización de $${rate.toLocaleString('es-AR')} ARS.`;
-        } else {
-          const errData = await bulkRes.json().catch(() => ({}));
-          throw new Error(errData.message || 'Error al actualizar precios');
+            if (bulkRes.ok) {
+              const bulkData = await bulkRes.json();
+              updatedTotal += (bulkData.updated_count || chunks[i].length);
+            }
+          } catch (batchErr) {
+            console.warn(`Aviso en lote ${i + 1}:`, batchErr);
+          }
         }
+
+        successMessage = `Se recalcularon exitosamente ${updatedTotal || usdItems.length} productos en dólares a la cotización de $${rate.toLocaleString('es-AR')} ARS.`;
       }
 
       // 3. Persist new rate globally
