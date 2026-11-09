@@ -171,7 +171,7 @@ export default function CustomerDashboard({
               {isAdmin && (
                 <button
                   onClick={() => {
-                    window.location.hash = '#/admin';
+                    window.location.hash = '#/management/dashboard';
                     setCurrentView('admin');
                     setAdminTab('dashboard');
                   }}

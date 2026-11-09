@@ -81,6 +81,67 @@ import { productsMetadata } from './config/productsMetadata';
 
 import { API_BASE_URL, SUPABASE_URL, SUPABASE_ANON_KEY } from './config/api';
 
+// English private routes mapping for management panel
+export const ADMIN_TAB_TO_SLUG = {
+  dashboard: 'dashboard',
+  orders: 'orders',
+  products: 'catalog',
+  banners: 'banners',
+  coupons: 'coupons',
+  categories: 'categories',
+  customers: 'customers',
+  support: 'support',
+  reviews: 'reviews',
+  shipping: 'shipping',
+  settings: 'settings',
+};
+
+export const SLUG_TO_ADMIN_TAB = {
+  dashboard: 'dashboard',
+  overview: 'dashboard',
+  analytics: 'dashboard',
+  orders: 'orders',
+  pedidos: 'orders',
+  catalog: 'products',
+  catalogo: 'products',
+  products: 'products',
+  stock: 'products',
+  banners: 'banners',
+  marketing: 'banners',
+  coupons: 'coupons',
+  cupones: 'coupons',
+  promos: 'coupons',
+  categories: 'categories',
+  categorias: 'categories',
+  customers: 'customers',
+  clientes: 'customers',
+  support: 'support',
+  soporte: 'support',
+  tickets: 'support',
+  reviews: 'reviews',
+  resenas: 'reviews',
+  shipping: 'shipping',
+  envios: 'shipping',
+  logistics: 'shipping',
+  settings: 'settings',
+  config: 'settings',
+  configuracion: 'settings',
+};
+
+export const ADMIN_TAB_TITLES = {
+  dashboard: 'Dashboard Analítica',
+  orders: 'Gestión de Pedidos',
+  products: 'Catálogo y Stock',
+  banners: 'Editar Banners',
+  coupons: 'Cupones & Promos',
+  categories: 'Categorías',
+  customers: 'Clientes & VIP',
+  support: 'Soporte & Tickets',
+  reviews: 'Moderar Reseñas',
+  shipping: 'Logística y Envíos',
+  settings: 'Configuración General',
+};
+
 const getProductDiscount = (product) => {
   if (!product || typeof product !== 'object') return 0;
   const normal = Number(product.price || 0);
@@ -474,7 +535,7 @@ export default function App() {
     const hash = window.location.hash || '';
     if (hash.startsWith('#/checkout') || hash.startsWith('#/compra-confirmada')) return 'checkout';
     if (hash.startsWith('#/mi-cuenta')) return 'customer_panel';
-    if (hash.startsWith('#/admin')) return 'admin';
+    if (hash.startsWith('#/management') || hash.startsWith('#/admin')) return 'admin';
     if (hash.startsWith('#/catalogo')) return 'category';
     if (hash.startsWith('#/info/')) return 'info_page';
     if (hash.startsWith('#/producto/')) return 'product-detail';
@@ -1137,8 +1198,31 @@ export default function App() {
   const [adminOrderLogs, setAdminOrderLogs] = useState([]);
   const [isResendingNotification, setIsResendingNotification] = useState(false);
 
-  // Navigation View & Admin State
-  const [adminTab, setAdminTab] = useState('dashboard');
+  // Navigation View & Admin State (English private sub-routes enabled)
+  const [adminTab, setAdminTab] = useState(() => {
+    const hash = typeof window !== 'undefined' ? (window.location.hash || '') : '';
+    if (hash.startsWith('#/management/') || hash.startsWith('#/admin/')) {
+      const parts = hash.split('/');
+      const slug = (parts[2] || '').split('?')[0].toLowerCase();
+      if (slug && SLUG_TO_ADMIN_TAB[slug]) {
+        return SLUG_TO_ADMIN_TAB[slug];
+      }
+    }
+    const saved = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('holux_admin_tab') : null;
+    if (saved && ADMIN_TAB_TO_SLUG[saved]) return saved;
+    return 'dashboard';
+  });
+
+  const switchAdminTab = useCallback((tabId) => {
+    const slug = ADMIN_TAB_TO_SLUG[tabId] || tabId;
+    setAdminTab(tabId);
+    try {
+      sessionStorage.setItem('holux_admin_tab', tabId);
+    } catch (e) {}
+    if (typeof window !== 'undefined' && window.location.hash !== `#/management/${slug}`) {
+      window.location.hash = `#/management/${slug}`;
+    }
+  }, []);
   const [isAdminMobileMenuOpen, setIsAdminMobileMenuOpen] = useState(false);
   
   // Admin Data states
@@ -2021,6 +2105,23 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'instant' });
   }, [activeCategory, activeGender, currentView]);
 
+  // Dynamic browser tab title
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    if (currentView === 'admin') {
+      const tabTitle = ADMIN_TAB_TITLES[adminTab] || 'Catálogo y Stock';
+      document.title = `HOLUX Admin | ${tabTitle}`;
+    } else if (currentView === 'customer_panel') {
+      document.title = 'HOLUX | Mi Cuenta';
+    } else if (currentView === 'checkout') {
+      document.title = 'HOLUX | Finalizar Compra';
+    } else if (currentView === 'product-detail' && selectedDetailProduct?.name) {
+      document.title = `HOLUX | ${selectedDetailProduct.name}`;
+    } else {
+      document.title = 'HOLUX | Tienda Online';
+    }
+  }, [currentView, adminTab, selectedDetailProduct]);
+
   // Handle URL hash changes & direct product link loads
   useEffect(() => {
     const handleHashChange = () => {
@@ -2052,8 +2153,28 @@ export default function App() {
         setSelectedDetailProduct(null);
         window.scrollTo({ top: 0, behavior: 'instant' });
         return;
-      } else if (hash.startsWith('#/admin')) {
+      } else if (hash.startsWith('#/management') || hash.startsWith('#/admin')) {
         setCurrentView('admin');
+        const parts = hash.split('/');
+        const slug = (parts[2] || '').split('?')[0].toLowerCase();
+        if (slug && SLUG_TO_ADMIN_TAB[slug]) {
+          const matchedTab = SLUG_TO_ADMIN_TAB[slug];
+          setAdminTab(matchedTab);
+          try {
+            sessionStorage.setItem('holux_admin_tab', matchedTab);
+          } catch (e) {}
+          const canonSlug = ADMIN_TAB_TO_SLUG[matchedTab] || matchedTab;
+          if (window.location.hash !== `#/management/${canonSlug}`) {
+            window.location.hash = `#/management/${canonSlug}`;
+          }
+        } else {
+          const savedTab = (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('holux_admin_tab') : null) || 'dashboard';
+          const targetSlug = ADMIN_TAB_TO_SLUG[savedTab] || 'dashboard';
+          setAdminTab(savedTab);
+          if (window.location.hash !== `#/management/${targetSlug}`) {
+            window.location.hash = `#/management/${targetSlug}`;
+          }
+        }
       } else if (hash.startsWith('#/info/')) {
         const slug = hash.replace('#/info/', '').split('?')[0];
         setInfoPageSlug(slug || 'terminos');
@@ -2994,6 +3115,12 @@ export default function App() {
     setUserProfile(null);
     setIsProfileOpen(false);
     setCurrentView('home');
+    try {
+      sessionStorage.removeItem('holux_admin_tab');
+    } catch (e) {}
+    if (typeof window !== 'undefined') {
+      window.location.hash = '#/';
+    }
 
     // 3. Inform user
     alert('Sesión cerrada correctamente. La cuenta de administración ha sido desconectada.');
@@ -3770,7 +3897,7 @@ export default function App() {
                 <button
                   onClick={() => {
                     setCurrentView('admin');
-                    setAdminTab('dashboard');
+                    switchAdminTab('dashboard');
                   }}
                   className="w-full px-4 py-3.5 flex items-center justify-between transition-all cursor-pointer bg-black hover:bg-neutral-800 text-white font-bold shadow-sm"
                 >
@@ -5652,7 +5779,7 @@ export default function App() {
           setCurrentView={setCurrentView}
           setIsAuthModalOpen={setIsAuthModalOpen}
           setAuthMode={setAuthMode}
-          setAdminTab={setAdminTab}
+          setAdminTab={switchAdminTab}
         />
 
         {/* Footer in Customer Panel */}
@@ -5710,8 +5837,12 @@ export default function App() {
 
               <img src="/holuxlogo.png" alt="HOLUX" className="h-6 sm:h-8 w-auto object-contain brightness-0 invert shrink-0" />
               <div className="min-w-0">
-                <h1 className="font-display text-xs sm:text-base lg:text-lg font-bold tracking-wider uppercase truncate">
-                  PANEL ADMIN
+                <h1 className="font-display text-xs sm:text-base lg:text-lg font-bold tracking-wider uppercase truncate flex items-center gap-1.5 sm:gap-2">
+                  <span>PANEL ADMIN</span>
+                  <span className="text-gray-500 font-light">/</span>
+                  <span className="text-[#3C6E71] font-semibold text-[11px] sm:text-sm normal-case">
+                    {ADMIN_TAB_TITLES[adminTab] || 'Catálogo y Stock'}
+                  </span>
                 </h1>
                 <p className="text-[10px] sm:text-xs text-gray-400 truncate hidden md:block">
                   Gestión integral de tienda, catálogo, pedidos y configuración general
@@ -5768,7 +5899,7 @@ export default function App() {
               <button
                 key={item.id}
                 type="button"
-                onClick={() => setAdminTab(item.id)}
+                onClick={() => switchAdminTab(item.id)}
                 className={`px-3 py-1.5 rounded-full text-[11px] font-display font-bold whitespace-nowrap flex items-center gap-1.5 transition-all cursor-pointer shrink-0 border ${
                   isActive
                     ? 'bg-[#3C6E71] text-white border-[#3C6E71] shadow-xs'
@@ -5825,7 +5956,7 @@ export default function App() {
                       key={item.id}
                       type="button"
                       onClick={() => {
-                        setAdminTab(item.id);
+                        switchAdminTab(item.id);
                         setIsAdminMobileMenuOpen(false);
                       }}
                       className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-left font-display text-xs font-bold tracking-wider transition-all cursor-pointer ${
@@ -5874,7 +6005,7 @@ export default function App() {
               return (
                 <button
                   key={item.id}
-                  onClick={() => setAdminTab(item.id)}
+                  onClick={() => switchAdminTab(item.id)}
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left font-display text-xs font-bold tracking-wider transition-all cursor-pointer ${adminTab === item.id ? 'bg-[#3C6E71] text-white shadow-md' : 'text-gray-600 hover:bg-gray-100'}`}
                 >
                   <Icon className="w-4 h-4 flex-shrink-0" />
@@ -5900,7 +6031,7 @@ export default function App() {
             {/* Contextual Hierarchical Breadcrumbs */}
             <Breadcrumbs
               adminTab={adminTab}
-              onNavigateTab={(tab) => setAdminTab(tab)}
+              onNavigateTab={(tab) => switchAdminTab(tab)}
               activeDetail={
                 isProductModalOpen
                   ? (selectedProductModal?.id ? `Editar: ${selectedProductModal.name}` : 'Nuevo Producto')
@@ -7411,9 +7542,8 @@ export default function App() {
             {token && userProfile?.role === 'admin' && (
               <button
                 onClick={() => {
-                  window.location.hash = '#/admin';
                   setCurrentView('admin');
-                  setAdminTab('dashboard');
+                  switchAdminTab('dashboard');
                 }}
                 className="flex items-center gap-1.5 px-3.5 py-1.5 bg-black hover:bg-neutral-800 text-white rounded-full font-display text-[11px] font-bold tracking-wider transition-all duration-200 cursor-pointer shadow-md shadow-black/25 border border-white/10 hover:scale-[1.02] active:scale-[0.98]"
                 title="Ir al Panel de Control de Administrador"
@@ -7474,7 +7604,7 @@ export default function App() {
         setCurrentView={setCurrentView}
         setIsAuthModalOpen={setIsAuthModalOpen}
         setAuthMode={setAuthMode}
-        setAdminTab={setAdminTab}
+        setAdminTab={switchAdminTab}
       />
     </div>
 
@@ -9246,7 +9376,7 @@ export default function App() {
                         <div className="grid grid-cols-2 gap-2.5 pt-1">
                           <button
                             type="button"
-                            onClick={() => { setIsProfileOpen(false); setCurrentView('admin'); setAdminTab('banners'); }}
+                            onClick={() => { setIsProfileOpen(false); setCurrentView('admin'); switchAdminTab('banners'); }}
                             className="px-3.5 py-2.5 bg-[#3C6E71] hover:bg-[#3C6E71]/90 text-white rounded font-display text-xs font-bold tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md shadow-[#3C6E71]/20"
                           >
                             <Edit2 className="w-4 h-4" />
@@ -9254,7 +9384,7 @@ export default function App() {
                           </button>
                           <button
                             type="button"
-                            onClick={() => { setIsProfileOpen(false); setCurrentView('admin'); setAdminTab('orders'); }}
+                            onClick={() => { setIsProfileOpen(false); setCurrentView('admin'); switchAdminTab('orders'); }}
                             className="px-3.5 py-2.5 bg-black hover:bg-neutral-800 text-white rounded font-display text-xs font-bold tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md shadow-black/20"
                           >
                             <ShoppingBag className="w-4 h-4" />
@@ -9262,7 +9392,7 @@ export default function App() {
                           </button>
                           <button
                             type="button"
-                            onClick={() => { setIsProfileOpen(false); setCurrentView('admin'); setAdminTab('products'); }}
+                            onClick={() => { setIsProfileOpen(false); setCurrentView('admin'); switchAdminTab('products'); }}
                             className="px-3.5 py-2.5 bg-gray-800 hover:bg-gray-700 text-white rounded font-display text-xs font-bold tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer"
                           >
                             <Box className="w-4 h-4" />
@@ -9270,7 +9400,7 @@ export default function App() {
                           </button>
                           <button
                             type="button"
-                            onClick={() => { setIsProfileOpen(false); setCurrentView('admin'); setAdminTab('dashboard'); }}
+                            onClick={() => { setIsProfileOpen(false); setCurrentView('admin'); switchAdminTab('dashboard'); }}
                             className="px-3.5 py-2.5 bg-gray-800 hover:bg-gray-700 text-white rounded font-display text-xs font-bold tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer"
                           >
                             <TrendingUp className="w-4 h-4" />
