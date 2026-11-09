@@ -144,6 +144,7 @@ export default function ProductCatalogManager({
 
     try {
       const token = localStorage.getItem('user_token') || localStorage.getItem('holux_auth_token') || '';
+      let successMessage = '';
       
       // Prepare USD products array with new calculated ARS prices
       const usdItems = [];
