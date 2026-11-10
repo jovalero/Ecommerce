@@ -24,10 +24,11 @@ class SettingController extends Controller
     /**
      * Get store general settings (Safe Public format without exposing raw Secret Keys)
      */
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
         $settings = StoreSettingService::getPublicSafe();
-        $logs = AdminAuditLogService::getRecent(20);
+        $isAdminRoute = $request->is('api/admin/*') || $request->is('admin/*');
+        $logs = $isAdminRoute ? AdminAuditLogService::getRecent(20) : [];
 
         return response()->json([
             'settings' => $settings,

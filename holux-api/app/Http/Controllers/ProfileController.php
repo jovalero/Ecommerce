@@ -36,7 +36,7 @@ class ProfileController extends Controller
 
         $userMeta = (array) ($tokenPayload['user_metadata'] ?? []);
         $fullName = $userMeta['full_name'] ?? ($userEmail ? explode('@', $userEmail)[0] : 'Cliente');
-        $role = $tokenPayload['role'] ?? ($tokenPayload['app_metadata']['role'] ?? 'customer');
+        $role = (($tokenPayload['app_metadata']['role'] ?? null) === 'admin') ? 'admin' : 'customer';
 
         $base = [
             'id' => $userId,

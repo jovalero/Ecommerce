@@ -19,9 +19,18 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => ['*'],
+    'allowed_origins' => array_values(array_filter([
+        env('FRONTEND_URL'),
+        'https://ecommerce-holux.vercel.app',
+        'http://localhost:5173',
+        'http://127.0.0.1:5173',
+        'http://localhost:3000',
+        'http://localhost:8000',
+    ])),
 
-    'allowed_origins_patterns' => [],
+    'allowed_origins_patterns' => [
+        '#^https://.*holux.*\.vercel\.app$#i',
+    ],
 
     'allowed_headers' => ['*'],
 

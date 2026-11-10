@@ -48,22 +48,21 @@ Route::get('/products/{id}/reviews', [ReviewController::class, 'index']);
 Route::get('/products/{id}', [ProductController::class, 'show']);
 Route::get('/products', [ProductController::class, 'index']);
 Route::get('/settings', [\App\Http\Controllers\Admin\SettingController::class, 'index']); // Public store & shipping settings
-Route::post('/settings', [\App\Http\Controllers\Admin\SettingController::class, 'update']); // Sync store settings & banners
-Route::put('/settings', [\App\Http\Controllers\Admin\SettingController::class, 'update']);
-Route::post('/upload', [\App\Http\Controllers\Admin\MediaUploadController::class, 'store']); // Public & Admin CDN media upload
-Route::post('/admin/upload', [\App\Http\Controllers\Admin\MediaUploadController::class, 'store']);
+Route::post('/settings', [\App\Http\Controllers\Admin\SettingController::class, 'update'])->middleware(['auth.supabase', 'auth.admin']); // Sync store settings & banners
+Route::put('/settings', [\App\Http\Controllers\Admin\SettingController::class, 'update'])->middleware(['auth.supabase', 'auth.admin']);
+Route::post('/upload', [\App\Http\Controllers\Admin\MediaUploadController::class, 'store'])->middleware(['auth.supabase', 'auth.admin']); // Admin CDN media upload
 
 // Support & Contact Inquiry (Public widget & web form)
-Route::post('/support/tickets', [\App\Http\Controllers\SupportTicketController::class, 'store']);
-Route::post('/support/contact', [\App\Http\Controllers\SupportTicketController::class, 'store']);
+Route::post('/support/tickets', [\App\Http\Controllers\SupportTicketController::class, 'store'])->middleware('throttle:10,1');
+Route::post('/support/contact', [\App\Http\Controllers\SupportTicketController::class, 'store'])->middleware('throttle:10,1');
 
 // Public Registration with auto-confirm
 Route::post('/register', function (\Illuminate\Http\Request $request) {
     $request->validate([
-        'email' => 'required|email',
-        'password' => 'required|string|min:6',
-        'full_name' => 'nullable|string',
-        'phone' => 'nullable|string'
+        'email' => 'required|email|max:150',
+        'password' => 'required|string|min:6|max:128',
+        'full_name' => 'nullable|string|max:100',
+        'phone' => 'nullable|string|max:30'
     ]);
 
     $supabaseUrl = config('services.supabase.url', 'https://fmbhcfsrsfkglmvgbnlm.supabase.co');
@@ -92,12 +91,12 @@ Route::post('/register', function (\Illuminate\Http\Request $request) {
     }
 
     return response()->json($response->json(), $response->status());
-});
+})->middleware('throttle:6,1');
 
 // Order and checkout endpoints
-Route::post('/orders', [OrderController::class, 'store']);
-Route::post('/process_order', [OrderController::class, 'processOrder']);
-Route::post('/orders/process-payment', [OrderController::class, 'processOrder']);
+Route::post('/orders', [OrderController::class, 'store'])->middleware('throttle:15,1');
+Route::post('/process_order', [OrderController::class, 'processOrder'])->middleware('throttle:15,1');
+Route::post('/orders/process-payment', [OrderController::class, 'processOrder'])->middleware('throttle:15,1');
 Route::post('/webhooks/mercadopago', [OrderController::class, 'handleMercadoPagoWebhook']);
 
 // ==========================================
@@ -131,8 +130,8 @@ Route::middleware(['auth.supabase'])->group(function () {
 
     // Coupons & Benefits
     Route::get('/me/coupons', [App\Http\Controllers\CouponController::class, 'index']);
-    Route::post('/me/coupons/redeem', [App\Http\Controllers\CouponController::class, 'redeem']);
-    Route::post('/me/coupons/apply', [App\Http\Controllers\CouponController::class, 'apply']);
+    Route::post('/me/coupons/redeem', [App\Http\Controllers\CouponController::class, 'redeem'])->middleware('throttle:15,1');
+    Route::post('/me/coupons/apply', [App\Http\Controllers\CouponController::class, 'apply'])->middleware('throttle:20,1');
 
     // Favorites / Wishlist
     Route::get('/favorites', [App\Http\Controllers\FavoriteController::class, 'index']);

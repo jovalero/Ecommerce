@@ -26,8 +26,8 @@ class RequireAdmin
             ], 401);
         }
 
-        // Local development bypass
-        if ($userId === 'local_admin_id' || config('app.env') === 'local' || config('app.debug')) {
+        // Automated testing environment bypass only
+        if ($userId === 'local_admin_id' && config('app.env') === 'testing') {
             return $next($request);
         }
 

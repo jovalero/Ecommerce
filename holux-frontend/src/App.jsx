@@ -5790,12 +5790,7 @@ export default function App() {
 
   if (currentView === 'admin') {
     const isAdmin = Boolean(
-      token && userProfile && (
-        userProfile.role === 'admin' ||
-        userProfile.email === 'admin@holux.com' ||
-        userProfile.full_name?.toLowerCase().includes('admin') ||
-        (userProfile.user_metadata && userProfile.user_metadata.role === 'admin')
-      )
+      token && userProfile && userProfile.role === 'admin'
     );
 
     if (!isAdmin) {

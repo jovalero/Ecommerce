@@ -52,10 +52,10 @@ class VerifySupabaseToken
             }
         }
 
-        // 2. Decode and validate Supabase JWT structure
+        // 2. Cryptographically verify token against official Supabase Auth API (/auth/v1/user)
         try {
             $parts = explode('.', $token);
-            if (count($parts) >= 2) {
+            if (count($parts) === 3) {
                 $b64 = strtr($parts[1], '-_', '+/');
                 $padded = str_pad($b64, strlen($b64) + (4 - strlen($b64) % 4) % 4, '=', STR_PAD_RIGHT);
                 $payload = json_decode(base64_decode($padded), true);
@@ -68,12 +68,36 @@ class VerifySupabaseToken
                         return response()->json(['message' => 'Sesión expirada. Por favor inicie sesión nuevamente.'], 401);
                     }
 
-                    // Validate UUID format
+                    // Validate UUID format and verify signature with Supabase Auth server
                     if (preg_match('/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/', $userId)) {
-                        $request->attributes->set('user_id', $userId);
-                        $request->attributes->set('user_email', $payload['email'] ?? null);
-                        $request->attributes->set('token_payload', $payload);
-                        return $next($request);
+                        $cacheKey = 'supabase_verified_jwt_' . hash('sha256', $token);
+                        $verifiedUser = \Illuminate\Support\Facades\Cache::get($cacheKey);
+
+                        if (!$verifiedUser && !empty($supabaseUrl) && !empty($anonKey)) {
+                            $authRes = \Illuminate\Support\Facades\Http::timeout(5)->withHeaders([
+                                'apikey' => $anonKey,
+                                'Authorization' => 'Bearer ' . $token,
+                            ])->get(rtrim($supabaseUrl, '/') . '/auth/v1/user');
+
+                            if ($authRes->successful() && $authRes->json('id') === $userId) {
+                                $verifiedUser = [
+                                    'id' => $authRes->json('id'),
+                                    'email' => $authRes->json('email') ?? ($payload['email'] ?? null),
+                                    'payload' => $payload,
+                                ];
+                                $ttl = !empty($payload['exp']) ? max(1, min(300, $payload['exp'] - time())) : 300;
+                                \Illuminate\Support\Facades\Cache::put($cacheKey, $verifiedUser, $ttl);
+                            } elseif ($authRes->status() === 401 || $authRes->status() === 403) {
+                                return response()->json(['message' => 'Token de autenticación no válido o revocado.'], 401);
+                            }
+                        }
+
+                        if ($verifiedUser) {
+                            $request->attributes->set('user_id', $verifiedUser['id']);
+                            $request->attributes->set('user_email', $verifiedUser['email']);
+                            $request->attributes->set('token_payload', $verifiedUser['payload']);
+                            return $next($request);
+                        }
                     }
                 }
             }
@@ -81,8 +105,8 @@ class VerifySupabaseToken
             Log::error('JWT validation error: ' . $ex->getMessage());
         }
 
-        // 3. Fallback for local development environment
-        if (config('app.env') === 'local' || config('app.debug')) {
+        // 3. Fallback strictly for automated testing environment only
+        if (config('app.env') === 'testing') {
             $request->attributes->set('user_id', 'local_admin_id');
             $request->attributes->set('user_email', 'admin@holux.com');
             return $next($request);

@@ -257,7 +257,7 @@ class OrderController extends Controller
      * @param Request $request
      * @return JsonResponse
      */
-    public function processOrder(Request $request): JsonResponse
+    public function processOrder(Request $request, SupabaseService $supabase): JsonResponse
     {
         $payload = $request->all();
         Log::info('Mercado Pago Brick Submission Payload: ', $payload);
@@ -265,8 +265,20 @@ class OrderController extends Controller
         $accessToken = env('MERCADOPAGO_ACCESS_TOKEN', '');
         $idempotencyKey = (string) \Illuminate\Support\Str::uuid();
 
-        $totalAmount = number_format((float) ($request->input('total_amount', 100)), 2, '.', '');
         $externalRef = $request->input('external_reference', 'HLX-REF-' . time());
+        $requestedAmount = max(1.0, (float) ($request->input('total_amount', 100)));
+
+        // If external_reference points to an existing order, enforce server-side order total
+        if (!empty($externalRef) && !str_starts_with($externalRef, 'HLX-REF-')) {
+            try {
+                $existingOrders = $supabase->get('orders', ['id' => 'eq.' . $externalRef], true);
+                if (!empty($existingOrders[0]['total']) && (float) $existingOrders[0]['total'] > 0) {
+                    $requestedAmount = (float) $existingOrders[0]['total'];
+                }
+            } catch (\Throwable $e) {}
+        }
+
+        $totalAmount = number_format($requestedAmount, 2, '.', '');
         $payerEmail = $request->input('payer.email') ?: ($request->attributes->get('user_email') ?: '');
 
         $transactions = $request->input('transactions', [
@@ -437,7 +449,21 @@ class OrderController extends Controller
 
             $order = $orders[0];
             $oldStatus = $order['status'] ?? 'pending_payment';
-            $newStatus = ($mpStatus === 'approved') ? 'paid' : (($mpStatus === 'rejected' || $mpStatus === 'cancelled') ? 'rejected' : 'pending_payment');
+            $orderTotal = (float) ($order['total'] ?? 0);
+
+            if ($mpStatus === 'approved') {
+                // Verify paid amount matches expected order total (allow up to 20% discount tolerance for VIP/promos)
+                if ($orderTotal > 0 && $paidAmount < ($orderTotal * 0.80)) {
+                    Log::warning("Mercado Pago Webhook amount mismatch for order {$order['id']}: expected {$orderTotal}, paid {$paidAmount}");
+                    $newStatus = 'processing';
+                } else {
+                    $newStatus = 'completed';
+                }
+            } elseif ($mpStatus === 'rejected' || $mpStatus === 'cancelled') {
+                $newStatus = 'cancelled';
+            } else {
+                $newStatus = 'pending';
+            }
 
             // Save transaction ID and status to order
             $updateData = [

@@ -17,7 +17,7 @@ class MediaUploadController extends Controller
     public function store(Request $request, SupabaseService $supabase): JsonResponse
     {
         $request->validate([
-            'file' => 'nullable|file|max:20480', // Up to 20MB
+            'file' => 'nullable|file|mimes:jpg,jpeg,png,webp,gif,mp4,webm|max:20480', // Up to 20MB, strictly safe media types
             'base64' => 'nullable|string',
             'bucket' => 'nullable|string|in:product-images,banners,videos'
         ]);
@@ -28,8 +28,12 @@ class MediaUploadController extends Controller
         try {
             if ($request->hasFile('file')) {
                 $file = $request->file('file');
-                $extension = $file->getClientOriginalExtension() ?: 'png';
-                $mimeType = $file->getClientMimeType() ?: 'image/png';
+                $allowedExts = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'mp4', 'webm'];
+                $extension = strtolower($file->getClientOriginalExtension() ?: 'png');
+                if (!in_array($extension, $allowedExts, true)) {
+                    return response()->json(['message' => 'Formato de archivo no permitido.'], 422);
+                }
+                $mimeType = $file->getMimeType() ?: ($file->getClientMimeType() ?: 'image/png');
                 $fullPath = "{$fileName}.{$extension}";
 
                 // 1. Try uploading to Supabase Storage Bucket
