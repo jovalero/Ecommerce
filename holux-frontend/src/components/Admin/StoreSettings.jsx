@@ -20,7 +20,8 @@ import {
   Eye,
   EyeOff,
   CheckCircle2,
-  Sliders
+  Sliders,
+  DollarSign
 } from 'lucide-react';
 import { persistBannerData } from '../../utils/bannerStorage';
 
