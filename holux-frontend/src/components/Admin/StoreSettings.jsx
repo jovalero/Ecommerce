@@ -518,8 +518,8 @@ export default function StoreSettings({ API_BASE_URL, token }) {
                 <DollarSign className="w-4 h-4" />
                 Cotización Central del Dólar (USD / ARS)
               </label>
-              <div className="relative max-w-xs">
-                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-bold text-gray-500 font-mono-custom text-xs">1 USD = $</span>
+              <div className="flex items-center gap-2 max-w-xs px-3.5 py-2.5 bg-white border border-[#3C6E71]/40 rounded-xl focus-within:border-[#3C6E71] focus-within:ring-2 focus-within:ring-[#3C6E71]/20 transition-all">
+                <span className="font-bold text-gray-500 font-mono-custom text-xs whitespace-nowrap select-none">1 USD = $</span>
                 <input
                   type="number"
                   step="1"
@@ -527,10 +527,10 @@ export default function StoreSettings({ API_BASE_URL, token }) {
                   required
                   value={dolarRate}
                   onChange={(e) => setDolarRate(e.target.value)}
-                  className="w-full pl-22 pr-12 py-2.5 bg-white border border-[#3C6E71]/40 rounded-xl text-xs font-mono-custom font-bold text-gray-900 focus:border-[#3C6E71] outline-none transition-all"
+                  className="w-full bg-transparent text-xs font-mono-custom font-bold text-gray-900 outline-none"
                   placeholder="1625"
                 />
-                <span className="absolute right-3.5 top-1/2 -translate-y-1/2 font-bold text-gray-500 font-mono-custom text-xs">ARS</span>
+                <span className="font-bold text-gray-500 font-mono-custom text-xs whitespace-nowrap select-none">ARS</span>
               </div>
               <p className="text-[10px] text-gray-500">
                 Los productos cotizados en Dólares se convierten automáticamente a Pesos según este valor. Los productos en Pesos fijos no se modifican.
