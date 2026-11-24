@@ -140,9 +140,13 @@ export default function StoreSettings({ API_BASE_URL, token }) {
         // 1. Tax
         setTaxRate(s.tax_rate ?? 21.0);
         setCurrencySymbol(s.currency_symbol ?? 'ARS $');
-        if (s.dolar_rate) {
-          setDolarRate(Number(s.dolar_rate));
-          localStorage.setItem('holux_dolar_rate', String(s.dolar_rate));
+        if (s.dolar_rate && Number(s.dolar_rate) > 0) {
+          const localDolarUpdatedAt = Number(localStorage.getItem('holux_dolar_rate_updated_at') || 0);
+          const serverTs = s.updated_at ? Number(s.updated_at) * 1000 : 0;
+          if (localDolarUpdatedAt === 0 || serverTs >= localDolarUpdatedAt) {
+            setDolarRate(Number(s.dolar_rate));
+            localStorage.setItem('holux_dolar_rate', String(s.dolar_rate));
+          }
         }
 
         // 2. Payments
@@ -380,7 +384,13 @@ export default function StoreSettings({ API_BASE_URL, token }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Error al guardar la configuración.');
 
-      // Sync localStorage for checkout client-side fallback
+      // Sync localStorage for checkout & dollar rate client-side fallback
+      const savedDolar = parseFloat(dolarRate);
+      if (!isNaN(savedDolar) && savedDolar > 0) {
+        localStorage.setItem('holux_dolar_rate', String(savedDolar));
+        localStorage.setItem('holux_dolar_rate_updated_at', String(Date.now()));
+        window.dispatchEvent(new CustomEvent('holux_dolar_rate_updated', { detail: savedDolar }));
+      }
       localStorage.setItem('holux_shipping_rates', JSON.stringify({
         cabaShippingCost: Number(cabaCost),
         gbaShippingCost: Number(gbaCost),

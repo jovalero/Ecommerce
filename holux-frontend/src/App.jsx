@@ -792,10 +792,15 @@ export default function App() {
         localStorage.setItem('holux_shipping_rates', JSON.stringify(s));
         window.dispatchEvent(new CustomEvent('holux_shipping_rates_updated', { detail: s }));
       }
-      if (s.dolar_rate !== undefined) {
-        const rate = Number(s.dolar_rate);
-        setDolarRate(rate);
-        localStorage.setItem('holux_dolar_rate', String(rate));
+      if (s.dolar_rate !== undefined && Number(s.dolar_rate) > 0) {
+        const localDolarUpdatedAt = Number(localStorage.getItem('holux_dolar_rate_updated_at') || 0);
+        const serverTsSec = Number(s.updated_at || 0);
+        const serverTs = serverTsSec * 1000;
+        if (serverTsSec > 1795500000 && (localDolarUpdatedAt === 0 || serverTs >= localDolarUpdatedAt)) {
+          const rate = Number(s.dolar_rate);
+          setDolarRate(rate);
+          localStorage.setItem('holux_dolar_rate', String(rate));
+        }
       }
     };
 

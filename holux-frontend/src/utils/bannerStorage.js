@@ -220,7 +220,7 @@ export async function persistBannerData(key, data) {
       };
       if (token) headers['Authorization'] = `Bearer ${token}`;
 
-      fetch(`${apiBase}/api/settings`, {
+      await fetch(`${apiBase}/api/settings`, {
         method: 'POST',
         headers,
         body: JSON.stringify({ [field]: data })

@@ -213,6 +213,7 @@ class SupabaseService
                 'Authorization' => 'Bearer ' . $key,
                 'Content-Type' => $mimeType,
                 'x-upsert' => 'true',
+                'cache-control' => $mimeType === 'application/json' ? '0' : '3600',
             ],
             'timeout' => 30.0,
         ]);

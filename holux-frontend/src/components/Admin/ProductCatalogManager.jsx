@@ -89,20 +89,79 @@ export default function ProductCatalogManager({
   const [recalculateConfirmOpen, setRecalculateConfirmOpen] = useState(false);
   const [recalculateSuccessMsg, setRecalculateSuccessMsg] = useState(null);
 
-  // Sync dollar rate from live Supabase storage
+  // Sync dollar rate from backend API / Supabase storage (protecting newer local saves & detecting live applied rate)
   useEffect(() => {
-    fetch(`https://fmbhcfsrsfkglmvgbnlm.supabase.co/storage/v1/object/public/product-images/config/store_settings.json?v=${Date.now()}`, { cache: 'no-store' })
-      .then(r => r.json())
-      .then(data => {
-        if (data?.dolar_rate) {
-          const rate = Number(data.dolar_rate);
-          setDolarRate(rate);
-          setInputDolarRate(rate);
-          localStorage.setItem('holux_dolar_rate', String(rate));
+    const applyIfFresher = (cloudRate, cloudUpdatedAtSec) => {
+      const rate = Number(cloudRate);
+      if (!rate || isNaN(rate) || rate <= 0) return false;
+      const localUpdatedAt = Number(localStorage.getItem('holux_dolar_rate_updated_at') || 0);
+      const serverUpdatedMs = cloudUpdatedAtSec ? Number(cloudUpdatedAtSec) * 1000 : 0;
+      if (localUpdatedAt > 0 && serverUpdatedMs < localUpdatedAt) {
+        return false;
+      }
+      setDolarRate(rate);
+      setInputDolarRate(rate);
+      localStorage.setItem('holux_dolar_rate', String(rate));
+      return true;
+    };
+
+    const syncDolarRate = async () => {
+      // 1. Try live backend API first
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/settings?v=${Date.now()}`, { cache: 'no-store' });
+        if (res.ok) {
+          const data = await res.json();
+          const s = data?.settings || data;
+          if (s?.dolar_rate && Number(s.dolar_rate) > 0) {
+            applyIfFresher(s.dolar_rate, s.updated_at);
+            return;
+          }
         }
-      })
-      .catch(() => {});
+      } catch (e) {}
+
+      // 2. Fallback to Supabase Storage JSON (respecting local timestamp and ignoring stale pre-fix config)
+      try {
+        const res = await fetch(`https://fmbhcfsrsfkglmvgbnlm.supabase.co/storage/v1/object/public/product-images/config/store_settings.json?v=${Date.now()}`, { cache: 'no-store' });
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.dolar_rate && Number(data.dolar_rate) > 0 && Number(data.updated_at || 0) > 1795500000) {
+            applyIfFresher(data.dolar_rate, data.updated_at);
+          }
+        }
+      } catch (e) {}
+    };
+
+    syncDolarRate();
   }, []);
+
+  // Also infer actual active USD exchange rate from live DB products if localStorage has no fresher save
+  useEffect(() => {
+    if (!Array.isArray(products) || products.length === 0) return;
+    const localUpdatedAt = Number(localStorage.getItem('holux_dolar_rate_updated_at') || 0);
+    if (localUpdatedAt > 0) return; // Keep user's explicit saved rate
+
+    const rateCounts = {};
+    for (const p of products) {
+      const meta = productsMetadata[p.id];
+      const priceUsd = Number(p.price_usd || meta?.price_usd || 0);
+      const priceArs = Number(p.price || 0);
+      if (priceUsd > 0 && priceArs > 0) {
+        const implied = Math.round(priceArs / priceUsd);
+        if (implied >= 500 && implied <= 10000) {
+          rateCounts[implied] = (rateCounts[implied] || 0) + 1;
+        }
+      }
+    }
+    const entries = Object.entries(rateCounts).sort((a, b) => b[1] - a[1]);
+    if (entries.length > 0 && entries[0][1] >= 3) {
+      const consensusRate = Number(entries[0][0]);
+      if (consensusRate > 0 && consensusRate !== Number(dolarRate)) {
+        setDolarRate(consensusRate);
+        setInputDolarRate(consensusRate);
+        localStorage.setItem('holux_dolar_rate', String(consensusRate));
+      }
+    }
+  }, [products]);
 
   // Save current Dollar rate
   const handleSaveDolarRate = async () => {
@@ -111,18 +170,32 @@ export default function ProductCatalogManager({
     setIsSavingDolarRate(true);
     setDolarRate(rate);
     localStorage.setItem('holux_dolar_rate', String(rate));
+    localStorage.setItem('holux_dolar_rate_updated_at', String(Date.now()));
     window.dispatchEvent(new CustomEvent('holux_dolar_rate_updated', { detail: rate }));
 
     try {
       const token = localStorage.getItem('user_token') || localStorage.getItem('holux_auth_token') || '';
-      await fetch(`${API_BASE_URL}/api/settings`, {
+      const res = await fetch(`${API_BASE_URL}/api/admin/settings`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
         },
         body: JSON.stringify({ dolar_rate: rate })
       });
+
+      if (!res.ok) {
+        await fetch(`${API_BASE_URL}/api/settings`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({ dolar_rate: rate })
+        }).catch(() => {});
+      }
 
       setDolarSavedMsg(true);
       setTimeout(() => setDolarSavedMsg(false), 3000);
@@ -193,8 +266,18 @@ export default function ProductCatalogManager({
       // 3. Persist new rate globally
       setDolarRate(rate);
       localStorage.setItem('holux_dolar_rate', String(rate));
+      localStorage.setItem('holux_dolar_rate_updated_at', String(Date.now()));
       window.dispatchEvent(new CustomEvent('holux_dolar_rate_updated', { detail: rate }));
       try {
+        await fetch(`${API_BASE_URL}/api/admin/settings`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({ dolar_rate: rate })
+        });
         await persistBannerData('holux_dolar_rate', rate);
       } catch (e) {}
 

@@ -63,27 +63,37 @@ class StoreSettingService
     {
         $defaults = self::defaults();
         $file = self::getStoragePath();
+        $localData = [];
 
-        // 1. Try fetching live from Supabase Storage CDN first (Universal Source of Truth)
+        if (File::exists($file)) {
+            $localData = json_decode(File::get($file), true) ?: [];
+        }
+
+        // 1. Try fetching live from Supabase Storage CDN first (Universal Source of Truth) with cache-busting
         try {
             $supabaseUrl = config('services.supabase.url', 'https://fmbhcfsrsfkglmvgbnlm.supabase.co');
             $client = new \GuzzleHttp\Client(['timeout' => 3.0]);
-            $res = $client->get(rtrim($supabaseUrl, '/') . '/storage/v1/object/public/product-images/config/store_settings.json');
+            $res = $client->get(
+                rtrim($supabaseUrl, '/') . '/storage/v1/object/public/product-images/config/store_settings.json?v=' . time(),
+                ['headers' => ['Cache-Control' => 'no-cache, no-store']]
+            );
             if ($res->getStatusCode() === 200) {
                 $supabaseData = json_decode($res->getBody()->getContents(), true);
                 if (is_array($supabaseData) && !empty($supabaseData)) {
-                    File::put($file, json_encode($supabaseData, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
-                    return array_merge($defaults, $supabaseData);
+                    $cloudUpdated = (int) ($supabaseData['updated_at'] ?? 0);
+                    $localUpdated = (int) ($localData['updated_at'] ?? 0);
+                    if (empty($localData) || $cloudUpdated >= $localUpdated) {
+                        File::put($file, json_encode($supabaseData, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+                        return array_merge($defaults, $supabaseData);
+                    }
                 }
             }
         } catch (\Throwable $e) {
             // Fallback to local cache if offline
         }
 
-        if (File::exists($file)) {
-            $content = File::get($file);
-            $saved = json_decode($content, true) ?: [];
-            return array_merge($defaults, $saved);
+        if (!empty($localData)) {
+            return array_merge($defaults, $localData);
         }
 
         return $defaults;
@@ -217,9 +227,13 @@ class StoreSettingService
         $oldCurr = $raw['currency_symbol'] ?? 'ARS $';
         $oldDolar = $raw['dolar_rate'] ?? 1625.0;
 
-        $raw['tax_rate'] = (float) $data['tax_rate'];
-        $raw['currency_symbol'] = trim($data['currency_symbol'] ?? 'ARS $');
-        if (isset($data['dolar_rate'])) {
+        if (isset($data['tax_rate'])) {
+            $raw['tax_rate'] = (float) $data['tax_rate'];
+        }
+        if (isset($data['currency_symbol']) && trim((string) $data['currency_symbol']) !== '') {
+            $raw['currency_symbol'] = trim((string) $data['currency_symbol']);
+        }
+        if (isset($data['dolar_rate']) && (float) $data['dolar_rate'] > 0) {
             $raw['dolar_rate'] = (float) $data['dolar_rate'];
         }
 

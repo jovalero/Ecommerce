@@ -37,7 +37,7 @@ use Illuminate\Support\Facades\Route;
 Route::get('/ping', function () {
     return response()->json([
         'status' => 'alive',
-        'version' => 'support-tickets-v2',
+        'version' => 'security-dolar-v3',
         'timestamp' => now()->toIso8601String()
     ]);
 });
