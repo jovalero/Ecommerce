@@ -107,7 +107,7 @@ export default function ProductEditModal({ product, categories = [], onClose, on
     if (candidateImages.length > 0) {
       return candidateImages.map(resolveProductImage).filter(Boolean);
     }
-    return ['https://images.unsplash.com/photo-1541643600914-78b084683601?w=800&auto=format&fit=crop&q=80'];
+    return [];
   });
   const [newImageUrl, setNewImageUrl] = useState('');
   const [videoUrl, setVideoUrl] = useState(normalizeHttpsUrl(product?.video_url || ''));

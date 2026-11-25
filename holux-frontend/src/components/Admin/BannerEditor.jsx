@@ -5,10 +5,10 @@ import { persistBannerData, persistAllStoreSettings, uploadOrCompressBanner, res
 import { productsMetadata } from '../../config/productsMetadata';
 
 const getProdThumb = (prod) => {
-  if (!prod) return 'https://images.unsplash.com/photo-1541643600914-78b084683601?w=80';
+  if (!prod) return '/holuxlogo.png';
   const meta = (prod.id && productsMetadata[prod.id]) ? productsMetadata[prod.id] : {};
   const raw = prod.image_url || (Array.isArray(prod.images) && prod.images[0]) || meta.image_url || (Array.isArray(meta.images) && meta.images[0]);
-  return resolveProductImage(raw) || 'https://images.unsplash.com/photo-1541643600914-78b084683601?w=80';
+  return resolveProductImage(raw) || '/holuxlogo.png';
 };
 
 export default function BannerEditor({
@@ -126,19 +126,19 @@ export default function BannerEditor({
         {
           title: "FRAGANCIAS HOMBRE",
           span: "ELEGANCIA Y CARÁCTER",
-          image: "https://images.unsplash.com/photo-1551632811-561732d1e306?w=800&auto=format&fit=crop&q=80",
+          image: "/banners/626f05d5-d503-48d9-aa07-daa0f2901b90.jpg",
           link: "#/catalogo?categoria=perfumes-hombre"
         },
         {
           title: "FRAGANCIAS MUJER",
           span: "SOFISTICACIÓN Y FRESCURA",
-          image: "https://images.unsplash.com/photo-1501555088652-021faa106b9b?w=800&auto=format&fit=crop&q=80",
+          image: "/banners/5a3091ff-8cf1-4622-96a2-ddc75f228075.jpg",
           link: "#/catalogo?categoria=perfumes-mujer"
         },
         {
           title: "EXCLUSIVIDAD Y TENDENCIA",
           span: "JOYAS DE LA PERFUMERÍA ORIENTAL",
-          image: "https://images.unsplash.com/photo-1520639888713-7851133b1ed0?w=800&auto=format&fit=crop&q=80",
+          image: "/banners/89ada2e8-6101-48ce-9853-73762e7bddc0.jpg",
           link: "#/catalogo"
         }
       ];
@@ -147,19 +147,19 @@ export default function BannerEditor({
         {
           title: "FRAGANCIAS HOMBRE",
           span: "ELEGANCIA Y CARÁCTER",
-          image: "https://images.unsplash.com/photo-1551632811-561732d1e306?w=800&auto=format&fit=crop&q=80",
+          image: "/banners/626f05d5-d503-48d9-aa07-daa0f2901b90.jpg",
           link: "#/catalogo?categoria=perfumes-hombre"
         },
         {
           title: "FRAGANCIAS MUJER",
           span: "SOFISTICACIÓN Y FRESCURA",
-          image: "https://images.unsplash.com/photo-1501555088652-021faa106b9b?w=800&auto=format&fit=crop&q=80",
+          image: "/banners/5a3091ff-8cf1-4622-96a2-ddc75f228075.jpg",
           link: "#/catalogo?categoria=perfumes-mujer"
         },
         {
           title: "EXCLUSIVIDAD Y TENDENCIA",
           span: "JOYAS DE LA PERFUMERÍA ORIENTAL",
-          image: "https://images.unsplash.com/photo-1520639888713-7851133b1ed0?w=800&auto=format&fit=crop&q=80",
+          image: "/banners/89ada2e8-6101-48ce-9853-73762e7bddc0.jpg",
           link: "#/catalogo"
         }
       ];

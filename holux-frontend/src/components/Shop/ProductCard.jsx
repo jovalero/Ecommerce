@@ -1,7 +1,35 @@
-import React, { memo } from 'react';
+import React, { memo, useState, useEffect, useRef } from 'react';
 import { Heart, Star, Zap } from 'lucide-react';
 import { productsMetadata } from '../../config/productsMetadata';
 import { resolveProductImage } from '../../utils/bannerStorage';
+
+export const ProductCardSkeleton = memo(function ProductCardSkeleton() {
+  return (
+    <div className="bg-white border border-gray-200/90 rounded-xl sm:rounded-2xl overflow-hidden flex flex-col justify-between h-full text-left">
+      <div className="relative bg-[#F6F4EF] aspect-[4/5] w-full overflow-hidden border-b border-gray-100 flex flex-col items-center justify-center gap-2.5 p-6">
+        <img
+          src="/holuxlogo.png"
+          alt="HOLUX"
+          className="w-16 sm:w-20 h-auto object-contain opacity-30 animate-pulse select-none pointer-events-none"
+        />
+        <span className="text-[9px] font-display font-bold tracking-[0.25em] text-gray-400 uppercase animate-pulse select-none">
+          HOLUX
+        </span>
+      </div>
+      <div className="p-2.5 sm:p-4 md:p-5 flex-grow flex flex-col justify-between space-y-3">
+        <div className="space-y-2 animate-pulse">
+          <div className="h-2.5 w-24 bg-gray-200 rounded-full" />
+          <div className="h-4 w-4/5 bg-gray-200 rounded-md" />
+          <div className="h-3 w-3/5 bg-gray-100 rounded-md hidden sm:block" />
+        </div>
+        <div className="pt-2 border-t border-gray-100 space-y-2 animate-pulse">
+          <div className="h-5 w-28 bg-gray-200 rounded-md" />
+          <div className="h-3 w-20 bg-gray-100 rounded-full" />
+        </div>
+      </div>
+    </div>
+  );
+});
 
 export const ProductCard = memo(function ProductCard({
   product,
@@ -32,35 +60,31 @@ export const ProductCard = memo(function ProductCard({
     discount = Math.round(((originalPrice - price) / originalPrice) * 100);
   }
 
-  const getProductImageFallback = (name = '') => {
-    const cleanName = String(name).toLowerCase();
-    if (cleanName.includes('dior') || cleanName.includes('sauvage') || cleanName.includes('fahrenheit')) {
-      return 'https://images.unsplash.com/photo-1592945403244-b3fbafd7f539?w=600&auto=format&fit=crop&q=80';
-    }
-    if (cleanName.includes('chanel') || cleanName.includes('bleu') || cleanName.includes('coco')) {
-      return 'https://images.unsplash.com/photo-1523293182086-7651a899d37f?w=600&auto=format&fit=crop&q=80';
-    }
-    if (cleanName.includes('baccarat') || cleanName.includes('rouge') || cleanName.includes('kurkdjian') || cleanName.includes('xerjoff')) {
-      return 'https://images.unsplash.com/photo-1588405748880-12d1d2a59f75?w=600&auto=format&fit=crop&q=80';
-    }
-    if (cleanName.includes('lattafa') || cleanName.includes('alhambra') || cleanName.includes('afnan') || cleanName.includes('wataniah') || cleanName.includes('asad')) {
-      return 'https://images.unsplash.com/photo-1594035910387-fea47794261f?w=600&auto=format&fit=crop&q=80';
-    }
-    if (cleanName.includes('mujer') || cleanName.includes('chloe') || cleanName.includes('marina') || cleanName.includes('bourbon') || cleanName.includes('jadore')) {
-      return 'https://images.unsplash.com/photo-1547887537-6158d64c35b3?w=600&auto=format&fit=crop&q=80';
-    }
-    return 'https://images.unsplash.com/photo-1541643600914-78b084683601?w=600&auto=format&fit=crop&q=80';
-  };
-
   const resolveImg = resolveProductImage;
 
   const meta = productsMetadata[product.id] || {};
-  const imageUrl = resolveImg(product.image_url)
+  const rawImageUrl = resolveImg(product.image_url)
     || (Array.isArray(product.images) && resolveImg(product.images[0]))
     || resolveImg(meta.image_url)
     || (Array.isArray(meta.images) && resolveImg(meta.images[0]))
-    || product.image
-    || getProductImageFallback(product.name);
+    || resolveImg(product.image)
+    || '';
+
+  const isValidRealImage = Boolean(rawImageUrl && rawImageUrl !== '/holuxlogo.png');
+  const [imgLoaded, setImgLoaded] = useState(false);
+  const [imgError, setImgError] = useState(false);
+  const imgRef = useRef(null);
+
+  useEffect(() => {
+    setImgError(false);
+    if (imgRef.current && imgRef.current.complete && imgRef.current.naturalWidth > 0) {
+      setImgLoaded(true);
+    } else {
+      setImgLoaded(false);
+    }
+  }, [rawImageUrl]);
+
+  const showLogoPlaceholder = !isValidRealImage || imgError;
 
   const netPrice = Math.round(effectivePrice * 0.79);
   const stock = Number(product.stock) || 0;
@@ -113,16 +137,40 @@ export const ProductCard = memo(function ProductCard({
           />
         </button>
 
-        {/* Product Image */}
-        <img
-          src={imageUrl}
-          alt={product.name}
-          onError={(e) => {
-            e.target.onerror = null;
-            e.target.src = getProductImageFallback(product.name);
-          }}
-          className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-all duration-500"
-        />
+        {/* Branded HOLUX Logo Placeholder while image loads or if image is missing/failed */}
+        {(showLogoPlaceholder || !imgLoaded) && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#F6F4EF] p-6 select-none pointer-events-none">
+            <img
+              src="/holuxlogo.png"
+              alt="HOLUX"
+              className={`w-16 sm:w-20 h-auto object-contain transition-opacity ${
+                showLogoPlaceholder ? 'opacity-35' : 'opacity-30 animate-pulse'
+              }`}
+            />
+            <span className="mt-2 text-[9px] font-display font-bold tracking-[0.25em] text-gray-400 uppercase">
+              HOLUX
+            </span>
+          </div>
+        )}
+
+        {/* Real Product Image with smooth fade-in once loaded */}
+        {!showLogoPlaceholder && (
+          <img
+            ref={imgRef}
+            src={rawImageUrl}
+            alt={product.name}
+            loading="lazy"
+            decoding="async"
+            onLoad={() => setImgLoaded(true)}
+            onError={() => {
+              setImgError(true);
+              setImgLoaded(true);
+            }}
+            className={`absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-all duration-500 ${
+              imgLoaded ? 'opacity-100' : 'opacity-0'
+            }`}
+          />
+        )}
 
         {/* Badge de Reseñas */}
         <div className="absolute bottom-2 right-2 sm:bottom-3 sm:right-3 bg-white/95 backdrop-blur-xs border border-gray-200/90 shadow-2xs px-1.5 sm:px-2 py-0.5 rounded-full flex items-center gap-1 text-[8px] sm:text-[10px] text-gray-700 font-sans font-bold select-none">

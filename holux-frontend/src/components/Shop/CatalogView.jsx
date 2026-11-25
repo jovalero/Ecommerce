@@ -12,7 +12,7 @@ import {
   LayoutGrid,
   Grid2X2
 } from 'lucide-react';
-import ProductCard from './ProductCard';
+import ProductCard, { ProductCardSkeleton } from './ProductCard';
 import { productsMetadata } from '../../config/productsMetadata';
 import { resolveProductImage } from '../../utils/bannerStorage';
 
@@ -1035,11 +1035,18 @@ export default function CatalogView({
             
             {/* Grid Container */}
             {loading ? (
-              <div className="py-24 text-center bg-white border border-gray-200/90 rounded-2xl shadow-xs animate-pulse space-y-3">
-                <div className="w-8 h-8 rounded-full border-2 border-[#3C6E71] border-t-transparent animate-spin mx-auto"></div>
-                <p className="font-display text-xs font-bold uppercase tracking-widest text-gray-500">
-                  Cargando productos de la colección...
-                </p>
+              <div className="space-y-4">
+                <div className="flex items-center justify-center gap-2.5 py-2 text-gray-500">
+                  <div className="w-4 h-4 rounded-full border-2 border-[#3C6E71] border-t-transparent animate-spin" />
+                  <p className="font-display text-xs font-bold uppercase tracking-widest">
+                    Cargando productos de la colección...
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-5">
+                  {Array.from({ length: 8 }).map((_, idx) => (
+                    <ProductCardSkeleton key={idx} />
+                  ))}
+                </div>
               </div>
             ) : products.length === 0 ? (
               <div className="py-20 text-center bg-white border border-gray-200/90 rounded-2xl shadow-xs p-8 space-y-3">

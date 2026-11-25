@@ -18,50 +18,7 @@ import { API_BASE_URL } from '../../config/api';
 import { resolveProductImage } from '../../utils/bannerStorage';
 import { initialStoreData } from '../../config/initialStoreData';
 
-const getProductImage = (name) => {
-  if (!name) return 'https://images.unsplash.com/photo-1541643600914-78b084683601?w=600&auto=format&fit=crop&q=80';
-  const cleanName = String(name).toLowerCase();
-  if (cleanName.includes('perfume') || cleanName.includes('fragancia') || cleanName.includes('edp') || cleanName.includes('edt') || cleanName.includes('moschino') || cleanName.includes('dior') || cleanName.includes('versace') || cleanName.includes('herrera') || cleanName.includes('rabanne') || cleanName.includes('parfum') || cleanName.includes('colonia')) {
-    return 'https://images.unsplash.com/photo-1541643600914-78b084683601?w=600&auto=format&fit=crop&q=80';
-  }
-  if (cleanName.includes('campera') || cleanName.includes('cortavientos')) {
-    return 'https://images.unsplash.com/photo-1551028719-00167b16eac5?w=600&auto=format&fit=crop&q=80';
-  }
-  if (cleanName.includes('pantalón') || cleanName.includes('pantalon') || cleanName.includes('calza')) {
-    return 'https://images.unsplash.com/photo-1608256246200-53e635b5b65f?w=600&auto=format&fit=crop&q=80';
-  }
-  if (cleanName.includes('carpa') || cleanName.includes('domo')) {
-    return 'https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?w=600&auto=format&fit=crop&q=80';
-  }
-  if (cleanName.includes('bolsa de dormir') || cleanName.includes('sleeping') || cleanName.includes('alpamayo')) {
-    return 'https://images.unsplash.com/photo-1628155930542-3c7a64e2c833?w=600&auto=format&fit=crop&q=80';
-  }
-  if (cleanName.includes('bota') || cleanName.includes('tronador') || cleanName.includes('calzado') || cleanName.includes('zapatilla') || cleanName.includes('sandalia')) {
-    return 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=600&auto=format&fit=crop&q=80';
-  }
-  if (cleanName.includes('mochila') || cleanName.includes('cordillera')) {
-    return 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=600&auto=format&fit=crop&q=80';
-  }
-  if (cleanName.includes('bastón') || cleanName.includes('baston') || cleanName.includes('trail')) {
-    return 'https://images.unsplash.com/photo-1501555088652-021faa106b9b?w=600&auto=format&fit=crop&q=80';
-  }
-  if (cleanName.includes('termo') || cleanName.includes('botella') || cleanName.includes('inox') || cleanName.includes('anafe')) {
-    return 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=600&auto=format&fit=crop&q=80';
-  }
-  if (cleanName.includes('linterna') || cleanName.includes('frontal')) {
-    return 'https://images.unsplash.com/photo-1554189097-ffe88e99897e?w=600&auto=format&fit=crop&q=80';
-  }
-  if (cleanName.includes('brújula') || cleanName.includes('brujula')) {
-    return 'https://images.unsplash.com/photo-1532601224476-15c79f2f7a51?w=600&auto=format&fit=crop&q=80';
-  }
-  if (cleanName.includes('guantes')) {
-    return 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=600&auto=format&fit=crop&q=80';
-  }
-  if (cleanName.includes('gorro')) {
-    return 'https://images.unsplash.com/photo-1576871337632-b9aef4c17ab9?w=600&auto=format&fit=crop&q=80';
-  }
-  return 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80';
-};
+const getProductImage = () => '/holuxlogo.png';
 
 // Memoized Contact Inputs
 const ContactInputs = memo(({ checkoutName, setCheckoutName, checkoutEmail, setCheckoutEmail, checkoutDni, setCheckoutDni }) => (

@@ -67,7 +67,7 @@ import Breadcrumbs from './components/Admin/Breadcrumbs';
 import HeaderSearchInput from './components/Shop/HeaderSearchInput';
 import VipSettingsManager from './components/Admin/VipSettingsManager';
 import CatalogView from './components/Shop/CatalogView';
-import ProductCard from './components/Shop/ProductCard';
+import ProductCard, { ProductCardSkeleton } from './components/Shop/ProductCard';
 import { SmoothInput, SmoothTextarea } from './components/Common/SmoothInput';
 import InteractiveTicker from './components/Common/InteractiveTicker';
 import HeroSlider from './components/Shop/HeroSlider';
@@ -233,19 +233,19 @@ const PROMO_BANNERS = initialStoreData?.grid_cards || [
   {
     title: "FRAGANCIAS HOMBRE",
     span: "ELEGANCIA Y CARÁCTER",
-    image: "https://images.unsplash.com/photo-1594035910387-fea47794261f?w=800&auto=format&fit=crop&q=80",
+    image: "/banners/626f05d5-d503-48d9-aa07-daa0f2901b90.jpg",
     link: "#/catalogo?categoria=perfumes-hombre"
   },
   {
     title: "FRAGANCIAS MUJER",
     span: "SOFISTICACIÓN Y FRESCURA",
-    image: "https://images.unsplash.com/photo-1547887537-6158d64c35b3?w=800&auto=format&fit=crop&q=80",
+    image: "/banners/5a3091ff-8cf1-4622-96a2-ddc75f228075.jpg",
     link: "#/catalogo?categoria=perfumes-mujer"
   },
   {
     title: "EXCLUSIVIDAD Y TENDENCIA",
     span: "JOYAS DE LA PERFUMERÍA",
-    image: "https://images.unsplash.com/photo-1588405748880-12d1d2a59f75?w=800&auto=format&fit=crop&q=80",
+    image: "/banners/89ada2e8-6101-48ce-9853-73762e7bddc0.jpg",
     link: "#/catalogo"
   }
 ];
@@ -369,52 +369,7 @@ const MobilePromoCarousel = React.memo(function MobilePromoCarousel({ banners = 
   );
 });
 
-const getProductImage = (name = '') => {
-  const cleanName = String(name).toLowerCase();
-  if (cleanName.includes('perfume') || cleanName.includes('fragancia') || cleanName.includes('edp') || cleanName.includes('edt') || cleanName.includes('moschino') || cleanName.includes('dior') || cleanName.includes('versace') || cleanName.includes('herrera') || cleanName.includes('rabanne') || cleanName.includes('parfum') || cleanName.includes('colonia')) {
-    return 'https://images.unsplash.com/photo-1541643600914-78b084683601?w=600&auto=format&fit=crop&q=80';
-  }
-  if (cleanName.includes('campera') || cleanName.includes('cortavientos')) {
-    return 'https://images.unsplash.com/photo-1551028719-00167b16eac5?w=600&auto=format&fit=crop&q=80';
-  }
-  if (cleanName.includes('pantalón') || cleanName.includes('pantalon') || cleanName.includes('calza')) {
-    return 'https://images.unsplash.com/photo-1608256246200-53e635b5b65f?w=600&auto=format&fit=crop&q=80';
-  }
-  if (cleanName.includes('carpa') || cleanName.includes('domo')) {
-    return 'https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?w=600&auto=format&fit=crop&q=80';
-  }
-  if (cleanName.includes('bolsa de dormir') || cleanName.includes('sleeping') || cleanName.includes('alpamayo')) {
-    return 'https://images.unsplash.com/photo-1628155930542-3c7a64e2c833?w=600&auto=format&fit=crop&q=80';
-  }
-  if (cleanName.includes('bota') || cleanName.includes('tronador') || cleanName.includes('calzado') || cleanName.includes('zapatilla') || cleanName.includes('sandalia')) {
-    return 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=600&auto=format&fit=crop&q=80';
-  }
-  if (cleanName.includes('mochila') || cleanName.includes('cordillera')) {
-    return 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=600&auto=format&fit=crop&q=80';
-  }
-  if (cleanName.includes('bastón') || cleanName.includes('baston') || cleanName.includes('trail')) {
-    return 'https://images.unsplash.com/photo-1501555088652-021faa106b9b?w=600&auto=format&fit=crop&q=80';
-  }
-  if (cleanName.includes('termo') || cleanName.includes('botella') || cleanName.includes('inox') || cleanName.includes('anafe')) {
-    return 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=600&auto=format&fit=crop&q=80';
-  }
-  if (cleanName.includes('linterna') || cleanName.includes('frontal')) {
-    return 'https://images.unsplash.com/photo-1510511459019-5dda7724fd87?w=800&auto=format&fit=crop&q=80';
-  }
-  if (cleanName.includes('brújula') || cleanName.includes('brujula')) {
-    return 'https://images.unsplash.com/photo-1532601224476-15c79f2f7a51?w=600&auto=format&fit=crop&q=80';
-  }
-  if (cleanName.includes('guantes')) {
-    return 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=600&auto=format&fit=crop&q=80';
-  }
-  if (cleanName.includes('gorro')) {
-    return 'https://images.unsplash.com/photo-1576871337632-b9aef4c17ab9?w=600&auto=format&fit=crop&q=80';
-  }
-  if (cleanName.includes('chaleco')) {
-    return 'https://images.unsplash.com/photo-1620799140408-edc6dcb6d633?w=600&auto=format&fit=crop&q=80';
-  }
-  return 'https://images.unsplash.com/photo-1541643600914-78b084683601?w=600&auto=format&fit=crop&q=80';
-};
+const getProductImage = () => '/holuxlogo.png';
 
 export const enrichProductItem = (p) => {
   if (!p || typeof p !== 'object') return p;
@@ -471,7 +426,7 @@ export default function App() {
       highlight: "100% ORIGINALES",
       desc: "Descubrí nuestra exclusiva selección de perfumería internacional importada de primeras marcas para hombre y mujer.",
       cta: "VER PERFUMERÍA",
-      image: "https://images.unsplash.com/photo-1541643600914-78b084683601?auto=format&fit=crop&w=1600&q=80"
+      image: "/banners/hero_slide_1.png"
     },
     {
       span: "COLECCIÓN HOMBRE & MUJER",
@@ -479,15 +434,7 @@ export default function App() {
       highlight: "DISTINCIÓN",
       desc: "Las mejores marcas del mundo: Xerjoff, Dior, Jean Paul Gaultier, Maison Alhambra, Baccarat Rouge y más.",
       cta: "EXPLORAR CATÁLOGO",
-      image: "https://images.unsplash.com/photo-1592945403244-b3fbafd7f539?auto=format&fit=crop&w=1600&q=80"
-    },
-    {
-      span: "OFERTAS Y BENEFICIOS",
-      title: "HASTA 6 CUOTAS",
-      highlight: "SIN INTERÉS",
-      desc: "Aboná con tarjetas de crédito, débito o transferencia bancaria con descuentos exclusivos y envíos a todo el país.",
-      cta: "COMPRAR AHORA",
-      image: "https://images.unsplash.com/photo-1523293182086-7651a899d37f?auto=format&fit=crop&w=1600&q=80"
+      image: "/banners/hero_slide_2.jpg"
     }
   ];
 
@@ -7643,21 +7590,32 @@ export default function App() {
                   onMouseMove={handleNovedadesMouseMove}
                   className="flex gap-3 sm:gap-5 overflow-x-auto scroll-smooth snap-x snap-mandatory scrollbar-hide py-4 select-none cursor-default"
                 >
-                  {displayedNovedades.map(product => (
-                    <div
-                      key={product.id}
-                      className="snap-start shrink-0 w-[165px] sm:w-[220px] md:w-[280px]"
-                    >
-                      <ProductCard
-                        product={product}
-                        isFavorite={favorites.some(id => String(id) === String(product.id))}
-                        onToggleFavorite={handleToggleFavorite}
-                        onProductClick={handleProductClick}
-                        onAddToCart={addToCart}
-                        onBuyNow={handleProductClick}
-                      />
-                    </div>
-                  ))}
+                  {loadingProducts && displayedNovedades.length === 0 ? (
+                    Array.from({ length: 5 }).map((_, idx) => (
+                      <div
+                        key={`nov-skel-${idx}`}
+                        className="snap-start shrink-0 w-[165px] sm:w-[220px] md:w-[280px]"
+                      >
+                        <ProductCardSkeleton />
+                      </div>
+                    ))
+                  ) : (
+                    displayedNovedades.map(product => (
+                      <div
+                        key={product.id}
+                        className="snap-start shrink-0 w-[165px] sm:w-[220px] md:w-[280px]"
+                      >
+                        <ProductCard
+                          product={product}
+                          isFavorite={favorites.some(id => String(id) === String(product.id))}
+                          onToggleFavorite={handleToggleFavorite}
+                          onProductClick={handleProductClick}
+                          onAddToCart={addToCart}
+                          onBuyNow={handleProductClick}
+                        />
+                      </div>
+                    ))
+                  )}
                 </div>
 
                 {/* Right Arrow */}
@@ -7747,21 +7705,32 @@ export default function App() {
                     onMouseMove={handleDestacadosMouseMove}
                     className="flex gap-3 sm:gap-5 overflow-x-auto scroll-smooth snap-x snap-mandatory scrollbar-hide py-4 select-none cursor-default"
                   >
-                    {displayedDestacados.map(product => (
-                      <div
-                        key={product.id}
-                        className="snap-start shrink-0 w-[165px] sm:w-[220px] md:w-[280px]"
-                      >
-                        <ProductCard
-                          product={product}
-                          isFavorite={favorites.some(id => String(id) === String(product.id))}
-                          onToggleFavorite={handleToggleFavorite}
-                          onProductClick={handleProductClick}
-                          onAddToCart={addToCart}
-                          onBuyNow={handleProductClick}
-                        />
-                      </div>
-                    ))}
+                    {loadingProducts && displayedDestacados.length === 0 ? (
+                      Array.from({ length: 5 }).map((_, idx) => (
+                        <div
+                          key={`dest-skel-${idx}`}
+                          className="snap-start shrink-0 w-[165px] sm:w-[220px] md:w-[280px]"
+                        >
+                          <ProductCardSkeleton />
+                        </div>
+                      ))
+                    ) : (
+                      displayedDestacados.map(product => (
+                        <div
+                          key={product.id}
+                          className="snap-start shrink-0 w-[165px] sm:w-[220px] md:w-[280px]"
+                        >
+                          <ProductCard
+                            product={product}
+                            isFavorite={favorites.some(id => String(id) === String(product.id))}
+                            onToggleFavorite={handleToggleFavorite}
+                            onProductClick={handleProductClick}
+                            onAddToCart={addToCart}
+                            onBuyNow={handleProductClick}
+                          />
+                        </div>
+                      ))
+                    )}
                   </div>
 
                   {/* Right Arrow */}
@@ -7940,17 +7909,24 @@ export default function App() {
                           </>
                         )}
 
-                        {/* Image */}
-                        <div className="w-full h-full flex items-center justify-center bg-white p-2">
+                        {/* Image with branded HOLUX watermark fallback */}
+                        <div className="relative w-full h-full flex items-center justify-center bg-[#F6F4EF] p-2">
+                          <img
+                            src="/holuxlogo.png"
+                            alt=""
+                            className="absolute w-24 h-auto object-contain opacity-20 pointer-events-none select-none"
+                          />
                           <img 
                             src={activeImgUrl} 
                             alt={selectedDetailProduct.name} 
                             onError={(e) => {
                               e.target.onerror = null;
-                              const fallback = (meta.image_url && resolveImg(meta.image_url)) || getProductImage(selectedDetailProduct.name);
+                              const fallback = (meta.image_url && resolveImg(meta.image_url)) || '/holuxlogo.png';
                               e.target.src = fallback;
                             }}
-                            className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
+                            className={`relative z-10 w-full h-full object-contain group-hover:scale-105 transition-transform duration-300 ${
+                              activeImgUrl === '/holuxlogo.png' ? 'p-16 opacity-35' : 'bg-white'
+                            }`}
                           />
                         </div>
                       </div>

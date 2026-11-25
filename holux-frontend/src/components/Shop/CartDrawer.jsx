@@ -72,13 +72,13 @@ export default function CartDrawer({
                   className="flex gap-4 p-3 bg-gray-50/70 border border-gray-100 rounded-lg hover:border-gray-200 transition-colors"
                 >
                   <img
-                    src={resolveProductImage(item.image_url) || (Array.isArray(item.images) && resolveProductImage(item.images[0])) || resolveProductImage(item.image) || getProductImage?.(item.name)}
+                    src={resolveProductImage(item.image_url) || (Array.isArray(item.images) && resolveProductImage(item.images[0])) || resolveProductImage(item.image) || '/holuxlogo.png'}
                     alt={item.name}
                     onError={(e) => {
                       e.target.onerror = null;
-                      if (getProductImage) e.target.src = getProductImage(item.name);
+                      e.target.src = '/holuxlogo.png';
                     }}
-                    className="w-16 h-16 object-cover rounded-md bg-white border border-gray-150 shrink-0"
+                    className="w-16 h-16 object-contain p-1 rounded-md bg-white border border-gray-150 shrink-0"
                   />
                   <div className="flex-1 flex flex-col justify-between min-w-0">
                     <div className="flex items-start justify-between gap-2">

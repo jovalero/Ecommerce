@@ -329,7 +329,7 @@ export default function ProductCatalogManager({
         id: p.id,
         name: p.name,
         brand: p.brand || 'HOLUX',
-        image_url: p.image_url || (p.images && p.images[0]) || 'https://images.unsplash.com/photo-1551028719-00167b16eac5?w=200',
+        image_url: p.image_url || (p.images && p.images[0]) || '/holuxlogo.png',
         currentPrice: Number(p.price || 0),
         newPrice: Number(p.price || 0),
         offerPrice: Number(p.offer_price || 0),

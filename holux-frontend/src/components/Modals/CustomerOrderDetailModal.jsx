@@ -84,9 +84,13 @@ export default function CustomerOrderDetailModal({
               <div key={idx} className="py-2.5 flex items-center justify-between gap-3 text-xs">
                 <div className="flex items-center gap-3">
                   <img
-                    src={resolveProductImage(item.image_url) || (item.images && resolveProductImage(item.images[0])) || resolveProductImage(item.image) || getProductImage?.(item.name) || "https://images.unsplash.com/photo-1551632811-561732d1e306?w=100"}
+                    src={resolveProductImage(item.image_url) || (item.images && resolveProductImage(item.images[0])) || resolveProductImage(item.image) || getProductImage?.(item.name) || '/holuxlogo.png'}
                     alt={item.name}
-                    className="w-12 h-12 rounded object-cover border border-gray-200 bg-gray-50 shrink-0"
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.src = '/holuxlogo.png';
+                    }}
+                    className="w-12 h-12 rounded object-contain p-1 border border-gray-200 bg-gray-50 shrink-0"
                   />
                   <div>
                     <h5 className="font-bold text-gray-900">{item.name || `Producto #${item.product_id}`}</h5>

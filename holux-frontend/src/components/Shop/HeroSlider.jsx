@@ -9,7 +9,7 @@ const DEFAULT_SLIDES = initialStoreData?.hero_slides || [
     highlight: "100% ORIGINALES",
     desc: "Descubrí nuestra exclusiva selección de perfumería internacional importada de primeras marcas para hombre y mujer.",
     cta: "VER PERFUMERÍA",
-    image: "https://images.unsplash.com/photo-1541643600914-78b084683601?auto=format&fit=crop&w=1600&q=80"
+    image: "/banners/hero_slide_1.png"
   }
 ];
 
